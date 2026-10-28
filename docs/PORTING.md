@@ -275,3 +275,13 @@ Pomiar, misja 5 (62×62, Harkonnen, `misja5`), przewijanie przy krawędzi + ruch
   DRAWSPRITE_FLAG_BLUR – i animacja budynków, które chodzą też w pauzie). Bez płynnego ruchu
   16 pikseli w 6 cyklach.
 - Koszt: misja 5, przewijanie + ruch: rysowanie mapy 18,3% (1,5 ms), wolne 62%.
+
+### Instalacja na Amidze 1 (A1200 + Warp 1260, 28.10.2026)
+- `WorkSD:Games/OpenDUNEWarp`: OpenDUNE, ikona `OpenDUNE.info` (`tools/make_icon.py` z portu Vastar,
+  kadr ornitoptera nad piaskiem), `opendune.ini` (`tools/opendune-amiga1.ini`: dane z
+  `WorkSD:Games/OpenDUNE/data` – instalacja NovaCodera użytkownika, tylko odczyt – show_fps,
+  debug_commands), własne `saves`. Ikona na pulpicie: `tools/amiga/leaveout.rexx` (ARexx
+  Workbencha, ICONS.LEAVEOUT). Start sprawdzony (intro).
+- `WorkSD:Games/OpenDUNE` na obu Amigach to instalacja użytkownika (NovaCoder) – nie zmieniać.
+  Przy pierwszej instalacji nadpisano tam przez pomyłkę `opendune.ini`; przywrócone domyślnym
+  z paczki NovaCodera (własne ustawienia użytkownika utracone).
