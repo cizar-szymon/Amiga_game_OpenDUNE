@@ -210,3 +210,13 @@ zmienia się tylko, gdy gra coś zmieni), loop = przejścia pętli gry (maks. 12
 - Pomiar (misja 1, grupa w ruchu): fps 20–24 → **57–58**; rysowanie mapy 5% → 14,5%
   (1,2 ms/wywołanie), wysyłanie 3% → 4,5–5% (0,7–0,8 ms/klatkę), wolne 87% → 75%.
   Na serii zrzutów w ruchu brak smug.
+
+### Co się odświeża na postoju (28.10, `debug_stats`: klatki ze zmianami w częściach ekranu)
+| Postój, misja 1 | fps | górny pasek / 5 s | mapa / 5 s | radar | panel |
+|---|---|---|---|---|---|
+| `smooth_units=1` | 4–6 | 11 | 11–23 | 0 | 0 |
+| `smooth_units=0` | 1–3 | 0–11 | 9 | 0 | 0 |
+
+Pasek: gra co kilka sekund przepisuje status wybranej jednostki. Mapa: pojedyncze jednostki, które
+się poruszają (porównanie zrzutów); z płynnym ruchem każdy ich krok to ok. 3 klatki zamiast 1.
+Licznik FPS przeniesiony do lewego dolnego rogu (prośba użytkownika).

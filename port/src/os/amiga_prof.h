@@ -22,6 +22,9 @@ extern uint32 g_profTicks[PROF_COUNT];
 extern uint32 g_profCalls[PROF_COUNT];
 extern uint32 g_profFrames;	/* frames sent to the card */
 extern uint32 g_profLoops;	/* passes of the game loop */
+/* frames sent with changes in: the top bar, the viewport, the radar, the panel */
+enum { PROF_AREA_TOP, PROF_AREA_VIEW, PROF_AREA_RADAR, PROF_AREA_PANEL, PROF_AREA_COUNT };
+extern uint32 g_profAreas[PROF_AREA_COUNT];
 extern uint32 AmigaTimer_EClock(void);
 extern void AmigaProf_Tick(void);
 

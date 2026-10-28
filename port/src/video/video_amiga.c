@@ -84,7 +84,7 @@ static int s_mouseMinX = 0, s_mouseMaxX = 319;
 static int s_mouseMinY = 0, s_mouseMaxY = 199;
 static bool s_mouseLeft, s_mouseRight;
 
-/* FPS counter (F8 or show_fps=1): frames sent per second, bottom right corner */
+/* FPS counter (F8 or show_fps=1): frames sent per second, bottom left corner */
 static bool s_showFPS;
 static uint32 s_fpsTime, s_fpsFrames, s_fpsShown;
 
@@ -378,6 +378,20 @@ static void Video_HandleEvents(void)
 	if (s_commands) AmigaCmd_Tick();
 }
 
+/* Any dirty 16-pixel block in the rectangle (for the stats). */
+static bool Video_AreaDirty(int x0, int y0, int x1, int y1)
+{
+	int y, b;
+	if (x1 >= SCREEN_WIDTH) x1 = SCREEN_WIDTH - 1;
+	if (y1 >= SCREEN_HEIGHT) y1 = SCREEN_HEIGHT - 1;
+	for (y = y0; y <= y1; y++) {
+		for (b = x0 >> 4; b <= (x1 >> 4); b++) {
+			if (g_dirty_blocks[y][b >> 5] & (1UL << (b & 31))) return true;
+		}
+	}
+	return false;
+}
+
 /* Long copy of n bytes (multiple of 4) to VRAM. */
 static void Video_CopyLongs(uint32 *dst, const uint32 *src, int n)
 {
@@ -432,7 +446,7 @@ static void Video_DrawFPS(uint8 *base, int bpr)
 	int x0, y0;
 
 	len = sprintf(text, "%lu", (unsigned long)s_fpsShown);
-	x0 = s_width - (len * 4 + 1) * cell;
+	x0 = 0;
 	y0 = s_height - 7 * cell;
 	for (r = 0; r < 7 * cell; r++) memset(base + (y0 + r) * bpr + x0, 0, (len * 4 + 1) * cell);
 	for (i = 0; i < len; i++) {
@@ -510,6 +524,12 @@ static void Video_Tick_(void)
 		int top = 0, bottom = SCREEN_HEIGHT;
 
 		if (!s_needRepaint && area != NULL) {
+			/* which parts of the screen changed (debug_stats) */
+			int sx = SCREEN_WIDTH - 80;
+			if (Video_AreaDirty(0, 0, SCREEN_WIDTH - 1, 39)) g_profAreas[PROF_AREA_TOP]++;
+			if (Video_AreaDirty(0, 40, sx - 1, SCREEN_HEIGHT - 1)) g_profAreas[PROF_AREA_VIEW]++;
+			if (Video_AreaDirty(sx + 16, 40, SCREEN_WIDTH - 1, 105)) g_profAreas[PROF_AREA_RADAR]++;
+			if (Video_AreaDirty(sx, 106, SCREEN_WIDTH - 1, SCREEN_HEIGHT - 1)) g_profAreas[PROF_AREA_PANEL]++;
 			top = area->top;
 			bottom = area->bottom > SCREEN_HEIGHT ? SCREEN_HEIGHT : area->bottom;
 		}

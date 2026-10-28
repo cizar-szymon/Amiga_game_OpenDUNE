@@ -120,6 +120,7 @@ uint32 g_profTicks[PROF_COUNT];
 uint32 g_profCalls[PROF_COUNT];
 uint32 g_profFrames;
 uint32 g_profLoops;
+uint32 g_profAreas[PROF_AREA_COUNT];
 
 /** Low 32 bits of the E-clock (differences of up to ~70 minutes). */
 uint32 AmigaTimer_EClock(void)
@@ -178,12 +179,16 @@ void AmigaProf_Tick(void)
 		}
 		{
 			uint32 pm = (wall > sum) ? (wall - sum) / (wall / 1000 + 1) : 0;
-			fprintf(f, " other %lu.%lu%%\n", (unsigned long)(pm / 10), (unsigned long)(pm % 10));
+			fprintf(f, " other %lu.%lu%% | frames with changes: top %lu view %lu radar %lu panel %lu\n",
+			        (unsigned long)(pm / 10), (unsigned long)(pm % 10),
+			        (unsigned long)g_profAreas[PROF_AREA_TOP], (unsigned long)g_profAreas[PROF_AREA_VIEW],
+			        (unsigned long)g_profAreas[PROF_AREA_RADAR], (unsigned long)g_profAreas[PROF_AREA_PANEL]);
 		}
 		fclose(f);
 	}
 	for (i = 0; i < PROF_COUNT; i++) g_profTicks[i] = g_profCalls[i] = 0;
 	g_profFrames = g_profLoops = 0;
+	for (i = 0; i < PROF_AREA_COUNT; i++) g_profAreas[i] = 0;
 	s_last = now;
 	s_lastMs = AmigaTimer_GetMs();
 }
