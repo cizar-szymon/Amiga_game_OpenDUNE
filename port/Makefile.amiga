@@ -1,0 +1,48 @@
+# OpenDUNE for AmigaOS 3 / 68060 + Picasso96 (bebbo gcc 6.5, libnix).
+# -O1: bebbo gcc 6.5 -O2 miscompiles loops like "while (isspace(*p)) p++"
+# (pointer one too far after the loop; Ini_GetString, 28.10.2026).
+# Run in Docker through tools/build.sh -> build/amiga/OpenDUNE
+CC      = m68k-amigaos-gcc
+STRIP   = m68k-amigaos-strip
+OBJDIR  = /build/obj
+OUT     = /build/OpenDUNE
+CFLAGS  = -noixemul -mcpu=68020 -mtune=68060 -msoft-float -O1 -fomit-frame-pointer \
+          -std=gnu89 -Wall -Wno-pointer-sign -Wno-unused-function \
+          -Iinclude -I$(OBJDIR) -DNDEBUG
+LDFLAGS = -noixemul -mcpu=68020 -msoft-float
+
+SRCS = animation.c audio/driver.c audio/dsp_amiga.c audio/midi_none.c audio/mt32mpu.c audio/sound.c \
+  codec/format40.c codec/format80.c config.c crashlog/crashlog.c crashlog/crashlog_none.c \
+  cutscene.c explosion.c file.c gfx.c gui/editbox.c gui/font.c gui/gui.c gui/layout_amiga.c gui/rts_amiga.c gui/mentat.c \
+  gui/security.c gui/viewport.c gui/widget.c gui/widget_click.c gui/widget_draw.c house.c \
+  ini.c inifile.c input/input.c input/mouse.c load.c map.c object.c opendune.c \
+  os/endian.c os/error.c os/readdir_amiga.c os/amiga.c \
+  pool/house.c pool/structure.c pool/team.c pool/unit.c save.c \
+  saveload/house.c saveload/info.c saveload/map.c saveload/object.c saveload/saveload.c \
+  saveload/scenario.c saveload/scriptengine.c saveload/structure.c saveload/team.c saveload/unit.c \
+  scenario.c script/general.c script/script.c script/structure.c script/team.c script/unit.c \
+  sprites.c string.c structure.c \
+  table/actioninfo.c table/animation.c table/explosion.c table/houseanimation.c table/houseinfo.c \
+  table/landscapeinfo.c table/movementtype.c table/selectiontype.c table/sound.c \
+  table/structureinfo.c table/teamaction.c table/tilediff.c table/unitinfo.c table/widget.c \
+  table/widgetinfo.c table/windowdesc.c team.c tile.c timer.c tools.c unit.c \
+  video/video_amiga.c video/amiga_cmd.c wsa.c
+
+OBJS = $(SRCS:%.c=$(OBJDIR)/%.o) $(OBJDIR)/rev.o
+
+$(OUT): $(OBJS)
+	$(CC) $(LDFLAGS) -o $@ $(OBJS) -lm
+	$(STRIP) -o $@.s $@
+
+$(OBJDIR)/rev.c: src/rev.c.in
+	@mkdir -p $(dir $@)
+	sed -e 's/!!VERSION!!/0.01-amiga/' -e 's/!!MODIFIED!!/2/' $< > $@
+
+$(OBJDIR)/rev.o: $(OBJDIR)/rev.c
+	$(CC) $(CFLAGS) -iquote src -c -o $@ $<
+
+$(OBJDIR)/%.o: src/%.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -MMD -c -o $@ $<
+
+-include $(OBJS:.o=.d)

@@ -1,0 +1,10 @@
+# Game data (Dune II PAK files) never in the repository
+*.PAK
+*.pak
+data/
+# build output
+build/
+# reference copies, not ours: upstream clone (version in docs/PORTING.md), NovaCoder's Aminet package
+upstream/
+novacoder/
+*.cfg
