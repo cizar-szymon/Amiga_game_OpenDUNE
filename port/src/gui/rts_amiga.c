@@ -8,6 +8,9 @@
  *  - the pointer at an edge of the whole screen (also over the top bar and
  *    the sidebar) scrolls the map by itself, in a corner diagonally, with an
  *    arrow pointer (RTS_EdgeScroll(), 10 tiles a second).
+ *  - P pauses the game (the game timer stops; scrolling, selecting and
+ *    orders still work, the orders are carried out after the pause), P again
+ *    goes on (RTS_PauseRequest() from the video driver's key handling).
  *  - right button on the viewport with own units selected: they move there,
  *    a group keeping its shape (at most 3 tiles from the point); on an enemy
  *    unit or structure, the units that can attack attack it.
@@ -435,10 +438,48 @@ static void RTS_EdgeScroll(void)
 	}
 }
 
+static volatile bool s_pauseRequest;
+static bool s_paused;
+
+/** P was pressed (video driver's tick). */
+void RTS_PauseRequest(void)
+{
+	s_pauseRequest = true;
+}
+
+/* The pause: toggled by P on the map screen; while it lasts the game timer
+ * is kept off (a window that turns it back on does not end it). */
+static void RTS_Pause(void)
+{
+	bool onMap = g_gameMode == GM_NORMAL && g_selectionType != SELECTIONTYPE_MENTAT;
+
+	if (s_pauseRequest) {
+		s_pauseRequest = false;
+		if (onMap || s_paused) {
+			s_paused = !s_paused;
+			Timer_SetTimer(TIMER_GAME, !s_paused);
+			if (s_paused) {
+				GUI_DisplayText("Game paused - press P to continue.", 3);
+			} else {
+				GUI_DisplayText("Game continues.", 3);
+			}
+		}
+	}
+	if (s_paused) {
+		if (!onMap) {
+			/* the mission ended or the game was left: no pause any more */
+			s_paused = false;
+			return;
+		}
+		Timer_SetTimer(TIMER_GAME, false);
+	}
+}
+
 void RTS_Tick(void)
 {
 	if (s_enabled < 0) s_enabled = IniFile_GetInteger("rts_controls", 1) != 0 ? 1 : 0;
 	s_lastMain = Timer_GetTime();
+	RTS_Pause();		/* also with rts_controls=0 */
 	if (s_enabled == 0) return;
 
 	if (g_gameMode != GM_NORMAL) {
@@ -625,4 +666,25 @@ void RTS_PlaceSquadButtons(int16 y)
 		if (w == NULL) continue;
 		w->offsetY = (y < 0) ? info->offsetY + PANEL_DY : y + (info->index - 8) * 11;
 	}
+}
+
+/**
+ * Test command "spawn" (amiga_cmd.c): a unit of the type for the house at the
+ * viewport point x, y (game pixels), sent to dx, dy - e.g. an ornithopter
+ * across the screen for the leftover check (tools/ghost_check.py).
+ */
+bool RTS_TestSpawn(uint8 type, uint8 house, int16 x, int16 y, int16 dx, int16 dy)
+{
+	uint16 from, to;
+	Unit *u;
+
+	from = Tile_PackXY(x / 16 + Tile_GetPackedX(g_minimapPosition), (y - 40) / 16 + Tile_GetPackedY(g_minimapPosition));
+	to = Tile_PackXY(dx / 16 + Tile_GetPackedX(g_minimapPosition), (dy - 40) / 16 + Tile_GetPackedY(g_minimapPosition));
+	g_validateStrictIfZero++;
+	u = Unit_Create(UNIT_INDEX_INVALID, type, house, Tile_UnpackTile(from), 0);
+	g_validateStrictIfZero--;
+	if (u == NULL) return false;
+	Unit_SetAction(u, ACTION_MOVE);
+	Unit_SetDestination(u, Tools_Index_Encode(to, IT_TILE));
+	return true;
 }

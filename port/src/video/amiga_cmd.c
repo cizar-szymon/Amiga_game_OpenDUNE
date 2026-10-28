@@ -13,7 +13,11 @@
  *   shot                                RAM:od-shot.ppm, the game's buffer
  *                                       (320x200, on the map 640x480) and
  *                                       palette (no VRAM read)
- *   state                               RAM:od-state.txt (mode, mission, mouse)
+ *   state                               RAM:od-state.txt (mode, mission, mouse,
+ *                                       game timer)
+ *   spawn TYPE HOUSE X Y DX DY          a unit at X,Y sent to DX,DY (tests)
+ *   redraw                              the whole map drawn again: a shot
+ *                                       before and after shows leftovers
  * When a file is finished, RAM:od-done holds the number of its lines run. */
 
 #include <stdio.h>
@@ -33,6 +37,8 @@
 
 
 #include "../input/mouse.h"
+#include "../timer.h"
+extern bool g_viewport_forceRedraw;
 #include "../os/error.h"
 #undef Screen
 
@@ -40,6 +46,7 @@ extern void Video_Amiga_Mouse(int x, int y, bool left, bool right);
 extern void Video_Amiga_Key(uint16 code);
 extern const uint8 *Video_Amiga_Palette(void);
 extern int RTS_GroupCount(void);
+extern bool RTS_TestSpawn(uint8 type, uint8 house, int16 x, int16 y, int16 dx, int16 dy);
 extern int RTS_SelectedUnit(void);
 extern int RTS_SelectionType(void);
 
@@ -126,10 +133,10 @@ static void Cmd_State(void)
 	BPTR f = Open((CONST_STRPTR)"RAM:od-state.txt", MODE_NEWFILE);
 	int n;
 	if (f == 0) return;
-	n = sprintf(buf, "gamemode %d\nhouse %d\ncampaign %u\nscenario %u\nmouse %u %u\nselectiontype %d\nunit %d\ngroup %d\n",
+	n = sprintf(buf, "gamemode %d\nhouse %d\ncampaign %u\nscenario %u\nmouse %u %u\nselectiontype %d\nunit %d\ngroup %d\ntimergame %lu\n",
 	            (int)g_gameMode, (int)g_playerHouseID, (unsigned)g_campaignID, (unsigned)g_scenarioID,
 	            (unsigned)g_mouseX, (unsigned)g_mouseY, RTS_SelectionType(),
-	            RTS_SelectedUnit(), RTS_GroupCount());
+	            RTS_SelectedUnit(), RTS_GroupCount(), (unsigned long)g_timerGame);
 	Write(f, buf, n);
 	Close(f);
 }
@@ -216,6 +223,21 @@ static int Cmd_Run(char *line)
 		return 0;
 	}
 	if (strcmp(line, "wait") == 0) return atoi(arg);
+	if (strcmp(line, "spawn") == 0) {
+		/* spawn TYPE HOUSE X Y DX DY: a unit sent across the viewport */
+		int v[6], k;
+		for (k = 0; k < 6; k++) {
+			v[k] = atoi(arg);
+			while (*arg != '\0' && *arg != ' ') arg++;
+			while (*arg == ' ') arg++;
+		}
+		RTS_TestSpawn((uint8)v[0], (uint8)v[1], v[2], v[3], v[4], v[5]);
+		return 2;
+	}
+	if (strcmp(line, "redraw") == 0) {
+		g_viewport_forceRedraw = true;	/* the whole map drawn again (ghost check) */
+		return 0;
+	}
 	if (strcmp(line, "shot") == 0) Cmd_Shot();
 	if (strcmp(line, "state") == 0) Cmd_State();
 	return 0;

@@ -127,6 +127,7 @@ static const uint8 s_rawToAT[0x68] = {
 
 #define RAW_F8 0x57
 #define RAW_F10 0x59
+#define RAW_P   0x19
 
 extern void AmigaBug_Request(void);
 extern void AmigaBug_Printf(const char *format, ...);
@@ -334,6 +335,11 @@ void Video_Amiga_Key(uint16 code)
 
 	code &= ~IECODE_UP_PREFIX;
 	if (code >= sizeof(s_rawToAT)) return;
+	if (code == RAW_P && s_lw > 320) {
+		/* the map screen: pause (standard keys of the ports: P) */
+		if (!up) RTS_PauseRequest();
+		return;
+	}
 	if (code == RAW_F10) {
 		if (!up) AmigaBug_Request();	/* bug report, written by the game loop */
 		return;

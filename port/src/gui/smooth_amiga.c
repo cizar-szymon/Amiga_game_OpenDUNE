@@ -12,6 +12,7 @@
 #include <string.h>
 
 #include "types.h"
+#include "../os/math.h"
 #include "../gfx.h"
 #include "../house.h"
 #include "../inifile.h"
@@ -25,6 +26,7 @@
 
 #define STEP_MS   50		/* 3 ticks of the 60 Hz game timer */
 #define MAX_JUMP  512		/* 2 tiles in tile32 units */
+#define MARGIN    24		/* pixels around a moving unit that its drawing can touch */
 
 static int s_enabled = -1;
 static tile32 s_prev[UNIT_INDEX_MAX];	/* positions before the last movement step */
@@ -113,13 +115,32 @@ void Smooth_MarkMoving(void)
 		prev = s_prev[u->o.index];
 		if (prev.x == u->o.position.x && prev.y == u->o.position.y) continue;
 
-		Map_Update(Tile_PackTile(prev), 0, false);
-		Map_Update(Tile_PackTile(u->o.position), 0, false);
-		u->o.flags.s.isDirty = true;
-		if (g_table_unitInfo[u->o.type].movementType == MOVEMENT_WINGER) {
-			g_dirtyAirUnitCount++;
-		} else {
-			g_dirtyUnitCount++;
+		{
+			/* every tile the sprite can touch anywhere on its way from prev to
+			 * the current position: the box around both, 24 pixels more (half
+			 * a sprite, the shadow at +1,+3, the blur), each redrawn with
+			 * Map_Update(tile, 0) as a move does. Only the tiles around the
+			 * ends left pieces of a carryall and dots of an ornithopter's
+			 * shadow behind (bug report 1, 28.10). */
+			const UnitInfo *ui = &g_table_unitInfo[u->o.type];
+			bool winger = ui->movementType == MOVEMENT_WINGER;
+			int16 x0 = min(prev.x, u->o.position.x) >> 4, x1 = max(prev.x, u->o.position.x) >> 4;
+			int16 y0 = min(prev.y, u->o.position.y) >> 4, y1 = max(prev.y, u->o.position.y) >> 4;
+			int16 tx, ty;
+
+			x0 = max(0, (x0 - MARGIN) >> 4);
+			y0 = max(0, (y0 - MARGIN) >> 4);
+			x1 = min(63, (x1 + MARGIN) >> 4);
+			y1 = min(63, (y1 + MARGIN) >> 4);
+			for (ty = y0; ty <= y1; ty++) {
+				for (tx = x0; tx <= x1; tx++) Map_Update(Tile_PackXY(tx, ty), 0, false);
+			}
+			u->o.flags.s.isDirty = true;
+			if (winger) {
+				g_dirtyAirUnitCount++;
+			} else {
+				g_dirtyUnitCount++;
+			}
 		}
 	}
 }

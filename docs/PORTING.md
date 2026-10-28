@@ -257,3 +257,21 @@ Pomiar, misja 5 (62×62, Harkonnen, `misja5`), przewijanie przy krawędzi + ruch
   Ta sama scena: rysowanie mapy 26,6% → 23,8% (2,2 → 1,9 ms), wysyłanie 2,6 → 2,1 ms/klatkę,
   wolne 47% → **53%**. F10 w trakcie i po przewijaniu w różnych kierunkach: obraz z karty = obraz
   gry = kopia.
+
+### Pauza, ślady płynnego ruchu (28.10.2026)
+- P na ekranie mapy: pauza (zegar gry stoi, przewijanie/zaznaczanie/rozkazy działają, rozkazy po
+  wznowieniu), drugie P – dalej; pauza trzyma się po oknach, które włączają zegar; komunikat w pasku.
+  Sprawdzone: zegar gry stoi przez 300 taktów pauzy (382 → 382), po P rusza (691).
+- Zgłoszenie użytkownika (F10, BUG001): pionowe kawałki przelatującej jednostki na mapie; obraz
+  z karty = obraz gry, więc błąd w rysowaniu, nie w wysyłaniu. Przyczyna: płynny ruch oznaczał do
+  przerysowania tylko kafle wokół końców drogi, a jednostka rysowana w pozycjach pośrednich (z
+  cieniem +1,+3 i rozmyciem) zostawiała kawałki na kaflach tylko kopiowanych. Teraz przerysowywane
+  są wszystkie kafle prostokąta obejmującego drogę od poprzedniej do bieżącej pozycji + 24 piksele
+  (`Map_Update(.., 0)` dla każdego).
+- Test śladów `tools/ghost_check.py`: gra, pauza, zrzut, `redraw` (pełne przerysowanie), zrzut,
+  różnice w widoku; `--spawn` tworzy latającą jednostkę (polecenie testowe `spawn`), `--ignore`
+  pomija animowany budynek. Stara wersja: okruchy wokół ornitoptera i na jego trasie; nowa: brak
+  śladów (zostają tylko różnice przy wiszących w powietrzu ornitopterach – losowy szum ich cienia,
+  DRAWSPRITE_FLAG_BLUR – i animacja budynków, które chodzą też w pauzie). Bez płynnego ruchu
+  16 pikseli w 6 cyklach.
+- Koszt: misja 5, przewijanie + ruch: rysowanie mapy 18,3% (1,5 ms), wolne 62%.
