@@ -491,13 +491,16 @@ static void Video_DrawFPS(uint8 *base, int bpr)
 /**
  * The game moved the picture of the viewport (x, y, w, h) by dx, dy pixels
  * (GUI_DrawScreen scrolling): the next tick moves it in VRAM with the blitter.
+ * Returns true when the card follows (the moved part need not be sent; when
+ * it then cannot, the whole screen is sent), false when the caller must mark
+ * the viewport changed.
  */
-void Video_ScrollView(int16 dx, int16 dy, int16 x, int16 y, int16 w, int16 h)
+bool Video_ScrollView(int16 dx, int16 dy, int16 x, int16 y, int16 w, int16 h)
 {
-	if (!s_vramScroll) return;
+	if (!s_vramScroll || s_shadow == NULL || !s_shadowValid || s_sx2 != 2 || s_sy != 1 || s_screenOffset != 0) return false;
 	if (s_scrollPending && (x != s_scrollRect[0] || y != s_scrollRect[1] || w != s_scrollRect[2] || h != s_scrollRect[3])) {
 		s_shadowValid = false;	/* two different areas: send everything */
-		return;
+		return true;
 	}
 	s_scrollRect[0] = x;
 	s_scrollRect[1] = y;
@@ -506,6 +509,7 @@ void Video_ScrollView(int16 dx, int16 dy, int16 x, int16 y, int16 w, int16 h)
 	s_scrollDX += dx;
 	s_scrollDY += dy;
 	s_scrollPending = true;
+	return true;
 }
 
 /* The pending scroll in VRAM (blitter) and in the copy; false if not possible. */

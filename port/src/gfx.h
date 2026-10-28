@@ -20,6 +20,7 @@ extern uint16 g_screenHeight;
 #define SCREEN_WIDTH  g_screenWidth
 #define SCREEN_HEIGHT g_screenHeight
 extern void GFX_SetScreenSize(uint16 width, uint16 height);
+extern void GFX_ShiftViewport(int16 dx, int16 dy, int16 x, int16 y, int16 w, int16 h);
 /* the map screen's layout (gui/layout_amiga.c) */
 extern uint16 g_viewportTilesW;
 extern uint16 g_viewportTilesH;

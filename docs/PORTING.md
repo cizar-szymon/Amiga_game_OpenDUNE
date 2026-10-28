@@ -249,5 +249,11 @@ Pomiar, misja 5 (62×62, Harkonnen, `misja5`), przewijanie przy krawędzi + ruch
   kopia = karta.
 - Statystyki dostały części `video`: `v.events`, `v.areas` (tylko przy `debug_stats=1`),
   `v.send`, `v.lock`, oraz `blits` i `KB/frame`.
-- Dalej: największy koszt to `draw` (przewinięcie kopiuje cały widok 560×432 SCREEN_0→SCREEN_1→
-  SCREEN_0 w Fast RAM) – przesuwać widok w buforze gry raz, nie dwa razy.
+- Przewinięcie jednym przejściem (`GFX_ShiftViewport`): widok przesuwany w SCREEN_0 w miejscu,
+  każdy przesunięty wiersz od razu (z pamięci podręcznej) do SCREEN_1; znika wymuszona pełna kopia
+  SCREEN_1→SCREEN_0 po przewinięciu (`viewport.c`, `hasScrolled`) – kopiowane tylko zmienione
+  zakresy. Gdy karta przesuwa blitterem (`Video_ScrollView` zwraca true), przesuniętej części nie
+  trzeba ani porównywać, ani wysyłać; inaczej widok oznaczany jako zmieniony.
+  Ta sama scena: rysowanie mapy 26,6% → 23,8% (2,2 → 1,9 ms), wysyłanie 2,6 → 2,1 ms/klatkę,
+  wolne 47% → **53%**. F10 w trakcie i po przewijaniu w różnych kierunkach: obraz z karty = obraz
+  gry = kopia.

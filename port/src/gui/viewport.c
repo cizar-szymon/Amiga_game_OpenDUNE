@@ -860,10 +860,14 @@ void GUI_Widget_Viewport_Draw(bool forceRedraw, bool hasScrolled, bool drawToMai
 				uint16 width;
 				uint16 height;
 
+#if !defined(__amigaos__)
+				/* (on the Amiga the moved picture is already in SCREEN_0:
+				 * GFX_ShiftViewport) */
 				if (hasScrolled) {
 					minX[i] = 0;
 					maxX[i] = VIEWPORT_TILES_W - 1;
 				}
+#endif
 
 				if (maxX[i] < minX[i]) continue;
 

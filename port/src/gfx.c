@@ -190,6 +190,30 @@ struct dirty_area * GFX_Screen_GetDirtyArea(Screen screenID)
 #endif /* GFX_STORE_DIRTY_AREA */
 
 #if defined(__amigaos__)
+/**
+ * A map scroll in one pass: the viewport's picture (x, y, w, h) moved by
+ * dx, dy pixels in place in SCREEN_0, each moved row copied into SCREEN_1
+ * at once (still in the cache). Replaces the copy SCREEN_0 -> SCREEN_1 and
+ * the full copy SCREEN_1 -> SCREEN_0 after the redraw (GUI_DrawScreen).
+ */
+void GFX_ShiftViewport(int16 dx, int16 dy, int16 x, int16 y, int16 w, int16 h)
+{
+	uint8 *s0 = s_screenBuffer[SCREEN_0];
+	uint8 *s1 = s_screenBuffer[SCREEN_1];
+	int16 cw = w - (dx < 0 ? -dx : dx), ch = h - (dy < 0 ? -dy : dy);
+	int16 sx = dx < 0 ? x - dx : x, tx = dx < 0 ? x : x + dx;
+	int16 sy = dy < 0 ? y - dy : y, ty = dy < 0 ? y : y + dy;
+	int16 r;
+
+	if (cw <= 0 || ch <= 0) return;
+	for (r = 0; r < ch; r++) {
+		int16 row = (dy > 0) ? ch - 1 - r : r;	/* moving down: from the bottom */
+		uint8 *d = s0 + (ty + row) * SCREEN_WIDTH + tx;
+		memmove(d, s0 + (sy + row) * SCREEN_WIDTH + sx, cw);
+		memcpy(s1 + (ty + row) * SCREEN_WIDTH + tx, d, cw);
+	}
+}
+
 /** Changes the size of the screen the game draws; SCREEN_0 is cleared. */
 void GFX_SetScreenSize(uint16 width, uint16 height)
 {

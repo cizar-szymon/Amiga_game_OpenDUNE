@@ -4626,10 +4626,16 @@ void GUI_DrawScreen(Screen screenID)
 
 			GUI_Mouse_Hide_InWidget(2);
 
-			GUI_Screen_Copy(max(-xOffset << 1, 0), 40 + max(-yOffset << 4, 0), max(0, xOffset << 1), 40 + max(0, yOffset << 4), xOverlap << 1, yOverlap << 4, SCREEN_0, SCREEN_1);
 #if defined(__amigaos__)
-			/* the same move of the picture on the card, by its blitter */
-			Video_ScrollView(xOffset << 4, yOffset << 4, 0, 40, VIEWPORT_TILES_W * 16, VIEWPORT_TILES_H * 16);
+			/* the picture moved once, in SCREEN_0 and into SCREEN_1 together
+			 * (GUI_Widget_Viewport_Draw then copies only what changed); on the
+			 * card the blitter moves it, else the viewport is sent again */
+			GFX_ShiftViewport(xOffset << 4, yOffset << 4, 0, 40, VIEWPORT_TILES_W * 16, VIEWPORT_TILES_H * 16);
+			if (!Video_ScrollView(xOffset << 4, yOffset << 4, 0, 40, VIEWPORT_TILES_W * 16, VIEWPORT_TILES_H * 16)) {
+				GFX_Screen_SetDirty(SCREEN_0, 0, 40, VIEWPORT_TILES_W * 16, 40 + VIEWPORT_TILES_H * 16);
+			}
+#else
+			GUI_Screen_Copy(max(-xOffset << 1, 0), 40 + max(-yOffset << 4, 0), max(0, xOffset << 1), 40 + max(0, yOffset << 4), xOverlap << 1, yOverlap << 4, SCREEN_0, SCREEN_1);
 #endif
 		} else {
 			g_viewport_forceRedraw = true;
