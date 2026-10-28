@@ -179,3 +179,6 @@ Instalacja testowa: `WorkSD:Games/OpenDUNEWarp` (ini `tools/opendune-warp.ini`, 
 - Zmiana (prośba 28.10): jedna ikona na typ jednostki z liczbą sztuk (biała z czarnym cieniem)
   i linią średniego zdrowia typu; pasek uszkodzeń grupy na całą szerokość panelu pod ikonami
   (`g_progressbarX/W`), bez napisu DMG.
+- Poprawka (zgłoszenie 28.10): zwykły klik na mapie kończy grupę – zostaje zaznaczone tylko to,
+  co kliknięto (także jednostka z grupy, również prowadząca), panel wraca do jednej jednostki.
+  Wcześniej klik na członka grupy zostawiał grupę i rozkazy szły dalej do wszystkich.

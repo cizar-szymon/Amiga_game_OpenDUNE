@@ -61,6 +61,7 @@ static volatile bool s_leftDown, s_rightDown;
 static volatile bool s_tracking, s_dragging, s_rightSwallow;
 static volatile int16 s_dx0, s_dy0, s_dx1, s_dy1;
 static volatile bool s_selectPending, s_orderPending;
+static volatile bool s_plainClick;	/* a click on the viewport: the group ends */
 static volatile int16 s_sx0, s_sy0, s_sx1, s_sy1;	/* the rectangle to select */
 static volatile int16 s_ox, s_oy;				/* the order point */
 
@@ -109,6 +110,7 @@ uint8 RTS_FilterButtons(uint16 x, uint16 y, uint8 buttons, bool *clickFirst)
 			s_selectPending = true;
 		} else if (s_tracking) {
 			*clickFirst = true;
+			s_plainClick = true;
 		}
 		s_tracking = false;
 		s_dragging = false;
@@ -386,16 +388,25 @@ void RTS_Tick(void)
 		return;
 	}
 
-	/* a plain click changed the selection: a unit outside the group becomes
-	 * the group, none clears it */
+	/* a plain click on the viewport ends a group: from now on only what was
+	 * clicked is selected (the click itself is handled by the game later, the
+	 * selection below follows it) */
+	if (s_plainClick) {
+		bool wasGroup = s_groupCount > 1;
+		s_plainClick = false;
+		RTS_ClearGroup();
+		s_lastSelected = NULL;
+		if (wasGroup && g_unitSelected != NULL) GUI_Widget_ActionPanel_Draw(true);	/* no SQUAD any more */
+	}
+
+	/* the selection changed: the selected unit is the group, none clears it
+	 * (a group from a rectangle changes it itself) */
 	if (g_unitSelected != s_lastSelected) {
 		s_lastSelected = g_unitSelected;
-		if (g_unitSelected == NULL || !RTS_InGroupAny(g_unitSelected)) {
-			RTS_ClearGroup();
-			if (g_unitSelected != NULL && Unit_GetHouseID(g_unitSelected) == g_playerHouseID) {
-				s_group[0] = g_unitSelected->o.index;
-				s_groupCount = 1;
-			}
+		RTS_ClearGroup();
+		if (g_unitSelected != NULL && Unit_GetHouseID(g_unitSelected) == g_playerHouseID) {
+			s_group[0] = g_unitSelected->o.index;
+			s_groupCount = 1;
 		}
 	}
 
