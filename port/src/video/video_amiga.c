@@ -77,6 +77,7 @@ static bool s_needRepaint = true;
 
 /* geometry: source x -> screen x0 + (x * s_sx2) / 2, source y -> y0 + y * s_sy */
 static int s_width, s_height;		/* screen */
+static int s_reqW, s_reqH;		/* the chosen resolution (the map screen's size) */
 static int s_lw, s_lh;			/* the game's size the geometry was made for */
 static int s_sx2, s_sy;			/* horizontal scale in halves, vertical scale */
 static int s_x0, s_y0;			/* offset of the picture (x0 multiple of 4) */
@@ -203,6 +204,12 @@ static bool Video_OpenScreen(int w, int h)
 		Error("No 8-bit RTG screen mode of %dx%d or larger\n", w, h);
 		return false;
 	}
+	/* no mode of exactly w x h: the screen as large as the mode, the
+	 * picture centred in it (a smaller screen sat in its top left corner) */
+	s_reqW = w;
+	s_reqH = h;
+	w = mw;
+	h = mh;
 	s_screen = p96OpenScreenTags(P96SA_DisplayID, id,
 	                             P96SA_Width, w,
 	                             P96SA_Height, h,
@@ -271,8 +278,8 @@ static void Video_CloseScreen(void)
 /** The screen's size (the size of the large map screen, gui/layout_amiga.c). */
 void Video_Amiga_ScreenSize(int *w, int *h)
 {
-	*w = s_width;
-	*h = s_height;
+	*w = s_reqW;
+	*h = s_reqH;
 }
 
 /**
@@ -281,11 +288,11 @@ void Video_Amiga_ScreenSize(int *w, int *h)
  */
 bool Video_Amiga_SetScreen(int w, int h)
 {
-	int ow = s_width, oh = s_height;
+	int ow = s_reqW, oh = s_reqH;
 	static ULONG table[1 + 256 * 3 + 1];
 	int i;
 
-	if (w == s_width && h == s_height && s_screen != NULL) return true;
+	if (w == s_reqW && h == s_reqH && s_screen != NULL) return true;
 	Video_CloseScreen();
 	if (!Video_OpenScreen(w, h)) {
 		if (!Video_OpenScreen(ow, oh)) return false;
@@ -298,7 +305,7 @@ bool Video_Amiga_SetScreen(int w, int h)
 	}
 	table[1 + 256 * 3] = 0;
 	LoadRGB32(&s_screen->ViewPort, table);
-	return s_width == w && s_height == h;
+	return s_reqW == w && s_reqH == h;
 }
 
 /* A resolution from the ini (screenmode=WxH) or the one chosen in Options,
@@ -549,8 +556,9 @@ static void Video_DrawFPS(uint8 *base, int bpr)
 	int x0, y0;
 
 	len = sprintf(text, "%lu", (unsigned long)s_fpsShown);
-	x0 = 0;
-	y0 = s_height - 7 * cell;
+	/* the bottom left corner of the picture (the screen can be larger) */
+	x0 = s_x0;
+	y0 = s_y0 + s_lh * s_sy - 7 * cell;
 	for (r = 0; r < 7 * cell; r++) memset(base + (y0 + r) * bpr + x0, 0, (len * 4 + 1) * cell);
 	for (i = 0; i < len; i++) {
 		uint8 seg = fontdigits[text[i] - '0'];

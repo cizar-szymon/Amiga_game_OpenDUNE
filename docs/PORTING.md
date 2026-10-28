@@ -303,3 +303,17 @@ Pomiar, misja 5 (62×62, Harkonnen, `misja5`), przewijanie przy krawędzi + ruch
   przywraca. `skip_intro=1`: bez intro przy starcie (testy).
 - `tools/amiga_free.sh`: przerywa, gdy OpenDUNE działa (kanał `RAM:od-cmd` trafia do każdej kopii
   z `debug_commands=1` – 28.10 polecenia testowe trafiły do gry użytkownika).
+
+### Poprawki LOAD/SAVE, Options, 960×540 (29.10.2026, Amiga 1)
+- Options bez „Load a game” / „Save this game” (robią to przyciski LOAD i SAVE): 6 pozycji
+  (Game controls, Resolution, Restart, Pick another house, Quit, Continue), tablica
+  `s_optionsMap` na numery oryginału; okno 10 ma 117 wierszy, okno Resolution na czas pokazania 151.
+- Przyciski: zawsze duże napisy; gdy nie mieszczą się na miejscach oryginału (400×300),
+  MENTAT i OPTIONS przesuwają się w lewo i bliżej siebie (`s_barLayouts`: MENTAT 2, OPTIONS 83,
+  LOAD 164, odstęp 3, margines 5 lub 4). Dopiero gdy i to nie wystarcza – małe LOAD i SAVE
+  czcionką 8 px (kolor napisu OPTIONS, ciemnozłoty cień zamiast czarnej obwódki), a na końcu
+  jeden LOAD/SAVE. Sprawdzone w 400×300: OPTIONS i SAVE klikają się na nowych miejscach.
+- 960×540 i 640×360: Amiga 1 nie ma takich trybów 8-bit (`p96modes`: 320×200 … 800×600, 1024×768,
+  1280×720, 1280×1024, 1360×768). Ekran był 960×540 w lewym górnym rogu trybu 1024×768; teraz
+  ekran ma rozmiar trybu, a obraz jest wyśrodkowany (`s_reqW/H` = rozmiar gry, `s_width/height` =
+  ekran). Licznik FPS w lewym dolnym rogu obrazu, nie ekranu.

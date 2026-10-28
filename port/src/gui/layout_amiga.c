@@ -23,6 +23,7 @@
 #include "../gfx.h"
 #include "../file.h"
 #include "../sprites.h"
+#include "font.h"
 #include "../table/strings.h"
 #include "../map.h"
 #include "../scenario.h"
@@ -106,10 +107,10 @@ static void Layout_Properties(void)
 	int i;
 
 	memcpy(g_widgetProperties, s_props, sizeof(s_props));
-	/* 10: the Options window with Resolution, as 16 but 17 pixels higher */
+	/* 10: the Options window of six entries (Resolution, no Load / Save) */
 	g_widgetProperties[10] = g_widgetProperties[16];
-	g_widgetProperties[10].yBase = 40;
-	g_widgetProperties[10].height = 151;
+	g_widgetProperties[10].yBase = 41;
+	g_widgetProperties[10].height = 117;
 	if (!s_big) return;
 
 	g_widgetProperties[0].width = SCREEN_WIDTH / 8;
@@ -307,11 +308,34 @@ static const TopButton s_buttons[2] = {
 	{ 12, "LOAD", &GUI_Widget_LoadGame_Click },
 	{ 13, "SAVE", &GUI_Widget_SaveGame_Click }
 };
-static bool s_twoButtons = true;	/* else one LOAD/SAVE (no room: 400x300) */
+static bool s_twoButtons = true;	/* else one LOAD/SAVE (no room at all) */
+static int s_buttonStyle = 2;		/* 2 large lettering, 1 small (8 pixel font), 0 one LOAD/SAVE */
 static int16 s_btnX[2] = { BUTTON_X0, BUTTON_X0 + BUTTON_W + BUTTON_GAP };	/* as drawn */
 static int16 s_btnW[2] = { BUTTON_W, BUTTON_W };
 #define BUTTON_MARGIN 7	/* lettering to the button's ends */
 static uint8 s_barSave[16][BUTTON_W];	/* the top bar under the sampled button */
+
+/* Places on the top bar: MENTAT, OPTIONS, LOAD, the gap between LOAD and SAVE,
+ * the lettering's margin. The original's places first; where the large
+ * LOAD / SAVE do not fit there (400x300) MENTAT and OPTIONS move left and
+ * closer together. */
+typedef struct { int16 mentatX, optionsX, loadX, gap, margin; } BarLayout;
+static const BarLayout s_barLayouts[] = {
+	{ 16, 104, BUTTON_X0, BUTTON_GAP, BUTTON_MARGIN },
+	{  2,  83, 164, 3, 5 },
+	{  2,  83, 164, 3, 4 },
+	{  1,  81, 161, 2, 4 }
+};
+static const BarLayout *s_bar = &s_barLayouts[0];
+
+/* MENTAT and OPTIONS where the bar's layout puts them. */
+static void Layout_PlaceBarWidgets(void)
+{
+	Widget *w = GUI_Widget_Get_ByIndex(g_widgetLinkedListHead, 1);
+	if (w != NULL && w->index == 1) w->offsetX = s_bar->mentatX;
+	w = GUI_Widget_Get_ByIndex(g_widgetLinkedListHead, 2);
+	if (w != NULL && w->index == 2) w->offsetX = s_bar->optionsX;
+}
 
 static Widget *Layout_ButtonWidget(uint16 index)
 {
@@ -346,7 +370,10 @@ void Layout_UpdateLoadSaveButton(void)
 	if (g_widgetLinkedListHead == NULL) return;
 	mentat = GUI_Widget_Get_ByIndex(g_widgetLinkedListHead, 1);
 	if (mentat == NULL) return;
-	if (s_big) Layout_MakeButtonWidgets();
+	if (s_big) {
+		Layout_MakeButtonWidgets();
+		Layout_PlaceBarWidgets();
+	}
 	for (i = 0; i < 2; i++) {
 		Widget *w = Layout_ButtonWidget(s_buttons[i].index);
 		if (w == NULL) continue;
@@ -475,10 +502,11 @@ void Layout_DrawLoadSaveButton(Screen screenID)
 {
 	uint16 count[256];
 	uint8 *buf, *scratch;
-	uint8 bg = 0, fg = 0;
+	uint8 bg = 0, fg = 0, shade = 0;
 	int x, y, i, n, room;
 	Screen old;
 
+	s_bar = &s_barLayouts[0];
 	if (!s_big) return;
 	buf = GFX_Screen_Get_ByIndex(screenID);
 	scratch = GFX_Screen_Get_ByIndex(SCREEN_3);	/* credits and intro only */
@@ -499,47 +527,81 @@ void Layout_DrawLoadSaveButton(Screen screenID)
 	for (i = 0; i < 256; i++) if (count[i] > count[bg]) bg = (uint8)i;
 	fg = (bg == 0) ? 1 : 0;
 	for (i = 0; i < 256; i++) if (i != bg && count[i] > count[fg]) fg = (uint8)i;
+	/* the third colour: the lettering's dark gold edge (the small font's shadow) */
+	for (i = 0; i < 256; i++) if (i != bg && i != fg && (shade == bg || shade == fg || count[i] > count[shade])) shade = (uint8)i;
 	s_glyphBg = bg;
 
 	room = 192 + g_sidebarDX - 4;	/* "Credits" */
-	s_twoButtons = BUTTON_X0 + 2 * BUTTON_W + BUTTON_GAP <= room;
-	n = s_twoButtons ? 2 : 1;
-
-	/* the OPTIONS button where they go: its colour back where the first
-	 * button is narrower (the top bar's own pixels are below it) */
-	old = GFX_Screen_SetActive(screenID);
 	{
-		int bx = BUTTON_X0;
-		for (i = 0; i < n; i++) {
-			int c, r, w, tw = 0;
-			if (s_twoButtons) {
-				tw = Layout_MakeWord(scratch, s_buttons[i].word, fg);
-				w = tw + 2 * BUTTON_MARGIN;		/* as narrow as its word */
-			} else {
-				w = BUTTON_W;
+		/* large: the words from MENTAT / OPTIONS, MENTAT and OPTIONS moved
+		 * left if needed (400x300); else the 8 pixel font; one LOAD/SAVE only
+		 * if not even that fits */
+		int tw[2], ws[2];
+		unsigned k;
+		GUI_DrawText_Wrapper(NULL, 0, 0, 0, 0, 0x22);
+		for (i = 0; i < 2; i++) {
+			tw[i] = Layout_MakeWord(scratch, s_buttons[i].word, fg);
+			ws[i] = Font_GetStringWidth(s_buttons[i].word) + 8;
+		}
+		s_buttonStyle = -1;
+		for (k = 0; k < lengthof(s_barLayouts); k++) {
+			const BarLayout *b = &s_barLayouts[k];
+			if (b->loadX + tw[0] + tw[1] + 4 * b->margin + b->gap <= room) {
+				s_bar = b;
+				s_buttonStyle = 2;
+				break;
 			}
-			s_btnX[i] = (int16)bx;
-			s_btnW[i] = (int16)w;
-			/* the button: the OPTIONS picture's left and right ends (scratch,
-			 * y 20), as wide as w; the inside in the background colour */
-			for (r = 0; r < 16; r++) {
-				for (c = 0; c < w; c++) {
-					int sc = (c < w / 2) ? c : BUTTON_W - (w - c);
-					uint8 v = scratch[(20 + r) * SCREEN_WIDTH + sc];
-					if (v != 0) buf[(1 + r) * SCREEN_WIDTH + bx + c] = v;
+		}
+		if (s_buttonStyle == 2) {
+		} else if (BUTTON_X0 + ws[0] + 4 + ws[1] <= room) {
+			s_buttonStyle = 1;
+		} else {
+			s_buttonStyle = 0;
+		}
+		s_twoButtons = s_buttonStyle != 0;
+		n = s_twoButtons ? 2 : 1;
+
+		old = GFX_Screen_SetActive(screenID);
+		{
+			int bx = s_bar->loadX;
+			for (i = 0; i < n; i++) {
+				int c, r, w, lw = 0;
+				if (s_buttonStyle == 2) {
+					lw = Layout_MakeWord(scratch, s_buttons[i].word, fg);
+					w = lw + 2 * s_bar->margin;		/* as narrow as its word */
+				} else if (s_buttonStyle == 1) {
+					w = ws[i];
+				} else {
+					w = BUTTON_W;
 				}
+				s_btnX[i] = (int16)bx;
+				s_btnW[i] = (int16)w;
+				/* the button: the OPTIONS picture's left and right ends (scratch,
+				 * y 20), as wide as w; the inside in the background colour */
+				for (r = 0; r < 16; r++) {
+					for (c = 0; c < w; c++) {
+						int sc = (c < w / 2) ? c : BUTTON_W - (w - c);
+						uint8 v = scratch[(20 + r) * SCREEN_WIDTH + sc];
+						if (v != 0) buf[(1 + r) * SCREEN_WIDTH + bx + c] = v;
+					}
+				}
+				for (y = 3; y < 15; y++) memset(buf + y * SCREEN_WIDTH + bx + 3, bg, w - 6);
+				if (s_buttonStyle == 2) {
+					Layout_DrawWord(buf, lw, bx + s_bar->margin, GLYPH_TOP);
+				} else {
+					/* as the OPTIONS lettering: its colour, a dark gold edge
+					 * (not the font's black outline), at the top of the button */
+					const char *word = s_buttonStyle == 1 ? s_buttons[i].word : "LOAD/SAVE";
+					GUI_DrawText_Wrapper(word, bx + w / 2 + 1, 4, shade, 0, 0x112);
+					GUI_DrawText_Wrapper(word, bx + w / 2, 3, fg, 0, 0x112);
+				}
+				bx += w + (s_buttonStyle == 2 ? s_bar->gap : 4);
 			}
-			for (y = 3; y < 15; y++) memset(buf + y * SCREEN_WIDTH + bx + 3, bg, w - 6);
-			if (s_twoButtons) {
-				Layout_DrawWord(buf, tw, bx + BUTTON_MARGIN, GLYPH_TOP);
-			} else {
-				GUI_DrawText_Wrapper("LOAD/SAVE", bx + w / 2, 5, fg, 0, 0x122);
-			}
-			bx += w + BUTTON_GAP;
 		}
 	}
 	GFX_Screen_SetActive(old);
-	GFX_Screen_SetDirty(screenID, BUTTON_X0, 1, s_btnX[n - 1] + s_btnW[n - 1], 17);
+	Layout_PlaceBarWidgets();	/* drawn next by GUI_DrawInterfaceAndRadar */
+	GFX_Screen_SetDirty(screenID, 0, 1, s_btnX[n - 1] + s_btnW[n - 1], 17);
 }
 
 /**

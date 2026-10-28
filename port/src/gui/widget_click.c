@@ -734,17 +734,29 @@ static WindowDesc s_loadSaveDesc = {
 
 /* The Options window with Resolution under Game controls (window 10, 17
  * pixels higher than the original's 16). */
+/* Its entries: the original's numbers (the switch in GUI_Widget_Options_Click),
+ * 7 = Resolution; Load a game and Save this game are the top bar's buttons. */
+static const int s_optionsMap[6] = { 2, 7, 3, 4, 5, 6 };
+
 static WindowDesc *Amiga_OptionsDesc(void)
 {
+	static const int16 y[6] = { 23, 40, 57, 74, 93, 93 };
 	int i;
 	s_optionsDesc = g_optionsWindowDesc;
 	s_optionsDesc.index = 10;
-	s_optionsDesc.widgetCount = 8;
-	for (i = 3; i <= 6; i++) s_optionsDesc.widgets[i].offsetY += 17;
-	s_optionsDesc.widgets[7] = s_optionsDesc.widgets[2];
-	s_optionsDesc.widgets[7].stringID = (uint16)-20;
-	s_optionsDesc.widgets[7].offsetY = 74;
+	s_optionsDesc.widgetCount = 6;
+	for (i = 0; i < 6; i++) {
+		s_optionsDesc.widgets[i] = (s_optionsMap[i] == 7) ? g_optionsWindowDesc.widgets[2] : g_optionsWindowDesc.widgets[s_optionsMap[i]];
+		s_optionsDesc.widgets[i].offsetY = y[i];
+	}
+	s_optionsDesc.widgets[1].stringID = (uint16)-20;
 	return &s_optionsDesc;
+}
+
+/* An entry of the Amiga Options window as the original's number. */
+static int Amiga_OptionsChoice(int i)
+{
+	return (i >= 0 && i < 6) ? s_optionsMap[i] : -1;
 }
 
 /* The list of resolutions; the chosen one (0..LAYOUT_RESOLUTIONS-1) or -1. */
@@ -752,7 +764,11 @@ static int GUI_Amiga_ResolutionWindow(void)
 {
 	WindowDesc *desc = &s_resolutionDesc;
 	int chosen = -2;
+	WidgetProperties options = g_widgetProperties[10];
 
+	/* seven entries: 151 rows instead of the Options window's 117 */
+	g_widgetProperties[10].yBase -= 17;
+	g_widgetProperties[10].height = 151;
 	GUI_Window_BackupScreen(desc);
 	GUI_Window_Create(desc);
 	while (chosen == -2) {
@@ -767,6 +783,7 @@ static int GUI_Amiga_ResolutionWindow(void)
 		sleepIdle();
 	}
 	GUI_Window_RestoreScreen(desc);
+	g_widgetProperties[10] = options;
 	return chosen;
 }
 #endif
@@ -810,7 +827,11 @@ bool GUI_Widget_Options_Click(Widget *w)
 
 			GUI_Window_RestoreScreen(desc);
 
+#if defined(__amigaos__)
+			switch (Amiga_OptionsChoice((key & 0x7FFF) - 0x1E)) {
+#else
 			switch ((key & 0x7FFF) - 0x1E) {
+#endif
 				case 0:
 					if (GUI_Widget_SaveLoad_Click(false)) loop = false;
 					break;
