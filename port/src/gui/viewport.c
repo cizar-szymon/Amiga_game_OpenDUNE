@@ -35,6 +35,17 @@
 #if defined(__amigaos__)
 #include "smooth_amiga.h"
 #endif
+
+#if defined(__amigaos__)
+#define SMOOTH_POSITION(u) Smooth_Position(u)
+#define RTS_IS_IN_GROUP(u) RTS_IsInGroup(u)
+#define RTS_EDGE_SPRITE(def) RTS_EdgeSprite(def)
+#else
+#define SMOOTH_POSITION(u) (u)->o.position
+#define RTS_IS_IN_GROUP(u) false
+#define RTS_EDGE_SPRITE(def) (def)
+#endif
+
 #endif
 
 static uint32 s_tickCursor;                                 /*!< Stores last time Viewport changed the cursor spriteID. */
@@ -63,7 +74,7 @@ bool GUI_Widget_Viewport_Click(Widget *w)
 		case 42: spriteID = 3; break;
 		case 43: spriteID = g_cursorDefaultSpriteID; break;
 		case 44: spriteID = g_cursorDefaultSpriteID; break;
-		case 45: spriteID = 0; break;
+		case 45: spriteID = RTS_EDGE_SPRITE(0); break;	/* an arrow at the screen's edge */
 	}
 
 	if (spriteID != g_cursorSpriteID) {
@@ -338,14 +349,6 @@ static bool GUI_Widget_Viewport_GetSprite_HousePalette(const uint8 *sprite, uint
  * @param hasScrolled Viewport position has changed
  * @param drawToMainScreen True if and only if we are drawing to the main screen and not some buffer screen.
  */
-#if defined(__amigaos__)
-#define SMOOTH_POSITION(u) Smooth_Position(u)
-#define RTS_IS_IN_GROUP(u) RTS_IsInGroup(u)
-#else
-#define SMOOTH_POSITION(u) (u)->o.position
-#define RTS_IS_IN_GROUP(u) false
-#endif
-
 void GUI_Widget_Viewport_Draw(bool forceRedraw, bool hasScrolled, bool drawToMainScreen)
 {
 	static const uint16 values_32A4[8][2] = {	/* index, flag passed to GUI_DrawSprite() */

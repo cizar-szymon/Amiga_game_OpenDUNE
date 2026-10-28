@@ -31,6 +31,8 @@ static tile32 s_prev[UNIT_INDEX_MAX];	/* positions before the last movement step
 static bool s_valid[UNIT_INDEX_MAX];
 static uint32 s_stepMs;			/* Timer_GetTime() of the last movement step */
 static bool s_settle;			/* one more redraw at the final positions */
+static uint32 s_lastMark;		/* Timer_GetTime() of the last marking */
+#define FRAME_MS  16		/* one frame at 60 Hz */
 
 static bool Smooth_Enabled(void)
 {
@@ -96,6 +98,10 @@ void Smooth_MarkMoving(void)
 
 	if (!Smooth_Enabled()) return;
 	if (!moving && !s_settle) return;
+	/* the screen is sent 60 times a second; the game loop runs 120: one
+	 * in-between picture per frame is enough (the last one always) */
+	if (moving && Timer_GetTime() - s_lastMark < FRAME_MS) return;
+	s_lastMark = Timer_GetTime();
 	s_settle = moving;		/* after the last in-between frame one at the end */
 
 	find.houseID = HOUSE_INVALID;
@@ -116,4 +122,12 @@ void Smooth_MarkMoving(void)
 			g_dirtyUnitCount++;
 		}
 	}
+}
+
+/** For the bug report (os/bugreport_amiga.c). */
+void Smooth_Report(void)
+{
+	extern void AmigaBug_Printf(const char *format, ...);
+	AmigaBug_Printf("smooth units: enabled %d, last step %lu ms ago, fraction %u/256, settle %d\n",
+	                s_enabled, (unsigned long)(Timer_GetTime() - s_stepMs), (unsigned)Smooth_Fraction(), (int)s_settle);
 }

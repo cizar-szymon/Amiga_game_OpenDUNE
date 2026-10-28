@@ -9,6 +9,7 @@ extern uint8 RTS_FilterButtons(uint16 x, uint16 y, uint8 buttons, bool *clickFir
 extern bool RTS_GetDragRect(int16 *x0, int16 *y0, int16 *x1, int16 *y1);
 extern bool RTS_IsInGroup(struct Unit *u);
 extern void RTS_Tick(void);
+extern uint16 RTS_EdgeSprite(uint16 def);
 extern void RTS_GroupAction(struct Unit *done, uint16 action, uint16 packed);
 extern int RTS_GroupSize(void);
 extern uint16 RTS_GroupHealthPercent(void);

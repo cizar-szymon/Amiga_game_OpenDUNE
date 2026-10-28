@@ -15,6 +15,10 @@ enum {
 	PROF_UI,	/* widgets, action panel, credits */
 	PROF_VIDEO,	/* Video_Tick: changed blocks to the card */
 	PROF_SLEEP,	/* waiting for the next 120 Hz tick */
+	PROF_V_EVENTS,	/* in video: IDCMP, test commands */
+	PROF_V_AREAS,	/* in video: which parts changed (stats) */
+	PROF_V_SEND,	/* in video: lock, compare, write, unlock */
+	PROF_V_LOCK,	/* in video: p96LockBitMap alone */
 	PROF_COUNT
 };
 
@@ -25,6 +29,9 @@ extern uint32 g_profLoops;	/* passes of the game loop */
 /* frames sent with changes in: the top bar, the viewport, the radar, the panel */
 enum { PROF_AREA_TOP, PROF_AREA_VIEW, PROF_AREA_RADAR, PROF_AREA_PANEL, PROF_AREA_COUNT };
 extern uint32 g_profAreas[PROF_AREA_COUNT];
+extern bool g_profStatsOn;	/* debug_stats=1 */
+extern uint32 g_profBlits;	/* viewport scrolls done by the blitter */
+extern uint32 g_profBytes;	/* bytes written to the card by the CPU */
 extern uint32 AmigaTimer_EClock(void);
 extern void AmigaProf_Tick(void);
 

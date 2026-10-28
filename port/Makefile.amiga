@@ -16,7 +16,7 @@ SRCS = animation.c audio/driver.c audio/dsp_amiga.c audio/midi_none.c audio/mt32
   cutscene.c explosion.c file.c gfx.c gui/editbox.c gui/font.c gui/gui.c gui/layout_amiga.c gui/rts_amiga.c gui/smooth_amiga.c gui/mentat.c \
   gui/security.c gui/viewport.c gui/widget.c gui/widget_click.c gui/widget_draw.c house.c \
   ini.c inifile.c input/input.c input/mouse.c load.c map.c object.c opendune.c \
-  os/endian.c os/error.c os/readdir_amiga.c os/amiga.c \
+  os/endian.c os/error.c os/readdir_amiga.c os/amiga.c os/bugreport_amiga.c \
   pool/house.c pool/structure.c pool/team.c pool/unit.c save.c \
   saveload/house.c saveload/info.c saveload/map.c saveload/object.c saveload/saveload.c \
   saveload/scenario.c saveload/scriptengine.c saveload/structure.c saveload/team.c saveload/unit.c \

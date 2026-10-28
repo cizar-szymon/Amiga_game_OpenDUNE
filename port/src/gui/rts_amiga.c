@@ -5,6 +5,9 @@
  *  - left button held and dragged on the viewport: a rectangle; on release all
  *    the player's units inside it are selected (the first one is shown in the
  *    sidebar, all get the selection mark). A plain click works as before.
+ *  - the pointer at an edge of the whole screen (also over the top bar and
+ *    the sidebar) scrolls the map by itself, in a corner diagonally, with an
+ *    arrow pointer (RTS_EdgeScroll(), 10 tiles a second).
  *  - right button on the viewport with own units selected: they move there,
  *    a group keeping its shape (at most 3 tiles from the point); on an enemy
  *    unit or structure, the units that can attack attack it.
@@ -25,6 +28,7 @@
 #include "../house.h"
 #include "../inifile.h"
 #include "../map.h"
+#include "../input/mouse.h"
 #include "../object.h"
 #include "../opendune.h"
 #include "../structure.h"
@@ -376,6 +380,61 @@ static void RTS_Order(int x, int y)
 	}
 }
 
+#define EDGE_TICKS 6	/* g_timerGUI ticks (60 Hz) per tile of scrolling */
+
+static uint32 s_edgeNext;
+static uint16 s_edgeSprite = 0xFFFF;	/* the arrow shown, 0xFFFF none */
+
+/* The edge of the screen under the pointer as a Map_MoveDirection()
+ * direction (0 up, 1 up right ... 7 up left), 0xFFFF none. */
+static uint16 RTS_EdgeDirection(void)
+{
+	static const uint16 dirs[3][3] = {	/* [vertical][horizontal]: -1, 0, +1 */
+		{ 7, 0, 1 },
+		{ 6, 0xFFFF, 2 },
+		{ 5, 4, 3 }
+	};
+	int h = 1, v = 1;
+	if (g_mouseX <= 1) h = 0;
+	if (g_mouseX >= SCREEN_WIDTH - 2) h = 2;
+	if (g_mouseY <= 1) v = 0;
+	if (g_mouseY >= SCREEN_HEIGHT - 2) v = 2;
+	return dirs[v][h];
+}
+
+/** The arrow to show at the edge of the screen, or def (GUI_Widget_Viewport_Click). */
+uint16 RTS_EdgeSprite(uint16 def)
+{
+	return s_edgeSprite != 0xFFFF ? s_edgeSprite : def;
+}
+
+/* Scrolling at the edges of the whole screen. */
+static void RTS_EdgeScroll(void)
+{
+	/* the arrows of the game: 1 up, 2 right, 3 down, 4 left; corners: up/down */
+	static const uint16 sprites[8] = { 1, 1, 2, 3, 3, 3, 4, 1 };
+	static const XYPosition hotSpots[5] = {{0, 0}, {5, 0}, {8, 5}, {5, 8}, {0, 5}};
+	uint16 dir = 0xFFFF;
+
+	if (g_selectionType == SELECTIONTYPE_UNIT || g_selectionType == SELECTIONTYPE_STRUCTURE ||
+	    g_selectionType == SELECTIONTYPE_TARGET || g_selectionType == SELECTIONTYPE_PLACE) {
+		if (Timer_GetTime() - s_lastMain < 100) dir = RTS_EdgeDirection();
+	}
+	if (dir == 0xFFFF) {
+		s_edgeSprite = 0xFFFF;
+		return;
+	}
+	s_edgeSprite = sprites[dir];
+	if (g_cursorSpriteID != s_edgeSprite) {
+		Sprites_SetMouseSprite(hotSpots[s_edgeSprite].x, hotSpots[s_edgeSprite].y, g_sprites[s_edgeSprite]);
+		g_cursorSpriteID = s_edgeSprite;
+	}
+	if ((int32)(g_timerGUI - s_edgeNext) >= 0) {
+		Map_MoveDirection(dir);
+		s_edgeNext = g_timerGUI + EDGE_TICKS;
+	}
+}
+
 void RTS_Tick(void)
 {
 	if (s_enabled < 0) s_enabled = IniFile_GetInteger("rts_controls", 1) != 0 ? 1 : 0;
@@ -385,8 +444,10 @@ void RTS_Tick(void)
 	if (g_gameMode != GM_NORMAL) {
 		s_groupCount = 0;
 		s_selectPending = s_orderPending = false;
+		s_edgeSprite = 0xFFFF;
 		return;
 	}
+	RTS_EdgeScroll();
 
 	/* a plain click on the viewport ends a group: from now on only what was
 	 * clicked is selected (the click itself is handled by the game later, the

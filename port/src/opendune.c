@@ -76,6 +76,7 @@
 #endif
 #if defined(__amigaos__)
 #include "gui/rts_amiga.h"
+extern void AmigaBug_Tick(void);
 #include "os/amiga_prof.h"
 #endif
 
@@ -1000,6 +1001,7 @@ static void GameLoop_Main(void)
 #if defined(__amigaos__)
 		RTS_Tick();
 		AmigaProf_Tick();
+		AmigaBug_Tick();
 #endif
 		if (g_gameMode == GM_MENU) {
 			GameLoop_GameIntroAnimationMenu();
@@ -1042,6 +1044,16 @@ static void GameLoop_Main(void)
 			g_scenarioID = 1;
 			g_campaignID = 0;
 			g_strategicRegionBits = 0;
+#if defined(__amigaos__)
+			/* tests: start with a later mission (opendune.ini debug_start_scenario=N) */
+			{
+				int start = IniFile_GetInteger("debug_start_scenario", 0);
+				if (start > 1 && start <= 22) {
+					g_scenarioID = (uint16)start;
+					g_campaignID = (uint16)((start + 1) / 3);
+				}
+			}
+#endif
 		}
 
 		if (g_selectionTypeNew != g_selectionType) {

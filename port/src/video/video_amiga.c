@@ -7,7 +7,13 @@
  * (320x200 on 800x600), centred. A change of the game's size is noticed in
  * Video_Tick() (new scale, screen cleared, everything sent again).
  *
- * Only the 16-pixel blocks the game marked dirty are sent. Each source row is
+ * Only the 16-pixel blocks the game marked dirty are sent. At 1:1 (the map
+ * screen) a copy of the screen is kept in fast RAM (s_shadow, the screen's
+ * layout) and only the blocks that differ from it are sent; when the map
+ * scrolls (Video_ScrollView() from GUI_DrawScreen) the card's blitter moves
+ * the viewport in VRAM and the copy is moved the same way, so a scroll step
+ * sends the new strip and what moved instead of the whole viewport
+ * (opendune.ini vram_scroll=1, the default; 0 = without the copy). Each source row is
  * widened once into a line buffer in fast RAM and written to the locked
  * bitmap with long moves, once per screen row it covers (Warp RTG notes:
  * write VRAM only, never read it; the lock is held only inside Video_Tick and
@@ -95,6 +101,14 @@ extern void AmigaCmd_Tick(void);
 static bool s_commands;
 static uint8 s_palette[256 * 3];		/* the game's palette, 6-bit */
 
+/* the copy of the screen at 1:1 and the pending scroll of the viewport */
+static uint8 *s_shadow;			/* s_width x s_height, as the bitmap */
+static bool s_shadowValid;
+static bool s_vramScroll;
+static int16 s_scrollDX, s_scrollDY;	/* pixels the viewport's picture moved */
+static int16 s_scrollRect[4];		/* x, y, w, h in game pixels */
+static bool s_scrollPending;
+
 /* the selection rectangle (rts_amiga.c), drawn over the picture in VRAM */
 static bool s_rectShown;
 static int16 s_rect[4];
@@ -112,6 +126,10 @@ static const uint8 s_rawToAT[0x68] = {
 };
 
 #define RAW_F8 0x57
+#define RAW_F10 0x59
+
+extern void AmigaBug_Request(void);
+extern void AmigaBug_Printf(const char *format, ...);
 
 static bool Video_OpenP96(void)
 {
@@ -254,6 +272,9 @@ bool Video_Init(int screen_magnification, VideoScaleFilter filter)
 	s_needRepaint = true;
 	s_commands = IniFile_GetInteger("debug_commands", 0) != 0;
 	s_showFPS = IniFile_GetInteger("show_fps", 0) != 0;
+	s_vramScroll = IniFile_GetInteger("vram_scroll", 1) != 0;
+	if (s_vramScroll) s_shadow = AllocVec((ULONG)s_width * s_height, MEMF_ANY);
+	s_shadowValid = false;
 
 	if (!s_atexitDone) {
 		atexit(Video_Cleanup);
@@ -283,6 +304,7 @@ void Video_Uninit(void)
 	}
 	if (s_blankPointer != NULL) { FreeVec(s_blankPointer); s_blankPointer = NULL; }
 	if (s_line != NULL) { FreeVec(s_line); s_line = NULL; }
+	if (s_shadow != NULL) { FreeVec(s_shadow); s_shadow = NULL; }
 	if (P96Base != NULL) { CloseLibrary(P96Base); P96Base = NULL; }
 	free(s_framebuffer);
 	s_framebuffer = NULL;
@@ -312,6 +334,10 @@ void Video_Amiga_Key(uint16 code)
 
 	code &= ~IECODE_UP_PREFIX;
 	if (code >= sizeof(s_rawToAT)) return;
+	if (code == RAW_F10) {
+		if (!up) AmigaBug_Request();	/* bug report, written by the game loop */
+		return;
+	}
 	if (code == RAW_F8) {
 		if (!up) {
 			s_showFPS = !s_showFPS;
@@ -462,6 +488,72 @@ static void Video_DrawFPS(uint8 *base, int bpr)
 	}
 }
 
+/**
+ * The game moved the picture of the viewport (x, y, w, h) by dx, dy pixels
+ * (GUI_DrawScreen scrolling): the next tick moves it in VRAM with the blitter.
+ */
+void Video_ScrollView(int16 dx, int16 dy, int16 x, int16 y, int16 w, int16 h)
+{
+	if (!s_vramScroll) return;
+	if (s_scrollPending && (x != s_scrollRect[0] || y != s_scrollRect[1] || w != s_scrollRect[2] || h != s_scrollRect[3])) {
+		s_shadowValid = false;	/* two different areas: send everything */
+		return;
+	}
+	s_scrollRect[0] = x;
+	s_scrollRect[1] = y;
+	s_scrollRect[2] = w;
+	s_scrollRect[3] = h;
+	s_scrollDX += dx;
+	s_scrollDY += dy;
+	s_scrollPending = true;
+}
+
+/* The pending scroll in VRAM (blitter) and in the copy; false if not possible. */
+static bool Video_DoScroll(void)
+{
+	int16 dx = s_scrollDX, dy = s_scrollDY;
+	int16 x = s_x0 + s_scrollRect[0], y = s_y0 + s_scrollRect[1], w = s_scrollRect[2], h = s_scrollRect[3];
+	int16 cw, ch, sx, sy, tx, ty, r;
+
+	s_scrollPending = false;
+	s_scrollDX = s_scrollDY = 0;
+	if (dx == 0 && dy == 0) return true;
+	cw = w - (dx < 0 ? -dx : dx);
+	ch = h - (dy < 0 ? -dy : dy);
+	if (cw <= 0 || ch <= 0) return false;
+	sx = dx < 0 ? x - dx : x;
+	tx = dx < 0 ? x : x + dx;
+	sy = dy < 0 ? y - dy : y;
+	ty = dy < 0 ? y : y + dy;
+
+	BltBitMap(s_window->RPort->BitMap, sx, sy, s_window->RPort->BitMap, tx, ty, cw, ch, 0xC0, 0xFF, NULL);
+	WaitBlit();
+	g_profBlits++;
+	if (dy > 0) {
+		for (r = ch - 1; r >= 0; r--) memmove(s_shadow + (ty + r) * s_width + tx, s_shadow + (sy + r) * s_width + sx, cw);
+	} else {
+		for (r = 0; r < ch; r++) memmove(s_shadow + (ty + r) * s_width + tx, s_shadow + (sy + r) * s_width + sx, cw);
+	}
+	return true;
+}
+
+/* Sends the blocks [x1, x2) of row y that differ from the copy (1:1). */
+static void Video_SendRowCompared(uint8 *base, int bpr, const uint8 *row, int y, int x1, int x2)
+{
+	uint8 *sh = s_shadow + (s_y0 + y) * s_width + s_x0;
+	uint8 *dst = base + (s_y0 + y) * bpr + s_x0;
+	int x;
+
+	for (x = x1; x < x2; x += 16) {
+		const uint32 *a = (const uint32 *)(row + x);
+		uint32 *b = (uint32 *)(sh + x);
+		if (a[0] == b[0] && a[1] == b[1] && a[2] == b[2] && a[3] == b[3]) continue;
+		b[0] = a[0]; b[1] = a[1]; b[2] = a[2]; b[3] = a[3];
+		Video_CopyLongs((uint32 *)(dst + x), a, 16);
+		g_profBytes += 16;
+	}
+}
+
 static void Video_Tick_(void);
 
 void Video_Tick(void)
@@ -480,6 +572,8 @@ static void Video_Tick_(void)
 	int bpr, y;
 	bool drawn = false;
 	bool rectShow;
+	bool compare;
+	uint32 sendT0;
 
 	if (SetSignal(0, 0) & SIGBREAKF_CTRL_C) {
 		SetSignal(0, SIGBREAKF_CTRL_C);
@@ -487,7 +581,9 @@ static void Video_Tick_(void)
 	}
 	if (s_window == NULL) return;
 
+	PROF_BEGIN(PROF_V_EVENTS)
 	Video_HandleEvents();
+	PROF_END(PROF_V_EVENTS)
 
 	if (SCREEN_WIDTH != s_lw || SCREEN_HEIGHT != s_lh) {
 		/* the game switched between the menus and the map */
@@ -510,9 +606,24 @@ static void Video_Tick_(void)
 		if (rectShow) memcpy(s_rect, r, sizeof(r));
 	}
 
+	/* 1:1 with the copy: compare with it, scroll with the blitter */
+	compare = s_shadow != NULL && s_sx2 == 2 && s_sy == 1 && s_screenOffset == 0;
+	if (!compare) s_shadowValid = false;
+	if (s_scrollPending) {
+		if (!compare || !s_shadowValid || s_needRepaint || !Video_DoScroll()) {
+			s_scrollPending = false;
+			s_scrollDX = s_scrollDY = 0;
+			s_shadowValid = false;
+		}
+	}
+	if (compare && !s_shadowValid) s_needRepaint = true;
+
 	if (!GFX_Screen_IsDirty(SCREEN_0) && !s_needRepaint && !s_showFPS && !(rectShow && !s_rectShown)) return;
 
+	sendT0 = AmigaTimer_EClock();
 	lock = p96LockBitMap(s_window->RPort->BitMap, (UBYTE *)&ri, sizeof(ri));
+	g_profTicks[PROF_V_LOCK] += AmigaTimer_EClock() - sendT0;
+	g_profCalls[PROF_V_LOCK]++;
 	if (lock == 0) return;
 	base = (uint8 *)ri.Memory;
 	bpr = ri.BytesPerRow;
@@ -523,13 +634,15 @@ static void Video_Tick_(void)
 		struct dirty_area *area = GFX_Screen_GetDirtyArea(SCREEN_0);
 		int top = 0, bottom = SCREEN_HEIGHT;
 
-		if (!s_needRepaint && area != NULL) {
-			/* which parts of the screen changed (debug_stats) */
+		if (!s_needRepaint && area != NULL && g_profStatsOn) {
+			/* which parts of the screen changed (debug_stats only) */
 			int sx = SCREEN_WIDTH - 80;
+			PROF_BEGIN(PROF_V_AREAS)
 			if (Video_AreaDirty(0, 0, SCREEN_WIDTH - 1, 39)) g_profAreas[PROF_AREA_TOP]++;
 			if (Video_AreaDirty(0, 40, sx - 1, SCREEN_HEIGHT - 1)) g_profAreas[PROF_AREA_VIEW]++;
 			if (Video_AreaDirty(sx + 16, 40, SCREEN_WIDTH - 1, 105)) g_profAreas[PROF_AREA_RADAR]++;
 			if (Video_AreaDirty(sx, 106, SCREEN_WIDTH - 1, SCREEN_HEIGHT - 1)) g_profAreas[PROF_AREA_PANEL]++;
+			PROF_END(PROF_V_AREAS)
 			top = area->top;
 			bottom = area->bottom > SCREEN_HEIGHT ? SCREEN_HEIGHT : area->bottom;
 		}
@@ -551,14 +664,21 @@ static void Video_Tick_(void)
 				x2 = (w2 * 32 + 32 - __builtin_clz(b[w2])) << 4;
 				if (x2 > SCREEN_WIDTH) x2 = SCREEN_WIDTH;
 			}
+			if (compare && !s_needRepaint) {
+				Video_SendRowCompared(base, bpr, data + y * SCREEN_WIDTH, y, x1, x2);
+				continue;
+			}
+			if (compare) memcpy(s_shadow + (s_y0 + y) * s_width + s_x0 + x1, data + y * SCREEN_WIDTH + x1, x2 - x1);
 			n = Video_WidenRow(data + y * SCREEN_WIDTH, x1, x2);
 			n = (n + 3) & ~3;
 			dst = base + (s_y0 + y * s_sy) * bpr + s_x0 + s_colX[x1];
 			for (r = 0; r < s_sy; r++, dst += bpr) {
 				Video_CopyLongs((uint32 *)dst, s_line, n);
 			}
+			g_profBytes += n * s_sy;
 		}
 		GFX_Screen_SetClean(SCREEN_0);
+		if (compare && s_needRepaint) s_shadowValid = true;
 		s_needRepaint = false;
 		drawn = true;
 		g_profFrames++;
@@ -568,12 +688,18 @@ static void Video_Tick_(void)
 		/* over what was just sent */
 		int x0 = s_x0 + s_colX[s_rect[0]], x1 = s_x0 + s_colX[s_rect[2] + 1] - 1;
 		int y0 = s_y0 + s_rect[1] * s_sy, y1 = s_y0 + (s_rect[3] + 1) * s_sy - 1;
-		int y;
-		memset(base + y0 * bpr + x0, RECT_COLOUR, x1 - x0 + 1);
-		memset(base + y1 * bpr + x0, RECT_COLOUR, x1 - x0 + 1);
-		for (y = y0; y <= y1; y++) {
-			base[y * bpr + x0] = RECT_COLOUR;
-			base[y * bpr + x1] = RECT_COLOUR;
+		int y, k;
+		for (k = 0; k < 2; k++) {
+			/* the card, and the copy that mirrors it */
+			uint8 *b = k == 0 ? base : s_shadow;
+			int pitch = k == 0 ? bpr : s_width;
+			if (k == 1 && !compare) break;
+			memset(b + y0 * pitch + x0, RECT_COLOUR, x1 - x0 + 1);
+			memset(b + y1 * pitch + x0, RECT_COLOUR, x1 - x0 + 1);
+			for (y = y0; y <= y1; y++) {
+				b[y * pitch + x0] = RECT_COLOUR;
+				b[y * pitch + x1] = RECT_COLOUR;
+			}
 		}
 		s_rectShown = true;
 	}
@@ -587,9 +713,48 @@ static void Video_Tick_(void)
 			s_fpsTime = now;
 		}
 		Video_DrawFPS(base, bpr);
+		if (compare) Video_DrawFPS(s_shadow, s_width);
 	}
 
 	p96UnlockBitMap(s_window->RPort->BitMap, lock);
+	g_profTicks[PROF_V_SEND] += AmigaTimer_EClock() - sendT0;
+	g_profCalls[PROF_V_SEND]++;
+}
+
+/** Bug report: what the screen shows, read back from the card (s_width x
+ * s_height bytes into dst). Only for reports: the card is read. */
+bool Video_Amiga_ReadScreen(uint8 *dst, int *w, int *h)
+{
+	struct RenderInfo ri;
+	LONG lock;
+	int y;
+
+	if (s_window == NULL) return false;
+	lock = p96LockBitMap(s_window->RPort->BitMap, (UBYTE *)&ri, sizeof(ri));
+	if (lock == 0) return false;
+	for (y = 0; y < s_height; y++) memcpy(dst + y * s_width, (uint8 *)ri.Memory + y * ri.BytesPerRow, s_width);
+	p96UnlockBitMap(s_window->RPort->BitMap, lock);
+	*w = s_width;
+	*h = s_height;
+	return true;
+}
+
+/** Bug report: the copy of the screen (NULL when not in use). */
+const uint8 *Video_Amiga_Shadow(int *w, int *h)
+{
+	if (s_shadow == NULL || !s_shadowValid) return NULL;
+	*w = s_width;
+	*h = s_height;
+	return s_shadow;
+}
+
+/** Bug report: the video driver's state. */
+void Video_Amiga_Report(void)
+{
+	AmigaBug_Printf("screen %dx%d, game %dx%d at %d,%d, scale %d/2 x %d; copy %d valid %d, scroll pending %d (%d,%d), repaint %d, offset %u, fps shown %lu\n",
+	                s_width, s_height, s_lw, s_lh, s_x0, s_y0, s_sx2, s_sy, s_shadow != NULL, (int)s_shadowValid,
+	                (int)s_scrollPending, s_scrollDX, s_scrollDY, (int)s_needRepaint, (unsigned)s_screenOffset,
+	                (unsigned long)s_fpsShown);
 }
 
 void Video_SetPalette(void *palette, int from, int length)

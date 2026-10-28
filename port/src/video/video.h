@@ -17,6 +17,9 @@ extern void Video_Mouse_SetPosition(uint16 x, uint16 y);
 extern void Video_Mouse_SetRegion(uint16 minX, uint16 maxX, uint16 minY, uint16 maxY);
 extern void Video_SetOffset(uint16 offset);
 #if defined(__amigaos__)
+extern void Video_ScrollView(int16 dx, int16 dy, int16 x, int16 y, int16 w, int16 h);
+#endif
+#if defined(__amigaos__)
 extern void * Video_GetFrameBuffer(uint32 size);
 #else
 extern void * Video_GetFrameBuffer(uint16 size);

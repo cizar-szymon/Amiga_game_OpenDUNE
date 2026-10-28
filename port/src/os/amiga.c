@@ -121,6 +121,9 @@ uint32 g_profCalls[PROF_COUNT];
 uint32 g_profFrames;
 uint32 g_profLoops;
 uint32 g_profAreas[PROF_AREA_COUNT];
+uint32 g_profBlits;
+bool g_profStatsOn;
+uint32 g_profBytes;
 
 /** Low 32 bits of the E-clock (differences of up to ~70 minutes). */
 uint32 AmigaTimer_EClock(void)
@@ -140,13 +143,14 @@ void AmigaProf_Tick(void)
 {
 	static int s_enabled = -1;
 	static uint32 s_last, s_lastMs, s_t0;
-	static const char *names[PROF_COUNT] = { "logic", "draw", "ui", "video", "sleep" };
+	static const char *names[PROF_COUNT] = { "logic", "draw", "ui", "video", "sleep", "v.events", "v.areas", "v.send", "v.lock" };
 	uint32 now, wall, sum = 0;
 	FILE *f;
 	int i;
 
 	if (s_enabled < 0) {
 		s_enabled = IniFile_GetInteger("debug_stats", 0) != 0;
+		g_profStatsOn = s_enabled != 0;
 		s_last = AmigaTimer_EClock();
 		s_t0 = s_lastMs = AmigaTimer_GetMs();
 		if (s_enabled) {
@@ -173,14 +177,15 @@ void AmigaProf_Tick(void)
 			/* per mille of the time; ms per call in tenths */
 			uint32 pm = g_profTicks[i] / (wall / 1000 + 1);
 			uint32 per = g_profCalls[i] ? g_profTicks[i] / g_profCalls[i] * 10 / s_eclockPerMs : 0;
-			sum += g_profTicks[i];
+			if (i < PROF_V_EVENTS) sum += g_profTicks[i];
 			fprintf(f, " %s %lu.%lu%% %lu.%lums", names[i], (unsigned long)(pm / 10), (unsigned long)(pm % 10),
 			        (unsigned long)(per / 10), (unsigned long)(per % 10));
 		}
 		{
 			uint32 pm = (wall > sum) ? (wall - sum) / (wall / 1000 + 1) : 0;
-			fprintf(f, " other %lu.%lu%% | frames with changes: top %lu view %lu radar %lu panel %lu\n",
-			        (unsigned long)(pm / 10), (unsigned long)(pm % 10),
+			fprintf(f, " other %lu.%lu%% | blits %lu, %lu KB/frame | frames with changes: top %lu view %lu radar %lu panel %lu\n",
+			        (unsigned long)(pm / 10), (unsigned long)(pm % 10), (unsigned long)g_profBlits,
+			        (unsigned long)(g_profFrames ? g_profBytes / g_profFrames / 1024 : 0),
 			        (unsigned long)g_profAreas[PROF_AREA_TOP], (unsigned long)g_profAreas[PROF_AREA_VIEW],
 			        (unsigned long)g_profAreas[PROF_AREA_RADAR], (unsigned long)g_profAreas[PROF_AREA_PANEL]);
 		}
@@ -188,6 +193,7 @@ void AmigaProf_Tick(void)
 	}
 	for (i = 0; i < PROF_COUNT; i++) g_profTicks[i] = g_profCalls[i] = 0;
 	g_profFrames = g_profLoops = 0;
+	g_profBlits = g_profBytes = 0;
 	for (i = 0; i < PROF_AREA_COUNT; i++) g_profAreas[i] = 0;
 	s_last = now;
 	s_lastMs = AmigaTimer_GetMs();

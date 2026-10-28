@@ -220,3 +220,34 @@ zmienia się tylko, gdy gra coś zmieni), loop = przejścia pętli gry (maks. 12
 Pasek: gra co kilka sekund przepisuje status wybranej jednostki. Mapa: pojedyncze jednostki, które
 się poruszają (porównanie zrzutów); z płynnym ruchem każdy ich krok to ok. 3 klatki zamiast 1.
 Licznik FPS przeniesiony do lewego dolnego rogu (prośba użytkownika).
+
+### Przewijanie blitterem, przewijanie przy krawędziach ekranu, F10 (28.10.2026)
+- `vram_scroll=1` (domyślnie): kopia ekranu w Fast RAM (układ bitmapy), wysyłane tylko bloki różne
+  od kopii; przy przewinięciu mapy (`Video_ScrollView` z `GUI_DrawScreen`) widok przesuwa w VRAM
+  blitter karty (`BltBitMap` + `WaitBlit`, bez blokady), kopia przesuwana tak samo. Nakładki
+  (prostokąt, FPS) rysowane też w kopii. Tylko przy 1:1.
+- Przewijanie przy krawędziach całego ekranu (skrajne 2 piksele, także nad paskiem i panelem),
+  w narożnikach po skosie, strzałka kursora, 10 kafli/s (`RTS_EdgeScroll`).
+- `debug_start_scenario=N`: Play a Game zaczyna od misji N (od 5 mapy 62×62, `MapScale=0`).
+- F10: `bugNNN.txt` (stan), `bugNNN.dat` (zapis gry), `bugNNN-screen.bmp` (odczyt z karty),
+  `-game.bmp` (SCREEN_0), `-copy.bmp` (kopia sterownika) w katalogu zapisów
+  (`os/bugreport_amiga.c`).
+
+Pomiar, misja 5 (62×62, Harkonnen, `misja5`), przewijanie przy krawędzi + ruch jednostek:
+
+| | do karty | wysyłanie | rysowanie mapy | wolne |
+|---|---|---|---|---|
+| `vram_scroll=0` | 15–34 KB/klatkę | 2,0–2,8 ms/klatkę | 25–34% | 42–64% |
+| `vram_scroll=1` | 0–1 KB/klatkę (23 przesunięcia blitterem / 5 s) | 2,1–2,9 ms/klatkę | 17–34% | 41–64% |
+| + płynny ruch oznaczany raz na klatkę (60 Hz, nie 120) | 1 KB | 2,6 ms | **26,6%** (było 34%) | **47%** (było 40%) |
+
+- Zapis na kartę spadł 20–30×, ale czas wysyłania nie: koszt to przejście po obszarze, który gra
+  oznacza jako zmieniony (przy przewinięciu cały widok, przy płynnym ruchu jadące jednostki),
+  porównanie z kopią kosztuje tyle co zapis 15–34 KB (`v.send` 2,6 ms, `v.lock` ~0). Zysk
+  blittera ujawni się przy wolniejszym zapisie do VRAM / większym ekranie.
+- Raport F10 po przewijaniu: obraz z karty = obraz gry (różnica tylko pod licznikiem FPS),
+  kopia = karta.
+- Statystyki dostały części `video`: `v.events`, `v.areas` (tylko przy `debug_stats=1`),
+  `v.send`, `v.lock`, oraz `blits` i `KB/frame`.
+- Dalej: największy koszt to `draw` (przewinięcie kopiuje cały widok 560×432 SCREEN_0→SCREEN_1→
+  SCREEN_0 w Fast RAM) – przesuwać widok w buforze gry raz, nie dwa razy.

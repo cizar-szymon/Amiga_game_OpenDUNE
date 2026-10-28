@@ -4627,6 +4627,10 @@ void GUI_DrawScreen(Screen screenID)
 			GUI_Mouse_Hide_InWidget(2);
 
 			GUI_Screen_Copy(max(-xOffset << 1, 0), 40 + max(-yOffset << 4, 0), max(0, xOffset << 1), 40 + max(0, yOffset << 4), xOverlap << 1, yOverlap << 4, SCREEN_0, SCREEN_1);
+#if defined(__amigaos__)
+			/* the same move of the picture on the card, by its blitter */
+			Video_ScrollView(xOffset << 4, yOffset << 4, 0, 40, VIEWPORT_TILES_W * 16, VIEWPORT_TILES_H * 16);
+#endif
 		} else {
 			g_viewport_forceRedraw = true;
 		}
