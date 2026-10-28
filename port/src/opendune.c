@@ -76,6 +76,7 @@
 #endif
 #if defined(__amigaos__)
 #include "gui/rts_amiga.h"
+#include "os/amiga_prof.h"
 #endif
 
 
@@ -998,6 +999,7 @@ static void GameLoop_Main(void)
 	for (;; sleepIdle()) {
 #if defined(__amigaos__)
 		RTS_Tick();
+		AmigaProf_Tick();
 #endif
 		if (g_gameMode == GM_MENU) {
 			GameLoop_GameIntroAnimationMenu();
@@ -1094,7 +1096,9 @@ static void GameLoop_Main(void)
 
 		GFX_Screen_SetActive(SCREEN_0);
 
+		PROF_BEGIN(PROF_UI)
 		key = GUI_Widget_HandleEvents(g_widgetLinkedListHead);
+		PROF_END(PROF_UI)
 
 		if (g_selectionType == SELECTIONTYPE_TARGET || g_selectionType == SELECTIONTYPE_PLACE || g_selectionType == SELECTIONTYPE_UNIT || g_selectionType == SELECTIONTYPE_STRUCTURE) {
 			if (g_unitSelected != NULL) {
@@ -1108,18 +1112,24 @@ static void GameLoop_Main(void)
 				}
 			}
 
+			PROF_BEGIN(PROF_UI)
 			GUI_Widget_ActionPanel_Draw(false);
 
 			InGame_Numpad_Move(key);
 
 			GUI_DrawCredits(g_playerHouseID, 0);
+			PROF_END(PROF_UI)
 
+			PROF_BEGIN(PROF_LOGIC)
 			GameLoop_Team();
 			GameLoop_Unit();
 			GameLoop_Structure();
 			GameLoop_House();
+			PROF_END(PROF_LOGIC)
 
+			PROF_BEGIN(PROF_DRAW)
 			GUI_DrawScreen(SCREEN_0);
+			PROF_END(PROF_DRAW)
 		}
 
 		GUI_DisplayText(NULL, 0);

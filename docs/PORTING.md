@@ -182,3 +182,31 @@ Instalacja testowa: `WorkSD:Games/OpenDUNEWarp` (ini `tools/opendune-warp.ini`, 
 - Poprawka (zgłoszenie 28.10): zwykły klik na mapie kończy grupę – zostaje zaznaczone tylko to,
   co kliknięto (także jednostka z grupy, również prowadząca), panel wraca do jednej jednostki.
   Wcześniej klik na członka grupy zostawiał grupę i rozkazy szły dalej do wszystkich.
+
+### Pomiary czasu (28.10.2026, Amiga 2, 68060 @ 100 MHz, 640×480, misja 1 Atreides, `game1`)
+`debug_stats=1` → `RAM:OpenDUNE-stats.txt` co 5 s (`os/amiga_prof.h`, E-clock); na ekranie tylko
+licznik FPS w prawym dolnym rogu (`show_fps=1` albo F8). fps = klatki wysłane do karty (obraz
+zmienia się tylko, gdy gra coś zmieni), loop = przejścia pętli gry (maks. 120/s).
+
+| Scena | fps | loop/s | logika | mapa (draw) | panel/UI | wysyłanie | sen (wolne) |
+|---|---|---|---|---|---|---|---|
+| postój | 2–6 | 120 | 0,8% | 0,9–1,1% | 0,7% | 0,8–1,0% (0,1 ms) | 94% |
+| grupa w ruchu + przewijanie | 20–24 | 120 | 1,3% | 5% (0,4 ms/wywołanie) | 0,8% | 3% (0,5 ms/klatkę) | 87% |
+
+- CPU 060/100 zajęty w 6–13%; fps ogranicza tempo gry (jednostki przesuwają się w krokach logiki),
+  nie wydajność. Wczytanie zapisu: jednorazowo 1,8 s w `draw` (pełne rysowanie + przyciemnienie,
+  które w środku śpi – czasy części zagnieżdżonych liczą się podwójnie).
+- Do zmierzenia: duża mapa (62×62) z przewijaniem – każdy krok przewijania kopiuje widok
+  560×432 w buforze i wysyła go cały do karty (możliwa poprawa: przewijanie blitterem karty
+  VRAM→VRAM jak w AmiXcom/Settlers).
+
+### Płynny ruch jednostek (decyzja użytkownika 28.10, `gui/smooth_amiga.c`, `smooth_units=1`)
+- Logika bez zmian: ruch co 3 takty zegara gry (50 ms, 20/s). Na początku kroku zapisywane są
+  pozycje wszystkich jednostek; rysowanie (pętle jednostek naziemnych i powietrznych w
+  `viewport.c`) pokazuje jednostkę między poprzednią a bieżącą pozycją według czasu od kroku.
+  W każdej klatce poruszające się jednostki i kafle wokół obu pozycji (`Map_Update(.., 0)`) są
+  oznaczane do przerysowania, po ostatniej klatce pośredniej jeszcze raz w pozycji końcowej.
+  Skok > 2 kafli bez wygładzania.
+- Pomiar (misja 1, grupa w ruchu): fps 20–24 → **57–58**; rysowanie mapy 5% → 14,5%
+  (1,2 ms/wywołanie), wysyłanie 3% → 4,5–5% (0,7–0,8 ms/klatkę), wolne 87% → 75%.
+  Na serii zrzutów w ruchu brak smug.

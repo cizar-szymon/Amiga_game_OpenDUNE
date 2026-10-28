@@ -55,6 +55,7 @@
 #include "../input/mouse.h"
 #include "../os/error.h"
 #include "../gui/rts_amiga.h"
+#include "../os/amiga_prof.h"
 #undef Screen
 
 struct Library *P96Base;
@@ -83,7 +84,7 @@ static int s_mouseMinX = 0, s_mouseMaxX = 319;
 static int s_mouseMinY = 0, s_mouseMaxY = 199;
 static bool s_mouseLeft, s_mouseRight;
 
-/* FPS counter (F8): frames sent per second, top right corner */
+/* FPS counter (F8 or show_fps=1): frames sent per second, bottom right corner */
 static bool s_showFPS;
 static uint32 s_fpsTime, s_fpsFrames, s_fpsShown;
 
@@ -252,6 +253,7 @@ bool Video_Init(int screen_magnification, VideoScaleFilter filter)
 	g_consoleActive = false;
 	s_needRepaint = true;
 	s_commands = IniFile_GetInteger("debug_commands", 0) != 0;
+	s_showFPS = IniFile_GetInteger("show_fps", 0) != 0;
 
 	if (!s_atexitDone) {
 		atexit(Video_Cleanup);
@@ -431,7 +433,7 @@ static void Video_DrawFPS(uint8 *base, int bpr)
 
 	len = sprintf(text, "%lu", (unsigned long)s_fpsShown);
 	x0 = s_width - (len * 4 + 1) * cell;
-	y0 = 0;
+	y0 = s_height - 7 * cell;
 	for (r = 0; r < 7 * cell; r++) memset(base + (y0 + r) * bpr + x0, 0, (len * 4 + 1) * cell);
 	for (i = 0; i < len; i++) {
 		uint8 seg = fontdigits[text[i] - '0'];
@@ -446,7 +448,16 @@ static void Video_DrawFPS(uint8 *base, int bpr)
 	}
 }
 
+static void Video_Tick_(void);
+
 void Video_Tick(void)
+{
+	PROF_BEGIN(PROF_VIDEO)
+	Video_Tick_();
+	PROF_END(PROF_VIDEO)
+}
+
+static void Video_Tick_(void)
 {
 	struct RenderInfo ri;
 	LONG lock;
@@ -530,6 +541,7 @@ void Video_Tick(void)
 		GFX_Screen_SetClean(SCREEN_0);
 		s_needRepaint = false;
 		drawn = true;
+		g_profFrames++;
 	}
 
 	if (rectShow && (drawn || !s_rectShown)) {

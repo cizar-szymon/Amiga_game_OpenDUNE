@@ -33,6 +33,9 @@
 #include "tile.h"
 #include "timer.h"
 #include "tools.h"
+#if defined(__amigaos__)
+#include "gui/smooth_amiga.h"
+#endif
 
 
 static uint32 s_tickUnitMovement  = 0; /*!< Indicates next time the Movement function is executed. */
@@ -136,6 +139,9 @@ void GameLoop_Unit(void)
 	if (s_tickUnitMovement <= g_timerGame) {
 		tickMovement = true;
 		s_tickUnitMovement = g_timerGame + 3;
+#if defined(__amigaos__)
+		Smooth_StepStart();	/* positions before the step, for drawing in between */
+#endif
 	}
 
 	if (s_tickUnitRotation <= g_timerGame) {

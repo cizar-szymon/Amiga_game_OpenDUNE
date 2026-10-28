@@ -12,7 +12,10 @@
 #include <proto/dos.h>
 #include <stdlib.h>
 
+#include <stdio.h>
 #include "types.h"
+#include "../inifile.h"
+#include "amiga_prof.h"
 
 const char amiga_version[] = "$VER: OpenDUNE 0.01 (28.10.2026)";
 
@@ -90,11 +93,13 @@ uint32 AmigaTimer_GetMs(void)
 void AmigaTimer_WaitMs(uint32 ms)
 {
 	ULONG sig;
+	uint32 t0;
 
 	if (!AmigaTimer_Open() || s_waitReq == NULL) {
 		Delay((ms + 19) / 20);
 		return;
 	}
+	t0 = AmigaTimer_EClock();
 	s_waitReq->tr_node.io_Command = TR_ADDREQUEST;
 	s_waitReq->tr_time.tv_secs = ms / 1000;
 	s_waitReq->tr_time.tv_micro = (ms % 1000) * 1000;
@@ -105,4 +110,80 @@ void AmigaTimer_WaitMs(uint32 ms)
 		if (!CheckIO((struct IORequest *)s_waitReq)) AbortIO((struct IORequest *)s_waitReq);
 	}
 	WaitIO((struct IORequest *)s_waitReq);
+	g_profTicks[PROF_SLEEP] += AmigaTimer_EClock() - t0;
+	g_profCalls[PROF_SLEEP]++;
+}
+
+/* ---- time by parts (os/amiga_prof.h), debug_stats=1 ---- */
+
+uint32 g_profTicks[PROF_COUNT];
+uint32 g_profCalls[PROF_COUNT];
+uint32 g_profFrames;
+uint32 g_profLoops;
+
+/** Low 32 bits of the E-clock (differences of up to ~70 minutes). */
+uint32 AmigaTimer_EClock(void)
+{
+	struct EClockVal ev;
+	if (!AmigaTimer_Open()) return 0;
+	ReadEClock(&ev);
+	return ev.ev_lo;
+}
+
+/**
+ * Called once per pass of the game loop: with debug_stats=1 every 5 seconds
+ * one line in RAM:OpenDUNE-stats.txt: frames sent and loop passes per second,
+ * each part's share of the time and its ms per call.
+ */
+void AmigaProf_Tick(void)
+{
+	static int s_enabled = -1;
+	static uint32 s_last, s_lastMs, s_t0;
+	static const char *names[PROF_COUNT] = { "logic", "draw", "ui", "video", "sleep" };
+	uint32 now, wall, sum = 0;
+	FILE *f;
+	int i;
+
+	if (s_enabled < 0) {
+		s_enabled = IniFile_GetInteger("debug_stats", 0) != 0;
+		s_last = AmigaTimer_EClock();
+		s_t0 = s_lastMs = AmigaTimer_GetMs();
+		if (s_enabled) {
+			f = fopen("RAM:OpenDUNE-stats.txt", "w");
+			if (f != NULL) {
+				fprintf(f, "OpenDUNE stats every 5 s: fps = frames sent to the card, loop = game loop passes;\n"
+				           "share of the time and ms per call of logic, draw (map), ui, video (upload), sleep\n");
+				fclose(f);
+			}
+		}
+	}
+	g_profLoops++;
+	if (!s_enabled) return;
+	if (AmigaTimer_GetMs() - s_lastMs < 5000) return;
+
+	now = AmigaTimer_EClock();
+	wall = now - s_last;
+	f = fopen("RAM:OpenDUNE-stats.txt", "a");
+	if (f != NULL && wall > 0) {
+		uint32 ms = AmigaTimer_GetMs() - s_lastMs;
+		fprintf(f, "%5lus fps %2lu loop %3lu |", (unsigned long)((AmigaTimer_GetMs() - s_t0) / 1000),
+		        (unsigned long)(g_profFrames * 1000 / ms), (unsigned long)(g_profLoops * 1000 / ms));
+		for (i = 0; i < PROF_COUNT; i++) {
+			/* per mille of the time; ms per call in tenths */
+			uint32 pm = g_profTicks[i] / (wall / 1000 + 1);
+			uint32 per = g_profCalls[i] ? g_profTicks[i] / g_profCalls[i] * 10 / s_eclockPerMs : 0;
+			sum += g_profTicks[i];
+			fprintf(f, " %s %lu.%lu%% %lu.%lums", names[i], (unsigned long)(pm / 10), (unsigned long)(pm % 10),
+			        (unsigned long)(per / 10), (unsigned long)(per % 10));
+		}
+		{
+			uint32 pm = (wall > sum) ? (wall - sum) / (wall / 1000 + 1) : 0;
+			fprintf(f, " other %lu.%lu%%\n", (unsigned long)(pm / 10), (unsigned long)(pm % 10));
+		}
+		fclose(f);
+	}
+	for (i = 0; i < PROF_COUNT; i++) g_profTicks[i] = g_profCalls[i] = 0;
+	g_profFrames = g_profLoops = 0;
+	s_last = now;
+	s_lastMs = AmigaTimer_GetMs();
 }

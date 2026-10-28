@@ -49,6 +49,9 @@
 #include "../wsa.h"
 #if defined(__amigaos__)
 #include "layout_amiga.h"
+#if defined(__amigaos__)
+#include "smooth_amiga.h"
+#endif
 #endif
 
 MSVC_PACKED_BEGIN
@@ -4599,6 +4602,9 @@ void GUI_DrawScreen(Screen screenID)
 	Explosion_Tick();
 	Animation_Tick();
 	Unit_Sort();
+#if defined(__amigaos__)
+	Smooth_MarkMoving();	/* units between two positions are drawn every frame */
+#endif
 
 	if (!g_viewport_forceRedraw && g_viewportPosition != g_minimapPosition) {
 		uint16 viewportX = Tile_GetPackedX(g_viewportPosition);

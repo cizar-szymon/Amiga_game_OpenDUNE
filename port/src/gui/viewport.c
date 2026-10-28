@@ -32,6 +32,9 @@
 #include "../unit.h"
 #if defined(__amigaos__)
 #include "rts_amiga.h"
+#if defined(__amigaos__)
+#include "smooth_amiga.h"
+#endif
 #endif
 
 static uint32 s_tickCursor;                                 /*!< Stores last time Viewport changed the cursor spriteID. */
@@ -336,8 +339,10 @@ static bool GUI_Widget_Viewport_GetSprite_HousePalette(const uint8 *sprite, uint
  * @param drawToMainScreen True if and only if we are drawing to the main screen and not some buffer screen.
  */
 #if defined(__amigaos__)
+#define SMOOTH_POSITION(u) Smooth_Position(u)
 #define RTS_IS_IN_GROUP(u) RTS_IsInGroup(u)
 #else
+#define SMOOTH_POSITION(u) (u)->o.position
 #define RTS_IS_IN_GROUP(u) false
 #endif
 
@@ -498,7 +503,7 @@ void GUI_Widget_Viewport_Draw(bool forceRedraw, bool hasScrolled, bool drawToMai
 
 			ui = &g_table_unitInfo[u->o.type];
 
-			if (!Map_IsPositionInViewport(u->o.position, &x, &y)) continue;
+			if (!Map_IsPositionInViewport(SMOOTH_POSITION(u), &x, &y)) continue;
 
 			x += g_table_tilediff[0][u->wobbleIndex].x;
 			y += g_table_tilediff[0][u->wobbleIndex].y;
@@ -695,7 +700,7 @@ void GUI_Widget_Viewport_Draw(bool forceRedraw, bool hasScrolled, bool drawToMai
 
 			ui = &g_table_unitInfo[u->o.type];
 
-			if (!Map_IsPositionInViewport(u->o.position, &x, &y)) continue;
+			if (!Map_IsPositionInViewport(SMOOTH_POSITION(u), &x, &y)) continue;
 
 			index = ui->groundSpriteID;
 			orientation = u->orientation[0].current;
