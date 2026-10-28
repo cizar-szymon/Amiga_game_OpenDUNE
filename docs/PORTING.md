@@ -285,3 +285,21 @@ Pomiar, misja 5 (62×62, Harkonnen, `misja5`), przewijanie przy krawędzi + ruch
 - `WorkSD:Games/OpenDUNE` na obu Amigach to instalacja użytkownika (NovaCoder) – nie zmieniać.
   Przy pierwszej instalacji nadpisano tam przez pomyłkę `opendune.ini`; przywrócone domyślnym
   z paczki NovaCodera (własne ustawienia użytkownika utracone).
+
+### LOAD / SAVE, Resolution, czarny panel, bez zabezpieczenia, bez intro (28.10.2026, Amiga 1)
+- Górny pasek: przyciski LOAD i SAVE za OPTIONS (widżety 12, 13 – poniżej 39..45, bo 45 obejmuje
+  ekran i bierze kliknięcia pierwszy). Grafika: końce przycisku OPTIONS przycięte do szerokości
+  napisu; napis złożony z liter grafik MENTAT/OPTIONS (O, A, S, E; L, D z pnia I i połowy O,
+  V kreskami), lekko pogrubiony, w wierszach liter oryginału. LOAD/SAVE otwierają od razu listę
+  wczytania/zapisu. Przy 400×300 jeden LOAD/SAVE (czcionka 8 px) z oknem Load/Save/Continue.
+- Options → Resolution (okno 10, 8 pozycji; `WindowDesc.widgets[8]`, `g_widgetProperties[24]`):
+  rozdzielczości z Settlers 400×300, 640×400, 640×480, 800×600, 640×360, 960×540; ekran otwierany
+  na nowo po zamknięciu Options (`Video_Amiga_SetScreen`), mapa 1:1 na cały ekran, wybór w
+  `saves/RESOLUTION.CFG`; `screenmode=` w ini ma pierwszeństwo. Bufory do 960×600.
+  Sprawdzone na Amidze 1: 800×600, 400×300, 960×540, powrót do 640×480.
+- Panel akcji poniżej zawartości (oryginalne 82 wiersze lub najniższy widoczny przycisk) czarny,
+  ramka skrócona (`Layout_PanelBlackBelow`).
+- Zabezpieczenie (pytania o obrazki po misjach kampanii 1 i 7) wyłączone; `copy_protection=1`
+  przywraca. `skip_intro=1`: bez intro przy starcie (testy).
+- `tools/amiga_free.sh`: przerywa, gdy OpenDUNE działa (kanał `RAM:od-cmd` trafia do każdej kopii
+  z `debug_commands=1` – 28.10 polecenia testowe trafiły do gry użytkownika).

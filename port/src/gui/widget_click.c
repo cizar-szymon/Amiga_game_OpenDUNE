@@ -36,6 +36,7 @@
 #include "../unit.h"
 #if defined(__amigaos__)
 #include "rts_amiga.h"
+#include "layout_amiga.h"
 #endif
 
 
@@ -703,9 +704,80 @@ static bool GUI_YesNo(uint16 stringID)
  * @param w The widget.
  * @return False, always.
  */
+#if defined(__amigaos__)
+/* ---- Amiga: Options with Resolution, the Load / Save window ---- */
+
+static WindowDesc s_optionsDesc;	/* g_optionsWindowDesc + Resolution */
+static int16 s_pendingResolution = -1;
+
+static WindowDesc s_resolutionDesc = {
+	10, -20, false, 7,
+	{
+		{ (uint16)-21, 16,  23, 208, 15, STR_NULL, 0 },
+		{ (uint16)-22, 16,  40, 208, 15, STR_NULL, 0 },
+		{ (uint16)-23, 16,  57, 208, 15, STR_NULL, 0 },
+		{ (uint16)-24, 16,  74, 208, 15, STR_NULL, 0 },
+		{ (uint16)-25, 16,  91, 208, 15, STR_NULL, 0 },
+		{ (uint16)-26, 16, 108, 208, 15, STR_NULL, 0 },
+		{ STR_PREVIOUS, 16, 127, 208, 15, STR_NULL, 0 }
+	}
+};
+
+static WindowDesc s_loadSaveDesc = {
+	22, -27, false, 3,
+	{
+		{ STR_LOAD_A_GAME,    8, 23, 144, 15, STR_NULL, 0 },
+		{ STR_SAVE_THIS_GAME, 8, 40, 144, 15, STR_NULL, 0 },
+		{ STR_CONTINUE_GAME,  8, 57, 144, 15, STR_NULL, 110 }
+	}
+};
+
+/* The Options window with Resolution under Game controls (window 10, 17
+ * pixels higher than the original's 16). */
+static WindowDesc *Amiga_OptionsDesc(void)
+{
+	int i;
+	s_optionsDesc = g_optionsWindowDesc;
+	s_optionsDesc.index = 10;
+	s_optionsDesc.widgetCount = 8;
+	for (i = 3; i <= 6; i++) s_optionsDesc.widgets[i].offsetY += 17;
+	s_optionsDesc.widgets[7] = s_optionsDesc.widgets[2];
+	s_optionsDesc.widgets[7].stringID = (uint16)-20;
+	s_optionsDesc.widgets[7].offsetY = 74;
+	return &s_optionsDesc;
+}
+
+/* The list of resolutions; the chosen one (0..LAYOUT_RESOLUTIONS-1) or -1. */
+static int GUI_Amiga_ResolutionWindow(void)
+{
+	WindowDesc *desc = &s_resolutionDesc;
+	int chosen = -2;
+
+	GUI_Window_BackupScreen(desc);
+	GUI_Window_Create(desc);
+	while (chosen == -2) {
+		Widget *w2 = g_widgetLinkedListTail;
+		uint16 key = GUI_Widget_HandleEvents(w2);
+
+		if ((key & 0x8000) != 0) {
+			int i = (key & 0x7FFF) - 0x1E;
+			chosen = (i >= 0 && i < LAYOUT_RESOLUTIONS) ? i : -1;
+		}
+		GUI_PaletteAnimate();
+		sleepIdle();
+	}
+	GUI_Window_RestoreScreen(desc);
+	return chosen;
+}
+#endif
+
 bool GUI_Widget_Options_Click(Widget *w)
 {
+#if defined(__amigaos__)
+	WindowDesc *desc = Amiga_OptionsDesc();
+#else
 	WindowDesc *desc = &g_optionsWindowDesc;
+#endif
 	uint16 cursor = g_cursorSpriteID;
 	bool loop;
 
@@ -782,6 +854,17 @@ bool GUI_Widget_Options_Click(Widget *w)
 					while (Driver_Voice_IsPlaying()) sleepIdle();
 					break;
 
+#if defined(__amigaos__)
+				case 7: {
+					/* Resolution: applied when the window is closed */
+					int r = GUI_Amiga_ResolutionWindow();
+					if (r >= 0) {
+						s_pendingResolution = (int16)r;
+						loop = false;
+					}
+				} break;
+#endif
+
 				default: break;
 			}
 
@@ -798,6 +881,13 @@ bool GUI_Widget_Options_Click(Widget *w)
 	g_textDisplayNeedsUpdate = true;
 
 	Sprites_LoadTiles();
+#if defined(__amigaos__)
+	if (s_pendingResolution >= 0) {
+		/* the screen opened again; the map screen is laid out again below */
+		Layout_SetResolution(g_layoutResolutions[s_pendingResolution][0], g_layoutResolutions[s_pendingResolution][1]);
+		s_pendingResolution = -1;
+	}
+#endif
 	GUI_DrawInterfaceAndRadar(SCREEN_0);
 
 	UnshadeScreen();
@@ -817,6 +907,80 @@ bool GUI_Widget_Options_Click(Widget *w)
 
 	return false;
 }
+
+#if defined(__amigaos__)
+/**
+ * The LOAD and SAVE buttons of the map screen's top bar (gui/layout_amiga.c):
+ * mode 1 the list to load, 2 the list to save to, 0 (one LOAD/SAVE button) a
+ * window with Load a game, Save this game, Continue game; otherwise as the
+ * Options button.
+ */
+static bool Amiga_LoadSave(Widget *w, int mode)
+{
+	WindowDesc *desc = &s_loadSaveDesc;
+	uint16 cursor = g_cursorSpriteID;
+	bool loop;
+
+	g_cursorSpriteID = 0;
+	Sprites_SetMouseSprite(0, 0, g_sprites[0]);
+	Sprites_UnloadTiles();
+	memmove(g_palette_998A, g_paletteActive, 256 * 3);
+	Driver_Voice_Play(NULL, 0xFF);
+	Timer_SetTimer(TIMER_GAME, false);
+	GUI_DrawText_Wrapper(NULL, 0, 0, 0, 0, 0x22);
+	ShadeScreen();
+	if (mode != 0) {
+		GUI_Widget_SaveLoad_Click(mode == 2);
+		loop = false;
+	} else {
+		GUI_Window_BackupScreen(desc);
+		GUI_Window_Create(desc);
+		loop = true;
+	}
+
+	for (; loop; sleepIdle()) {
+		Widget *w2 = g_widgetLinkedListTail;
+		uint16 key = GUI_Widget_HandleEvents(w2);
+
+		if ((key & 0x8000) != 0) {
+			GUI_Window_RestoreScreen(desc);
+			switch ((key & 0x7FFF) - 0x1E) {
+				case 0:
+					if (GUI_Widget_SaveLoad_Click(false)) loop = false;
+					break;
+				case 1:
+					if (GUI_Widget_SaveLoad_Click(true)) loop = false;
+					break;
+				default:
+					loop = false;
+					break;
+			}
+			if (loop) {
+				GUI_Window_BackupScreen(desc);
+				GUI_Window_Create(desc);
+			}
+		}
+		GUI_PaletteAnimate();
+	}
+
+	g_textDisplayNeedsUpdate = true;
+	Sprites_LoadTiles();
+	GUI_DrawInterfaceAndRadar(SCREEN_0);
+	UnshadeScreen();
+	GUI_Widget_MakeSelected(w, false);
+	Timer_SetTimer(TIMER_GAME, true);
+	GameOptions_Save();
+	Structure_Recount();
+	Unit_Recount();
+	g_cursorSpriteID = cursor;
+	Sprites_SetMouseSprite(0, 0, g_sprites[cursor]);
+	return false;
+}
+
+bool GUI_Widget_LoadSave_Click(Widget *w) { return Amiga_LoadSave(w, 0); }
+bool GUI_Widget_LoadGame_Click(Widget *w) { return Amiga_LoadSave(w, 1); }
+bool GUI_Widget_SaveGame_Click(Widget *w) { return Amiga_LoadSave(w, 2); }
+#endif
 
 static uint16 GetSavegameCount(void)
 {

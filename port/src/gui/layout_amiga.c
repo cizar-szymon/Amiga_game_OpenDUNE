@@ -14,12 +14,16 @@
  */
 
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 
 #include "types.h"
 #include "../os/common.h"
 #include "../os/math.h"
 #include "../gfx.h"
+#include "../file.h"
+#include "../sprites.h"
+#include "../table/strings.h"
 #include "../map.h"
 #include "../scenario.h"
 #include "../tile.h"
@@ -42,8 +46,11 @@ int16 g_panelDY = 0;
 #define BIG_PANEL_Y   (BIG_RADAR_Y + 64 + BIG_BAR_ROWS)
 
 static bool s_big = false;
+
+extern void Video_Amiga_ScreenSize(int *w, int *h);
+extern bool Video_Amiga_SetScreen(int w, int h);
 static bool s_saved = false;
-static WidgetProperties s_props[22];		/* g_widgetProperties as in the original */
+static WidgetProperties s_props[24];		/* g_widgetProperties as in the original */
 
 /* The live game widgets moved with the sidebar (g_table_gameWidgetInfo). */
 static const uint16 s_sidebarWidgets[] = { 3, 4, 5, 6, 7, 8, 9, 10, 11, 44 };
@@ -99,6 +106,10 @@ static void Layout_Properties(void)
 	int i;
 
 	memcpy(g_widgetProperties, s_props, sizeof(s_props));
+	/* 10: the Options window with Resolution, as 16 but 17 pixels higher */
+	g_widgetProperties[10] = g_widgetProperties[16];
+	g_widgetProperties[10].yBase = 40;
+	g_widgetProperties[10].height = 151;
 	if (!s_big) return;
 
 	g_widgetProperties[0].width = SCREEN_WIDTH / 8;
@@ -114,7 +125,8 @@ static void Layout_Properties(void)
 	g_widgetProperties[6].yBase += g_panelDY;
 	g_widgetProperties[6].height = SCREEN_HEIGHT - 8 - g_widgetProperties[6].yBase;
 	g_widgetProperties[7].width = SCREEN_WIDTH / 8 - 2;			/* text line */
-	for (i = 14; i <= 18; i++) {						/* windows: centred */
+	for (i = 10; i <= 22; i++) {						/* windows: centred */
+		if (i != 10 && (i < 14 || i > 18) && i != 22) continue;
 		g_widgetProperties[i].xBase += (SCREEN_WIDTH - 320) / 16;
 		g_widgetProperties[i].yBase += (SCREEN_HEIGHT - 200) / 2;
 	}
@@ -141,12 +153,21 @@ void Layout_Set(bool big)
 		memcpy(s_props, g_widgetProperties, sizeof(s_props));
 		s_saved = true;
 	}
-	if (big == s_big) return;
+	if (big == s_big) {
+		int w, h;
+		if (!big) return;
+		/* the map screen again after another resolution was chosen */
+		Video_Amiga_ScreenSize(&w, &h);
+		if (SCREEN_WIDTH == min(w, SCREEN_WIDTH_MAX) && SCREEN_HEIGHT == min(h, SCREEN_HEIGHT_MAX)) return;
+		s_big = false;
+	}
 
 	GUI_Mouse_Hide_Safe();
 	s_big = big;
 	if (big) {
-		GFX_SetScreenSize(LAYOUT_BIG_WIDTH, LAYOUT_BIG_HEIGHT);
+		int w, h;
+		Video_Amiga_ScreenSize(&w, &h);		/* the map screen 1:1: as large as the screen */
+		GFX_SetScreenSize((uint16)min(w, SCREEN_WIDTH_MAX), (uint16)min(h, SCREEN_HEIGHT_MAX));
 		Mouse_SetRegion(0, 0, SCREEN_WIDTH - 1, SCREEN_HEIGHT - 1);
 		g_viewportTilesW = (SCREEN_WIDTH - 80) / 16;
 		g_viewportTilesH = (SCREEN_HEIGHT - 40) / 16;
@@ -217,4 +238,330 @@ void Layout_ComposeBackground(Screen screenID)
 		}
 	}
 	free(src);
+}
+
+/* ---- the resolution (Options -> Resolution), kept in the save directory ---- */
+
+#define RESOLUTION_FILE "RESOLUTION.CFG"
+
+/* the resolutions of the Settlers port: 4:3 and 16:9 */
+const uint16 g_layoutResolutions[LAYOUT_RESOLUTIONS][2] = {
+	{ 400, 300 }, { 640, 400 }, { 640, 480 }, { 800, 600 }, { 640, 360 }, { 960, 540 }
+};
+
+/** The resolution chosen in Options (Video_Init, when the ini has no screenmode). */
+bool Layout_SavedResolution(int *w, int *h)
+{
+	char text[16];
+	uint8 fd;
+	uint32 n;
+	char *x;
+
+	if (!File_Exists_Personal(RESOLUTION_FILE)) return false;
+	fd = File_Open_Personal(RESOLUTION_FILE, FILE_MODE_READ);
+	if (fd == 0xFF) return false;
+	n = File_Read(fd, text, sizeof(text) - 1);
+	File_Close(fd);
+	text[n] = '\0';
+	x = strchr(text, 'x');
+	if (x == NULL) return false;
+	*w = atoi(text);
+	*h = atoi(x + 1);
+	return true;
+}
+
+/**
+ * Another resolution: the screen opened again, the choice kept; the map
+ * screen is laid out again by the next GUI_DrawInterfaceAndRadar. False when
+ * the screen mode is not there.
+ */
+bool Layout_SetResolution(int w, int h)
+{
+	char text[16];
+	uint8 fd;
+	int n;
+
+	if (!Video_Amiga_SetScreen(w, h)) return false;
+	n = sprintf(text, "%dx%d\n", w, h);
+	fd = File_Open_Personal(RESOLUTION_FILE, FILE_MODE_WRITE);
+	if (fd != 0xFF) {
+		File_Write(fd, text, n);
+		File_Close(fd);
+	}
+	return true;
+}
+
+/* ---- the LOAD and SAVE buttons of the top bar (large map screen only) ---- */
+
+#define BUTTON_X0   190	/* after OPTIONS (104 + 78) */
+#define BUTTON_W    78	/* as MENTAT and OPTIONS */
+#define BUTTON_GAP  8
+
+extern bool GUI_Widget_LoadSave_Click(Widget *w);
+extern bool GUI_Widget_LoadGame_Click(Widget *w);
+extern bool GUI_Widget_SaveGame_Click(Widget *w);
+
+/* Widgets 12 and 13: below 39..45 (45 covers the screen and takes clicks first). */
+typedef struct { uint16 index; const char *word; bool (*click)(Widget *); } TopButton;
+static const TopButton s_buttons[2] = {
+	{ 12, "LOAD", &GUI_Widget_LoadGame_Click },
+	{ 13, "SAVE", &GUI_Widget_SaveGame_Click }
+};
+static bool s_twoButtons = true;	/* else one LOAD/SAVE (no room: 400x300) */
+static int16 s_btnX[2] = { BUTTON_X0, BUTTON_X0 + BUTTON_W + BUTTON_GAP };	/* as drawn */
+static int16 s_btnW[2] = { BUTTON_W, BUTTON_W };
+#define BUTTON_MARGIN 7	/* lettering to the button's ends */
+static uint8 s_barSave[16][BUTTON_W];	/* the top bar under the sampled button */
+
+static Widget *Layout_ButtonWidget(uint16 index)
+{
+	Widget *w = GUI_Widget_Get_ByIndex(g_widgetLinkedListHead, index);
+	return (w != NULL && w->index == index) ? w : NULL;
+}
+
+/* The buttons' widgets: made once, clickable where the buttons are drawn. */
+static void Layout_MakeButtonWidgets(void)
+{
+	Widget *mentat = GUI_Widget_Get_ByIndex(g_widgetLinkedListHead, 1);
+	int i;
+
+	if (mentat == NULL) return;
+	for (i = 0; i < 2; i++) {
+		Widget *w;
+		if (Layout_ButtonWidget(s_buttons[i].index) != NULL) continue;
+		w = GUI_Widget_Allocate(s_buttons[i].index, 0, BUTTON_X0, 1, 0xFFFF, STR_NULL);	/* drawn by Layout_DrawLoadSaveButton */
+		w->width = BUTTON_W;
+		w->height = 16;
+		w->flags = mentat->flags;
+		g_widgetLinkedListHead = GUI_Widget_Insert(g_widgetLinkedListHead, w);
+	}
+}
+
+/** In the game loop: the buttons only on the large map screen, when MENTAT is shown. */
+void Layout_UpdateLoadSaveButton(void)
+{
+	Widget *mentat;
+	int i;
+
+	if (g_widgetLinkedListHead == NULL) return;
+	mentat = GUI_Widget_Get_ByIndex(g_widgetLinkedListHead, 1);
+	if (mentat == NULL) return;
+	if (s_big) Layout_MakeButtonWidgets();
+	for (i = 0; i < 2; i++) {
+		Widget *w = Layout_ButtonWidget(s_buttons[i].index);
+		if (w == NULL) continue;
+		w->offsetX = s_btnX[i];
+		w->width = s_btnW[i];
+		if (s_twoButtons) {
+			w->clickProc = s_buttons[i].click;
+			w->flags.invisible = !s_big || mentat->flags.invisible;
+		} else {
+			/* one button: LOAD/SAVE with the small window */
+			w->clickProc = &GUI_Widget_LoadSave_Click;
+			w->flags.invisible = !s_big || mentat->flags.invisible || i > 0;
+		}
+	}
+}
+
+/* Glyphs of the MENTAT (sprite 7) and OPTIONS (sprite 9) buttons' lettering:
+ * columns from the sprite's left edge, the lettering in rows 2..11. */
+typedef struct { uint8 sprite, from, to; } ButtonGlyph;
+static const ButtonGlyph s_glyphO = { 9,  7, 15 };
+static const ButtonGlyph s_glyphA = { 7, 49, 62 };
+static const ButtonGlyph s_glyphS = { 9, 64, 71 };
+static const ButtonGlyph s_glyphE = { 7, 18, 27 };
+static const ButtonGlyph s_glyphI = { 9, 35, 41 };	/* the stem of I: L, D */
+static const ButtonGlyph s_glyphOR = { 9, 11, 15 };	/* the right half of O: D */
+
+#define GLYPH_TOP 3	/* the lettering's first row on the screen, as MENTAT / OPTIONS */
+#define GLYPH_H   10
+
+/* A word is put together at full size in s_letter, the letters close
+ * together as in MENTAT / OPTIONS, and drawn a little bold (each pixel also
+ * one to the right). */
+#define LETTER_W 160
+static uint8 s_letter[GLYPH_H][LETTER_W];
+static uint8 s_glyphBg;
+
+/* A glyph's lettering pixels (all but the button's background, in their own
+ * colours) from the scratch screen (sprite 7 at y 0, sprite 9 at y 20) into
+ * s_letter at x; returns its width. */
+static int Layout_PutGlyph(const uint8 *scratch, const ButtonGlyph *g, int x)
+{
+	int sy = (g->sprite == 7) ? 2 : 22, c, r;
+	for (c = g->from; c <= g->to; c++) {
+		for (r = 0; r < GLYPH_H; r++) {
+			uint8 v = scratch[(sy + r) * SCREEN_WIDTH + c];
+			int lx = x + c - g->from;
+			if (v != 0 && v != s_glyphBg && lx >= 0 && lx < LETTER_W) s_letter[r][lx] = v;
+		}
+	}
+	return g->to - g->from + 1;
+}
+
+/* A stroke in s_letter, `thick` pixels wide. */
+static void Layout_Stroke(int x1, int y1, int x2, int y2, int thick, uint8 fg)
+{
+	int dx = abs(x2 - x1), dy = abs(y2 - y1), sx = x1 < x2 ? 1 : -1, sy = y1 < y2 ? 1 : -1;
+	int err = dx - dy, t;
+	for (;;) {
+		for (t = 0; t < thick; t++) {
+			if (y1 >= 0 && y1 < GLYPH_H && x1 + t >= 0 && x1 + t < LETTER_W) s_letter[y1][x1 + t] = fg;
+		}
+		if (x1 == x2 && y1 == y2) break;
+		if (2 * err > -dy) { err -= dy; x1 += sx; }
+		if (2 * err < dx) { err += dx; y1 += sy; }
+	}
+}
+
+/* A word of L, O, A, D, S, V, E in s_letter from the letters of MENTAT and
+ * OPTIONS (L, D and V from their parts and strokes); returns its width. */
+static int Layout_MakeWord(const uint8 *scratch, const char *word, uint8 fg)
+{
+	int x = 0, w, bottom = GLYPH_H - 1;
+
+	memset(s_letter, 0, sizeof(s_letter));
+	for (; *word != '\0'; word++) {
+		switch (*word) {
+			case 'L':	/* the stem of I, a foot to the right with a serif */
+				w = Layout_PutGlyph(scratch, &s_glyphI, x);
+				Layout_Stroke(x + 5, bottom, x + w + 2, bottom, 1, fg);
+				Layout_Stroke(x + w + 2, bottom - 2, x + w + 2, bottom, 1, fg);
+				x += w + 3;
+				break;
+			case 'O': x += Layout_PutGlyph(scratch, &s_glyphO, x) - 1; break;
+			case 'A': x += Layout_PutGlyph(scratch, &s_glyphA, x) - 1; break;
+			case 'S': x += Layout_PutGlyph(scratch, &s_glyphS, x) - 1; break;
+			case 'E': x += Layout_PutGlyph(scratch, &s_glyphE, x) - 1; break;
+			case 'D':	/* the stem of I and the right half of O */
+				x += Layout_PutGlyph(scratch, &s_glyphI, x) - 2;
+				x += Layout_PutGlyph(scratch, &s_glyphOR, x) + 1;
+				break;
+			case 'V':	/* two strokes meeting at the bottom, serifs at the top */
+				Layout_Stroke(x + 1, 0, x + 5, bottom, 2, fg);
+				Layout_Stroke(x + 10, 0, x + 6, bottom, 1, fg);
+				Layout_Stroke(x, 0, x + 3, 0, 1, fg);
+				Layout_Stroke(x + 9, 0, x + 11, 0, 1, fg);
+				x += 12;
+				break;
+			default: break;
+		}
+	}
+	return x + 1;	/* + the bold column */
+}
+
+/* s_letter (w columns) drawn at x, y, a little bold. */
+static void Layout_DrawWord(uint8 *buf, int w, int x, int y)
+{
+	int ox, oy;
+	for (oy = 0; oy < GLYPH_H; oy++) {
+		for (ox = 0; ox < w - 1; ox++) {
+			uint8 v = s_letter[oy][ox];
+			if (v == 0) continue;
+			buf[(y + oy) * SCREEN_WIDTH + x + ox] = v;
+			buf[(y + oy) * SCREEN_WIDTH + x + ox + 1] = v;
+		}
+	}
+}
+
+/**
+ * The buttons drawn into the top bar's back buffer (GUI_DrawInterfaceAndRadar):
+ * the OPTIONS button's picture with its lettering replaced by "LOAD" / "SAVE"
+ * put together from the letters of MENTAT and OPTIONS, in the button's own
+ * colours; where the top bar has room for one button only (400x300) one
+ * LOAD/SAVE in the 8 pixel font, which opens the small window.
+ */
+void Layout_DrawLoadSaveButton(Screen screenID)
+{
+	uint16 count[256];
+	uint8 *buf, *scratch;
+	uint8 bg = 0, fg = 0;
+	int x, y, i, n, room;
+	Screen old;
+
+	if (!s_big) return;
+	buf = GFX_Screen_Get_ByIndex(screenID);
+	scratch = GFX_Screen_Get_ByIndex(SCREEN_3);	/* credits and intro only */
+
+	/* both original buttons in the scratch screen, for their letters */
+	for (y = 0; y < 40; y++) memset(scratch + y * SCREEN_WIDTH, 0, 80);
+	GUI_DrawSprite(SCREEN_3, g_sprites[7], 0, 0, 0, 0);
+	GUI_DrawSprite(SCREEN_3, g_sprites[9], 0, 20, 0, 0);
+	/* the colours from the OPTIONS button drawn where ours go, the top bar
+	 * there put back afterwards */
+	for (y = 0; y < 16; y++) memcpy(s_barSave[y], buf + (1 + y) * SCREEN_WIDTH + BUTTON_X0, BUTTON_W);
+	GUI_DrawSprite(screenID, g_sprites[9], BUTTON_X0, 1, 0, 0);
+	memset(count, 0, sizeof(count));
+	for (y = 3; y < 15; y++) {
+		for (x = BUTTON_X0 + 3; x < BUTTON_X0 + 75; x++) count[buf[y * SCREEN_WIDTH + x]]++;
+	}
+	for (y = 0; y < 16; y++) memcpy(buf + (1 + y) * SCREEN_WIDTH + BUTTON_X0, s_barSave[y], BUTTON_W);
+	for (i = 0; i < 256; i++) if (count[i] > count[bg]) bg = (uint8)i;
+	fg = (bg == 0) ? 1 : 0;
+	for (i = 0; i < 256; i++) if (i != bg && count[i] > count[fg]) fg = (uint8)i;
+	s_glyphBg = bg;
+
+	room = 192 + g_sidebarDX - 4;	/* "Credits" */
+	s_twoButtons = BUTTON_X0 + 2 * BUTTON_W + BUTTON_GAP <= room;
+	n = s_twoButtons ? 2 : 1;
+
+	/* the OPTIONS button where they go: its colour back where the first
+	 * button is narrower (the top bar's own pixels are below it) */
+	old = GFX_Screen_SetActive(screenID);
+	{
+		int bx = BUTTON_X0;
+		for (i = 0; i < n; i++) {
+			int c, r, w, tw = 0;
+			if (s_twoButtons) {
+				tw = Layout_MakeWord(scratch, s_buttons[i].word, fg);
+				w = tw + 2 * BUTTON_MARGIN;		/* as narrow as its word */
+			} else {
+				w = BUTTON_W;
+			}
+			s_btnX[i] = (int16)bx;
+			s_btnW[i] = (int16)w;
+			/* the button: the OPTIONS picture's left and right ends (scratch,
+			 * y 20), as wide as w; the inside in the background colour */
+			for (r = 0; r < 16; r++) {
+				for (c = 0; c < w; c++) {
+					int sc = (c < w / 2) ? c : BUTTON_W - (w - c);
+					uint8 v = scratch[(20 + r) * SCREEN_WIDTH + sc];
+					if (v != 0) buf[(1 + r) * SCREEN_WIDTH + bx + c] = v;
+				}
+			}
+			for (y = 3; y < 15; y++) memset(buf + y * SCREEN_WIDTH + bx + 3, bg, w - 6);
+			if (s_twoButtons) {
+				Layout_DrawWord(buf, tw, bx + BUTTON_MARGIN, GLYPH_TOP);
+			} else {
+				GUI_DrawText_Wrapper("LOAD/SAVE", bx + w / 2, 5, fg, 0, 0x122);
+			}
+			bx += w + BUTTON_GAP;
+		}
+	}
+	GFX_Screen_SetActive(old);
+	GFX_Screen_SetDirty(screenID, BUTTON_X0, 1, s_btnX[n - 1] + s_btnW[n - 1], 17);
+}
+
+/**
+ * The large sidebar's action panel reaches the bottom of the screen; below
+ * its contents (the original's 82 rows, or the lowest visible button of the
+ * panel) it is black, its frame ending there (GUI_Widget_ActionPanel_Draw,
+ * on the active screen before the panel is copied to the screen).
+ */
+void Layout_PanelBlackBelow(void)
+{
+	const WidgetProperties *wp = &g_widgetProperties[6];
+	int16 left = wp->xBase << 3, top = wp->yBase, width = wp->width << 3, bottom = wp->yBase + wp->height;
+	int16 end = top + 82;
+	uint16 i;
+
+	if (!s_big) return;
+	for (i = 3; i <= 11; i++) {
+		Widget *w = GUI_Widget_Get_ByIndex(g_widgetLinkedListHead, i);
+		if (w == NULL || w->index != i || w->flags.invisible) continue;
+		if (w->offsetY + (int16)w->height + 3 > end) end = w->offsetY + w->height + 3;
+	}
+	if (end >= bottom) return;
+	GUI_DrawFilledRectangle(left, end, left + width - 1, bottom - 1, 12);
+	GUI_DrawBorder(left, top, width, end - top, 1, false);
 }

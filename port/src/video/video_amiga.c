@@ -25,7 +25,8 @@
  * moves with IDCMP_DELTAMOVE lost movement: Intuition drops MOUSEMOVE
  * messages while its queue is full.) Keyboard: Amiga raw keys translated to
  * AT scancodes.
- * opendune.ini: screenmode=640x480 (default), 800x600, ...
+ * Resolution: Options -> Resolution (kept in the save directory), or
+ * opendune.ini screenmode=WxH (wins); 640x480 by default.
  */
 
 #include <exec/types.h>
@@ -188,50 +189,23 @@ static void Video_Cleanup(void)
 	Video_Uninit();
 }
 
-bool Video_Init(int screen_magnification, VideoScaleFilter filter)
+extern bool Layout_SavedResolution(int *w, int *h);
+
+/* The screen and its window (s_width x s_height); also again for another
+ * resolution (Video_Amiga_SetScreen). */
+static bool Video_OpenScreen(int w, int h)
 {
-	char mode[32];
-	int reqW = 640, reqH = 480, mw = 0, mh = 0;
 	ULONG id;
+	int mw = 0, mh = 0;
 
-	VARIABLE_NOT_USED(screen_magnification);
-	VARIABLE_NOT_USED(filter);
-
-	if (IniFile_GetString("screenmode", NULL, mode, sizeof(mode)) != NULL) {
-		char *x = strchr(mode, 'x');
-		if (x != NULL) {
-			reqW = atoi(mode);
-			reqH = atoi(x + 1);
-		}
-		if (reqW < SCREEN_WIDTH_MAX || reqH < SCREEN_HEIGHT_MAX) {
-			Warning("screenmode %s too small, using %dx%d\n", mode, SCREEN_WIDTH_MAX, SCREEN_HEIGHT_MAX);
-			reqW = SCREEN_WIDTH_MAX;
-			reqH = SCREEN_HEIGHT_MAX;
-		}
-	}
-
-	s_framebuffer = calloc(1, SCREEN_WIDTH_MAX * (SCREEN_HEIGHT_MAX + 4));
-	if (s_framebuffer == NULL) return false;
-
-	if (!Video_OpenP96()) {
-		Error("Picasso96API.library v2 is needed\n");
-		return false;
-	}
-	id = Video_FindClutMode(reqW, reqH, &mw, &mh);
+	id = Video_FindClutMode(w, h, &mw, &mh);
 	if (id == INVALID_ID) {
-		Error("No 8-bit RTG screen mode of %dx%d or larger\n", reqW, reqH);
+		Error("No 8-bit RTG screen mode of %dx%d or larger\n", w, h);
 		return false;
 	}
-	s_width = reqW;
-	s_height = reqH;
-	Video_SetGeometry();
-	s_line = AllocVec(s_width + 16, MEMF_ANY | MEMF_CLEAR);
-	s_blankPointer = AllocVec(16, MEMF_CHIP | MEMF_CLEAR);
-	if (s_line == NULL || s_blankPointer == NULL) return false;
-
 	s_screen = p96OpenScreenTags(P96SA_DisplayID, id,
-	                             P96SA_Width, s_width,
-	                             P96SA_Height, s_height,
+	                             P96SA_Width, w,
+	                             P96SA_Height, h,
 	                             P96SA_Depth, 8,
 	                             P96SA_RGBFormat, RGBFB_CLUT,
 	                             P96SA_Quiet, TRUE,
@@ -240,13 +214,13 @@ bool Video_Init(int screen_magnification, VideoScaleFilter filter)
 	                             P96SA_Exclusive, TRUE,
 	                             TAG_DONE);
 	if (s_screen == NULL) {
-		Error("Cannot open a %dx%d 8-bit screen\n", s_width, s_height);
+		Error("Cannot open a %dx%d 8-bit screen\n", w, h);
 		return false;
 	}
 	s_window = OpenWindowTags(NULL,
 	                          WA_CustomScreen, (ULONG)s_screen,
 	                          WA_Left, 0, WA_Top, 0,
-	                          WA_Width, s_width, WA_Height, s_height,
+	                          WA_Width, w, WA_Height, h,
 	                          WA_Backdrop, TRUE,
 	                          WA_Borderless, TRUE,
 	                          WA_Activate, TRUE,
@@ -259,30 +233,136 @@ bool Video_Init(int screen_magnification, VideoScaleFilter filter)
 	                          TAG_DONE);
 	if (s_window == NULL) {
 		Error("Cannot open the window\n");
+		p96CloseScreen(s_screen);
+		s_screen = NULL;
 		return false;
 	}
 	SetPointer(s_window, s_blankPointer, 1, 1, 0, 0);
+	SetRast(s_window->RPort, 0);
+	s_width = w;
+	s_height = h;
+	s_lw = s_lh = 0;		/* the geometry is made again in the next tick */
+	Video_SetGeometry();
+	s_needRepaint = true;
+	if (s_vramScroll) s_shadow = AllocVec((ULONG)s_width * s_height, MEMF_ANY);
+	s_shadowValid = false;
+	s_scrollPending = false;
+	s_scrollDX = s_scrollDY = 0;
+	s_rectShown = false;
+	Debug("Video: mode %dx%d (board %dx%d)\n", w, h, mw, mh);
+	return true;
+}
+
+static void Video_CloseScreen(void)
+{
+	if (s_window != NULL) {
+		ClearPointer(s_window);
+		CloseWindow(s_window);
+		s_window = NULL;
+	}
+	if (s_screen != NULL) {
+		p96CloseScreen(s_screen);
+		s_screen = NULL;
+	}
+	if (s_shadow != NULL) { FreeVec(s_shadow); s_shadow = NULL; }
+	s_shadowValid = false;
+}
+
+/** The screen's size (the size of the large map screen, gui/layout_amiga.c). */
+void Video_Amiga_ScreenSize(int *w, int *h)
+{
+	*w = s_width;
+	*h = s_height;
+}
+
+/**
+ * Another resolution (Options -> Resolution): the screen opened again, the
+ * game's palette loaded into it. False (the old one kept) when it cannot be.
+ */
+bool Video_Amiga_SetScreen(int w, int h)
+{
+	int ow = s_width, oh = s_height;
+	static ULONG table[1 + 256 * 3 + 1];
+	int i;
+
+	if (w == s_width && h == s_height && s_screen != NULL) return true;
+	Video_CloseScreen();
+	if (!Video_OpenScreen(w, h)) {
+		if (!Video_OpenScreen(ow, oh)) return false;
+	}
+	table[0] = 256UL << 16;
+	for (i = 0; i < 256 * 3; i++) {
+		uint8 v = s_palette[i] & 0x3F;
+		v = (uint8)((v << 2) | (v >> 4));
+		table[1 + i] = (ULONG)v * 0x01010101UL;
+	}
+	table[1 + 256 * 3] = 0;
+	LoadRGB32(&s_screen->ViewPort, table);
+	return s_width == w && s_height == h;
+}
+
+/* A resolution from the ini (screenmode=WxH) or the one chosen in Options,
+ * within 400x300 .. SCREEN_WIDTH_MAX x SCREEN_HEIGHT_MAX. */
+static void Video_RequestedSize(int *w, int *h)
+{
+	char mode[32];
+	*w = 640;
+	*h = 480;
+	if (IniFile_GetString("screenmode", NULL, mode, sizeof(mode)) != NULL) {
+		char *x = strchr(mode, 'x');
+		if (x != NULL) {
+			*w = atoi(mode);
+			*h = atoi(x + 1);
+		}
+	} else {
+		Layout_SavedResolution(w, h);
+	}
+	if (*w < 400 || *h < 300 || *w > SCREEN_WIDTH_MAX || *h > SCREEN_HEIGHT_MAX) {
+		Warning("screen mode %dx%d not supported, using 640x480\n", *w, *h);
+		*w = 640;
+		*h = 480;
+	}
+}
+
+bool Video_Init(int screen_magnification, VideoScaleFilter filter)
+{
+	int reqW, reqH;
+
+	VARIABLE_NOT_USED(screen_magnification);
+	VARIABLE_NOT_USED(filter);
+
+	s_framebuffer = calloc(1, SCREEN_WIDTH_MAX * (SCREEN_HEIGHT_MAX + 4));
+	if (s_framebuffer == NULL) return false;
+
+	if (!Video_OpenP96()) {
+		Error("Picasso96API.library v2 is needed\n");
+		return false;
+	}
+	s_line = AllocVec(2048, MEMF_ANY | MEMF_CLEAR);
+	s_blankPointer = AllocVec(16, MEMF_CHIP | MEMF_CLEAR);
+	if (s_line == NULL || s_blankPointer == NULL) return false;
+
+	s_commands = IniFile_GetInteger("debug_commands", 0) != 0;
+	s_showFPS = IniFile_GetInteger("show_fps", 0) != 0;
+	s_vramScroll = IniFile_GetInteger("vram_scroll", 1) != 0;
+	Video_RequestedSize(&reqW, &reqH);
+	if (!Video_OpenScreen(reqW, reqH)) {
+		if (reqW == 640 && reqH == 480) return false;
+		if (!Video_OpenScreen(640, 480)) return false;
+	}
+
 	s_inputPort = CreateMsgPort();
 	if (s_inputPort != NULL) s_inputReq = (struct IOStdReq *)CreateIORequest(s_inputPort, sizeof(struct IOStdReq));
 	if (s_inputReq != NULL && OpenDevice((CONST_STRPTR)"input.device", 0, (struct IORequest *)s_inputReq, 0) != 0) {
 		DeleteIORequest((struct IORequest *)s_inputReq);
 		s_inputReq = NULL;
 	}
-	SetRast(s_window->RPort, 0);
 	g_consoleActive = false;
-	s_needRepaint = true;
-	s_commands = IniFile_GetInteger("debug_commands", 0) != 0;
-	s_showFPS = IniFile_GetInteger("show_fps", 0) != 0;
-	s_vramScroll = IniFile_GetInteger("vram_scroll", 1) != 0;
-	if (s_vramScroll) s_shadow = AllocVec((ULONG)s_width * s_height, MEMF_ANY);
-	s_shadowValid = false;
 
 	if (!s_atexitDone) {
 		atexit(Video_Cleanup);
 		s_atexitDone = true;
 	}
-	Debug("Video_Init: mode %dx%d (board %dx%d), scale %d/2 x %d, offset %d,%d\n",
-	      s_width, s_height, mw, mh, s_sx2, s_sy, s_x0, s_y0);
 	return true;
 }
 
@@ -294,18 +374,9 @@ void Video_Uninit(void)
 		s_inputReq = NULL;
 	}
 	if (s_inputPort != NULL) { DeleteMsgPort(s_inputPort); s_inputPort = NULL; }
-	if (s_window != NULL) {
-		ClearPointer(s_window);
-		CloseWindow(s_window);
-		s_window = NULL;
-	}
-	if (s_screen != NULL) {
-		p96CloseScreen(s_screen);
-		s_screen = NULL;
-	}
+	Video_CloseScreen();
 	if (s_blankPointer != NULL) { FreeVec(s_blankPointer); s_blankPointer = NULL; }
 	if (s_line != NULL) { FreeVec(s_line); s_line = NULL; }
-	if (s_shadow != NULL) { FreeVec(s_shadow); s_shadow = NULL; }
 	if (P96Base != NULL) { CloseLibrary(P96Base); P96Base = NULL; }
 	free(s_framebuffer);
 	s_framebuffer = NULL;

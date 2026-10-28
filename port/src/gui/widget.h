@@ -166,7 +166,7 @@ typedef struct WindowDesc {
 		uint16 height;                                      /*!< Height of the Widget. */
 		uint16 labelStringId;                               /*!< Label of the Widget. */
 		uint16 shortcut2;                                   /*!< The shortcut to trigger the Widget. */
-	} widgets[7];                                           /*!< The Widgets belonging to the Window. */
+	} widgets[8];                                           /*!< The Widgets belonging to the Window (Amiga: 8). */
 } WindowDesc;
 
 /** Widget properties. */
@@ -198,7 +198,7 @@ extern Widget *g_widgetMentatScrollUp;
 extern Widget *g_widgetMentatScrollDown;
 extern Widget *g_widgetMentatScrollbar;
 
-extern WidgetProperties g_widgetProperties[22];
+extern WidgetProperties g_widgetProperties[24];
 extern uint16 g_curWidgetIndex;
 extern uint16 g_curWidgetXBase;
 extern uint16 g_curWidgetYBase;

@@ -5,7 +5,7 @@ port/src/video/amiga_cmd.c) via AmiAgent.
   python tools/od.py --shot out.png "click 160 100"          ... then a 320x200 shot
   python tools/od.py --state                                 mode, mission, mouse
 
-Coordinates are the game's (320x200). Default config: Amiga 2 (amiagent-2.cfg)."""
+Coordinates are the game's (320x200). Default config: amiagent.cfg (Amiga 1), as amiga_remote.py."""
 import argparse, os, subprocess, sys, tempfile, time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -22,7 +22,7 @@ def remote(cfg, *args, quiet=True):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--config", default="C:/amiga-dev/amiagent-2.cfg")
+    ap.add_argument("--config", default="C:/amiga-dev/amiagent.cfg")
     ap.add_argument("--shot", help="PNG file for a 320x200 shot after the commands")
     ap.add_argument("--scale", type=int, default=2, help="enlargement of the PNG")
     ap.add_argument("--state", action="store_true", help="print RAM:od-state.txt at the end")

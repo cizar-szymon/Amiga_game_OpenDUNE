@@ -2105,6 +2105,9 @@ void GUI_DrawInterfaceAndRadar(Screen screenID)
 	Layout_ComposeBackground(SCREEN_1);
 #endif
 	GUI_DrawSprite(SCREEN_1, g_sprites[11], 192 + SIDEBAR_DX, 0, 0, 0); /* "Credits" */
+#if defined(__amigaos__)
+	Layout_DrawLoadSaveButton(SCREEN_1);
+#endif
 
 	GUI_Palette_RemapScreen(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_1, g_remap);
 
@@ -2987,6 +2990,21 @@ char *GUI_String_Get_ByIndex(int16 stringID)
 		case -14:
 			stringID = (g_gameConfig.autoScroll != 0) ? STR_ON : STR_OFF;
 			break;
+
+#if defined(__amigaos__)
+		/* the Amiga windows (widget_click.c): Resolution, its choices (the
+		 * one in use marked), Load / Save */
+		case -20: return "Resolution";
+		case -27: return "Load / Save";
+		case -21: case -22: case -23: case -24: case -25: case -26: {
+			static char text[6][32];
+			int i = -21 - stringID;
+			bool now = SCREEN_WIDTH == g_layoutResolutions[i][0] && SCREEN_HEIGHT == g_layoutResolutions[i][1];
+			sprintf(text[i], now ? "> %u x %u  (%s) <" : "%u x %u  (%s)",
+			        (unsigned)g_layoutResolutions[i][0], (unsigned)g_layoutResolutions[i][1], i < 4 ? "4:3" : "16:9");
+			return text[i];
+		}
+#endif
 
 		default: break;
 	}

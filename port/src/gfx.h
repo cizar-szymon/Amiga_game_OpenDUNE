@@ -13,8 +13,8 @@ extern uint8 *g_paletteMapping2;
 /* The size of the screen the game draws, in pixels: 320x200 in the menus and
  * cutscenes, larger on the map (GFX_SetScreenSize()). Buffers are made for
  * the maximum. */
-#define SCREEN_WIDTH_MAX  640
-#define SCREEN_HEIGHT_MAX 480
+#define SCREEN_WIDTH_MAX  960
+#define SCREEN_HEIGHT_MAX 600
 extern uint16 g_screenWidth;
 extern uint16 g_screenHeight;
 #define SCREEN_WIDTH  g_screenWidth
@@ -27,7 +27,7 @@ extern uint16 g_viewportTilesH;
 extern int16 g_sidebarDX;
 #define VIEWPORT_TILES_W g_viewportTilesW	/* viewport width in tiles (15) */
 #define VIEWPORT_TILES_H g_viewportTilesH	/* viewport height in tiles (10) */
-#define VIEWPORT_TILES_H_MAX 30
+#define VIEWPORT_TILES_H_MAX 40
 #define SIDEBAR_DX g_sidebarDX			/* shift of the sidebar and radar (0) */
 extern int16 g_radarY;
 extern int16 g_panelDY;

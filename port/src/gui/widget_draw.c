@@ -21,6 +21,7 @@
 #include "../unit.h"
 #if defined(__amigaos__)
 #include "rts_amiga.h"
+#include "layout_amiga.h"
 #endif
 
 
@@ -925,6 +926,9 @@ void GUI_Widget_ActionPanel_Draw(bool forceDraw)
 		}
 	}
 
+#if defined(__amigaos__)
+	if (actionType != 0) Layout_PanelBlackBelow();	/* black below the panel's contents */
+#endif
 	if (actionType != 0) {
 		GUI_Mouse_Hide_InWidget(6);
 		GUI_Screen_Copy(g_curWidgetXBase, g_curWidgetYBase, g_curWidgetXBase, g_curWidgetYBase, g_curWidgetWidth, g_curWidgetHeight, SCREEN_ACTIVE, SCREEN_0);

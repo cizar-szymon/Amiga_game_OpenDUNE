@@ -76,6 +76,7 @@
 #endif
 #if defined(__amigaos__)
 #include "gui/rts_amiga.h"
+#include "gui/layout_amiga.h"
 extern void AmigaBug_Tick(void);
 #include "os/amiga_prof.h"
 #endif
@@ -321,7 +322,12 @@ static void GameLoop_LevelEnd(void)
 
 			GUI_SetPaletteAnimated(g_palette2, 15);
 
+#if defined(__amigaos__)
+			/* the copy protection's questions only with copy_protection=1 */
+			if ((g_campaignID == 1 || g_campaignID == 7) && IniFile_GetInteger("copy_protection", 0) != 0) {
+#else
 			if (g_campaignID == 1 || g_campaignID == 7) {
+#endif
 				if (!GUI_Security_Show()) {
 					PrepareEnd();
 					exit(0);
@@ -711,7 +717,16 @@ static void GameLoop_GameIntroAnimationMenu(void)
 
 			Driver_Music_FadeOut();
 
+#if defined(__amigaos__)
+			{
+				/* skip_intro=1: not at the start (tests); Replay Introduction still plays it */
+				static bool s_atStart = true;
+				if (!s_atStart || IniFile_GetInteger("skip_intro", 0) == 0) GameLoop_GameIntroAnimation();
+				s_atStart = false;
+			}
+#else
 			GameLoop_GameIntroAnimation();
+#endif
 
 			Sound_Output_Feedback(0xFFFE);
 
@@ -1001,6 +1016,7 @@ static void GameLoop_Main(void)
 #if defined(__amigaos__)
 		RTS_Tick();
 		AmigaProf_Tick();
+		Layout_UpdateLoadSaveButton();
 		AmigaBug_Tick();
 #endif
 		if (g_gameMode == GM_MENU) {
