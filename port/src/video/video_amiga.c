@@ -33,6 +33,7 @@
 #include <exec/memory.h>
 #include <intuition/intuition.h>
 #include <intuition/screens.h>
+#include <intuition/intuitionbase.h>
 #include <devices/input.h>
 #include <devices/inputevent.h>
 #include <graphics/gfx.h>
@@ -721,6 +722,20 @@ static void Video_Tick_(void)
 	PROF_BEGIN(PROF_V_EVENTS)
 	Video_HandleEvents();
 	PROF_END(PROF_V_EVENTS)
+
+	{
+		/* back from the Workbench (the corner, Left Amiga + M): Intuition
+		 * shows the screen's title bar over the picture and the window is not
+		 * active - hide the bar, activate the window, send the picture again */
+		static bool front = true;
+		bool now = IntuitionBase->FirstScreen == s_screen;
+		if (now && !front) {
+			ShowTitle(s_screen, FALSE);
+			ActivateWindow(s_window);
+			s_needRepaint = true;
+		}
+		front = now;
+	}
 
 	if (SCREEN_WIDTH != s_lw || SCREEN_HEIGHT != s_lh) {
 		/* the game switched between the menus and the map */

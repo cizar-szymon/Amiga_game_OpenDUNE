@@ -356,7 +356,10 @@ w zrzutach co ~0,6 s (wcześniej co 6,25%).
   w 320×200). Okno Options ma teraz 134 wiersze (7 pozycji).
 - **Róg 2×2 piksele w prawym górnym rogu ekranu**: kliknięcie w dowolnej chwili przenosi na
   Workbench (`ScreenToBack` + `WBenchToFront` w `Video_HandleEvents`, kliknięcie nie trafia do
-  gry); powrót Lewa Amiga + M. Gra w tym czasie dalej chodzi.
+  gry); powrót Lewa Amiga + M. Gra w tym czasie dalej chodzi. Po powrocie Intuition pokazywała
+  pasek tytułu ekranu u góry, a okno nie było aktywne (BUG010): gdy ekran gry wraca na wierzch
+  (`IntuitionBase->FirstScreen`), `ShowTitle(FALSE)`, `ActivateWindow` i cały obraz od nowa.
+  Test: `inject key 0x37 0x40` (Lewa Amiga + M; `inject key` ma teraz kwalifikator).
 - Sprawdzone: WinUAE (bez Warpa: „No Warp”), Amiga 2 (Warp7060, firmware 3.058, 105 → 100 → 105 MHz
   potwierdzone przez `WarpTool Diag`; róg → Workbench na wierzchu).
 

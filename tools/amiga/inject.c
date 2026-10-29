@@ -3,7 +3,9 @@
      inject move X Y        pointer to X,Y of the front screen
      inject click X Y       move, left button down and up
      inject rclick X Y      the same with the right button
-     inject key CODE        raw key down and up (hex, e.g. 0x45)
+     inject key CODE [QUAL] raw key down and up (hex, e.g. 0x45), QUAL the
+                            qualifier (hex, e.g. 0x40 Left Amiga: key 0x37 0x40
+                            is Left Amiga + M, the screen to the front)
      inject rmove DX DY     relative mouse movement in steps of 1 pixel (for
                             programs that capture the mouse and read deltas)
      inject here            left click where the pointer is */
@@ -69,12 +71,13 @@ static void rel(int dx, int dy)
     }
 }
 
-static void key(UWORD code)
+static void key(UWORD code, UWORD qual)
 {
     struct InputEvent ie;
     memset(&ie, 0, sizeof(ie));
     ie.ie_Class = IECLASS_RAWKEY;
     ie.ie_Code = code;
+    ie.ie_Qualifier = qual;
     send(&ie);
     Delay(5);
     ie.ie_Code = code | IECODE_UP_PREFIX;
@@ -95,7 +98,7 @@ int main(int argc, char **argv)
     } else if (strcmp(argv[1], "rmove") == 0 && argc >= 4) {
         rel(atoi(argv[2]), atoi(argv[3]));
     } else if (strcmp(argv[1], "key") == 0) {
-        key((UWORD)strtol(argv[2], NULL, 0));
+        key((UWORD)strtol(argv[2], NULL, 0), argc > 3 ? (UWORD)strtol(argv[3], NULL, 0) : 0);
     } else if (argc >= 4) {
         int x = atoi(argv[2]), y = atoi(argv[3]);
         move(x, y);
