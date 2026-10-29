@@ -734,8 +734,14 @@ static void GameLoop_GameIntroAnimationMenu(void)
 	static const uint16 mainMenuStrings[][6] = {
 		{STR_PLAY_A_GAME, STR_MENU_SECOND, STR_EXIT_GAME, STR_NULL,         STR_NULL,         STR_NULL}, /* Neither HOF nor save. */
 		{STR_PLAY_A_GAME, STR_MENU_SECOND, STR_LOAD_GAME, STR_EXIT_GAME,    STR_NULL,         STR_NULL}, /* Has a save game. */
+#if defined(__amigaos__)
+		/* Hall of Fame above Exit Game (the user's wish) */
+		{STR_PLAY_A_GAME, STR_MENU_SECOND, STR_HALL_OF_FAME, STR_EXIT_GAME, STR_NULL,      STR_NULL}, /* Has a HOF. */
+		{STR_PLAY_A_GAME, STR_MENU_SECOND, STR_LOAD_GAME, STR_HALL_OF_FAME, STR_EXIT_GAME, STR_NULL}  /* Has a HOF and a save game. */
+#else
 		{STR_PLAY_A_GAME, STR_MENU_SECOND, STR_EXIT_GAME, STR_HALL_OF_FAME, STR_NULL,         STR_NULL}, /* Has a HOF. */
 		{STR_PLAY_A_GAME, STR_MENU_SECOND, STR_LOAD_GAME, STR_EXIT_GAME,    STR_HALL_OF_FAME, STR_NULL}  /* Has a HOF and a save game. */
+#endif
 	};
 
 	bool loadGame = false;
@@ -812,6 +818,11 @@ static void GameLoop_GameIntroAnimationMenu(void)
 				/* the game starts (GM_RESTART: Lan_StartGame instead of a scenario) */
 				g_lanStarting = true;
 				g_gameMode = GM_RESTART;
+				/* the lobby off the screen: the menu's box is cleared next (black
+				 * over the lobby, a black frame seen at the bottom, 29.10.2026) */
+				GUI_Mouse_Hide_Safe();
+				GUI_ClearScreen(SCREEN_0);
+				GUI_Mouse_Show_Safe();
 				drawMenu = true;
 				stringID = 0xFFFF;	/* back in the main menu after the game */
 				return;

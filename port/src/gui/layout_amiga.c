@@ -683,8 +683,12 @@ void Layout_ZoomCancel(void)
 
 static void Layout_ChangeZoom(int zoom)
 {
-	int cx = Tile_GetPackedX(g_viewportPosition) + g_viewportTilesW / 2;
-	int cy = Tile_GetPackedY(g_viewportPosition) + g_viewportTilesH / 2;
+	/* the tile under the pointer stays under it (the user's wish); the pointer
+	 * off the viewport: the middle of the view stays */
+	bool atPointer = Layout_InView(g_mouseX, g_mouseY);
+	int px = atPointer ? g_mouseX / 16 : 0, py = atPointer ? (g_mouseY - 40) / 16 : 0;	/* screen tiles from the view's corner */
+	int cx = Tile_GetPackedX(g_viewportPosition) + (atPointer ? px / g_viewZoom : g_viewportTilesW / 2);
+	int cy = Tile_GetPackedY(g_viewportPosition) + (atPointer ? py / g_viewZoom : g_viewportTilesH / 2);
 
 	s_zoomWanted = zoom;
 	if (zoom == g_viewZoom) return;
@@ -693,8 +697,11 @@ static void Layout_ChangeZoom(int zoom)
 	g_viewZoom = zoom;
 	g_viewportTilesW = (s_fullTilesW + zoom - 1) / zoom;
 	g_viewportTilesH = (s_fullTilesH + zoom - 1) / zoom;
-	/* the middle of the view stays */
-	g_viewportPosition = Tile_PackXY((uint16)max(cx - g_viewportTilesW / 2, 0), (uint16)max(cy - g_viewportTilesH / 2, 0));
+	if (atPointer) {
+		g_viewportPosition = Tile_PackXY((uint16)max(cx - px / zoom, 0), (uint16)max(cy - py / zoom, 0));
+	} else {
+		g_viewportPosition = Tile_PackXY((uint16)max(cx - g_viewportTilesW / 2, 0), (uint16)max(cy - g_viewportTilesH / 2, 0));
+	}
 	Layout_ClampViewport();
 	Layout_Properties();
 	Layout_GameWidgets();

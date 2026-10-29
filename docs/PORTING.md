@@ -332,7 +332,8 @@ podpis z `String_Get_ByIndex(STR_QUIT_PLAYING)`. Sprawdzone w WinUAE (misja 5 �
 ### Zoom widoku mapy (29.10.2026, jak w Settlers, decyzja użytkownika)
 
 - **Z** – po kolei ×1 → ×2 → ×3 → ×1; **kółko myszy** – stopień bliżej / dalej (RAWKEY 0x7A/0x7B,
-  OS 3.2 / NewMouse); środek widoku zostaje. Największy zoom jak w Settlers: 4:3 powyżej 400
+  OS 3.2 / NewMouse); pole pod wskaźnikiem zostaje pod nim (życzenie użytkownika; wskaźnik poza
+  widokiem: środek widoku). Największy zoom jak w Settlers: 4:3 powyżej 400
   szerokości ×2, od 800 ×3; 16:9 od 960 ×3, 640×360 bez zoomu. Także w grze LAN (zmienia tylko obraz).
 - **Jak:** widok rysuje się z mniejszą liczbą pól (logicznie, w SCREEN_1 na zwykłym miejscu),
   a jego kopia do SCREEN_0 jest rozciągana na cały widok (`Layout_ZoomCopy` z `GUI_Screen_Copy`,
