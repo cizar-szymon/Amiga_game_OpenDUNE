@@ -492,6 +492,13 @@ static void Video_HandleEvents(void)
 			case IDCMP_MOUSEBUTTONS:
 				Video_MouseAt(mx, my);
 				moved = false;
+				if (code == SELECTDOWN && mx >= s_width - 2 && my < 2) {
+					/* the 2x2 square in the top right corner: to the Workbench
+					 * (back to the game: Left Amiga + M); the click is not the game's */
+					ScreenToBack(s_screen);
+					WBenchToFront();
+					break;
+				}
 				switch (code) {
 					case SELECTDOWN: s_mouseLeft = true; break;
 					case SELECTUP:   s_mouseLeft = false; break;

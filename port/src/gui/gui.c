@@ -3071,6 +3071,9 @@ char *GUI_String_Get_ByIndex(int16 stringID)
 		 * one in use marked), Load / Save */
 		case -20: return "Resolution";
 		case -27: return "Load / Save";
+		case -28: return "Amiga info";
+		case -29: return "-";
+		case -30: return "+";
 		case -21: case -22: case -23: case -24: case -25: case -26: {
 			static char text[6][32];
 			int i = -21 - stringID;

@@ -38,6 +38,7 @@
 #include "rts_amiga.h"
 #include "layout_amiga.h"
 #include "../lan_amiga.h"
+#include "../os/sysinfo_amiga.h"
 #endif
 
 
@@ -753,35 +754,37 @@ static WindowDesc s_loadSaveDesc = {
 	}
 };
 
-/* The Options window with Resolution under Game controls (window 10, 17
- * pixels higher than the original's 16). */
+/* The Options window with Resolution and Amiga info under Game controls
+ * (window 10, 34 pixels higher than the original's 16). */
 /* Its entries: the original's numbers (the switch in GUI_Widget_Options_Click),
- * 7 = Resolution; Load a game and Save this game are the top bar's buttons. */
-static const int s_optionsMap[6] = { 2, 7, 3, 4, 5, 6 };
+ * 7 = Resolution, 8 = Amiga info; Load a game and Save this game are the top
+ * bar's buttons. */
+static const int s_optionsMap[7] = { 2, 7, 8, 3, 4, 5, 6 };
 /* a LAN game: no Restart scenario, no Pick another house */
-static const int s_optionsMapLan[4] = { 2, 7, 5, 6 };
+static const int s_optionsMapLan[5] = { 2, 7, 8, 5, 6 };
 /* the server of a LAN game: Save this game too (variant B: the server saves) */
-static const int s_optionsMapLanServer[5] = { 2, 7, 1, 5, 6 };
+static const int s_optionsMapLanServer[6] = { 2, 7, 8, 1, 5, 6 };
 static const int *s_options = s_optionsMap;
-static int s_optionsCount = 6;
+static int s_optionsCount = 7;
 
 static WindowDesc *Amiga_OptionsDesc(void)
 {
-	static const int16 y[6] = { 23, 40, 57, 74, 93, 93 };
-	static const int16 yLan[4] = { 23, 40, 93, 93 };
-	static const int16 yLanServer[5] = { 23, 40, 57, 93, 93 };
+	static const int16 y[7] = { 23, 40, 57, 74, 91, 110, 110 };
+	static const int16 yLan[5] = { 23, 40, 57, 110, 110 };
+	static const int16 yLanServer[6] = { 23, 40, 57, 74, 110, 110 };
 	bool server = LAN_GAME && g_lanServer;
 	int i;
 	s_options = server ? s_optionsMapLanServer : LAN_GAME ? s_optionsMapLan : s_optionsMap;
-	s_optionsCount = server ? 5 : LAN_GAME ? 4 : 6;
+	s_optionsCount = server ? 6 : LAN_GAME ? 5 : 7;
 	s_optionsDesc = g_optionsWindowDesc;
 	s_optionsDesc.index = 10;
 	s_optionsDesc.widgetCount = s_optionsCount;
 	for (i = 0; i < s_optionsCount; i++) {
-		s_optionsDesc.widgets[i] = (s_options[i] == 7) ? g_optionsWindowDesc.widgets[2] : g_optionsWindowDesc.widgets[s_options[i]];
+		s_optionsDesc.widgets[i] = (s_options[i] >= 7) ? g_optionsWindowDesc.widgets[2] : g_optionsWindowDesc.widgets[s_options[i]];
 		s_optionsDesc.widgets[i].offsetY = server ? yLanServer[i] : LAN_GAME ? yLan[i] : y[i];
+		if (s_options[i] == 7) s_optionsDesc.widgets[i].stringID = (uint16)-20;
+		if (s_options[i] == 8) s_optionsDesc.widgets[i].stringID = (uint16)-28;
 	}
-	s_optionsDesc.widgets[1].stringID = (uint16)-20;
 	return &s_optionsDesc;
 }
 
@@ -798,8 +801,8 @@ static int GUI_Amiga_ResolutionWindow(void)
 	int chosen = -2;
 	WidgetProperties options = g_widgetProperties[10];
 
-	/* seven entries: 151 rows instead of the Options window's 117 */
-	g_widgetProperties[10].yBase -= 17;
+	/* seven entries: 151 rows instead of the Options window's 134 */
+	g_widgetProperties[10].yBase -= 9;
 	g_widgetProperties[10].height = 151;
 	GUI_Window_BackupScreen(desc);
 	GUI_Window_Create(desc);
@@ -817,6 +820,161 @@ static int GUI_Amiga_ResolutionWindow(void)
 	GUI_Window_RestoreScreen(desc);
 	g_widgetProperties[10] = options;
 	return chosen;
+}
+
+/* ---- Amiga info: the computer, and the CPU clock of a Warp (as the Amiga
+ * box of the Settlers port) ---- */
+
+#define AMIGAINFO_HEIGHT  190
+#define AMIGAINFO_LABEL    16	/* x of the labels, of the values */
+#define AMIGAINFO_VALUE   112
+#define AMIGAINFO_ROW       9
+#define AMIGAINFO_CLOCK   115	/* y of the clock buttons */
+
+/* Previous; with a clock that can be changed also lower (-) and higher (+) */
+static WindowDesc s_amigaInfoDesc = {
+	10, -28, false, 3,
+	{
+		{ STR_PREVIOUS, 16, AMIGAINFO_HEIGHT - 19, 208, 15, STR_NULL, 0 },
+		{ (uint16)-29, 160, AMIGAINFO_CLOCK, 30, 15, STR_NULL, 0 },
+		{ (uint16)-30, 194, AMIGAINFO_CLOCK, 30, 15, STR_NULL, 0 }
+	}
+};
+
+/* The range and the step of the clock: a MC68060 50-100 MHz in steps of 10,
+ * above the clock it had when the window opened (overclocking) only a rev. 6;
+ * a MC68040 20-50 MHz in steps of 1; 0, 0, 0 otherwise. The clock it had can
+ * always be set back (Amiga 2 runs at 105 MHz). */
+static void GUI_Amiga_ClockRange(const AmigaInfo *info, int startMHz, int *low, int *high, int *step)
+{
+	*low = *high = *step = 0;
+	if (!info->warp || info->warp_mhz <= 0) return;
+	if (info->is_68060) {
+		*low = 50;
+		*high = (info->cpu_rev >= 6) ? 100 : startMHz;
+		*step = 10;
+	} else if (strcmp(info->cpu, "MC68040") == 0) {
+		*low = 20;
+		*high = 50;
+		*step = 1;
+	}
+	if (*step != 0 && *high < startMHz) *high = startMHz;
+}
+
+static void GUI_Amiga_SizeText(char *text, size_t size, unsigned long kb)
+{
+	if (kb >= 2048) snprintf(text, size, "%lu MB", kb / 1024);
+	else snprintf(text, size, "%lu KB", kb);
+}
+
+/* The window over the Options window, its rows on SCREEN_0. */
+static void GUI_Amiga_AmigaInfoDraw(const AmigaInfo *info, bool clock)
+{
+	char cpu[40], kick[16], chip[16], fast[16], board[20], vram[16], screen[32], mhz[16];
+	const char *rows[8][2];
+	int16 x, y;
+	int i;
+
+	s_amigaInfoDesc.widgetCount = clock ? 3 : 1;
+	GUI_Window_Create(&s_amigaInfoDesc);
+
+	if (info->cpu_rev >= 0) snprintf(cpu, sizeof(cpu), "%s rev. %d", info->cpu, info->cpu_rev);
+	else snprintf(cpu, sizeof(cpu), "%s", info->cpu);
+	snprintf(kick, sizeof(kick), "%d.%d", info->kick_version, info->kick_revision);
+	GUI_Amiga_SizeText(chip, sizeof(chip), info->chip_kb);
+	GUI_Amiga_SizeText(fast, sizeof(fast), info->fast_kb);
+	snprintf(board, sizeof(board), "%s", info->board[0] != 0 ? info->board : "none");
+	GUI_Amiga_SizeText(vram, sizeof(vram), info->vram_kb);
+	snprintf(screen, sizeof(screen), "%dx%d 8 bit", SCREEN_WIDTH, SCREEN_HEIGHT);
+	rows[0][0] = "Processor";   rows[0][1] = cpu;
+	rows[1][0] = "FPU";         rows[1][1] = info->fpu ? "yes" : "no";
+	rows[2][0] = "Kickstart";   rows[2][1] = kick;
+	rows[3][0] = "Chip RAM";    rows[3][1] = chip;
+	rows[4][0] = "Fast RAM";    rows[4][1] = fast;
+	rows[5][0] = "Graphics";    rows[5][1] = board;
+	rows[6][0] = "Card memory"; rows[6][1] = vram;
+	rows[7][0] = "Screen";      rows[7][1] = screen;
+
+	Widget_SetCurrentWidget(s_amigaInfoDesc.index);
+	x = g_curWidgetXBase << 3;
+	y = g_curWidgetYBase + 22;
+	GUI_Mouse_Hide_Safe();
+	for (i = 0; i < 8; i++, y += AMIGAINFO_ROW) {
+		GUI_DrawText_Wrapper(rows[i][0], x + AMIGAINFO_LABEL, y, 232, 0, 0x22);
+		GUI_DrawText_Wrapper(rows[i][1], x + AMIGAINFO_VALUE, y, 238, 0, 0x22);
+	}
+	y += 3;
+	if (!info->warp) {
+		GUI_DrawText_Wrapper("No Warp: SYS:C/WarpTool", x + AMIGAINFO_LABEL, y, 232, 0, 0x22);
+		GUI_DrawText_Wrapper("not found.", x + AMIGAINFO_LABEL, y + AMIGAINFO_ROW, 232, 0, 0x22);
+	} else {
+		static const char *warning[4] = {
+			"Raising the clock overclocks",
+			"the CPU - the system may hang.",
+			NULL,
+			"The clock changes at once."
+		};
+		GUI_DrawText_Wrapper("Accelerator", x + AMIGAINFO_LABEL, y, 232, 0, 0x22);
+		GUI_DrawText_Wrapper(info->warp_model, x + AMIGAINFO_VALUE, y, 238, 0, 0x22);
+		GUI_DrawText_Wrapper("Firmware", x + AMIGAINFO_LABEL, y + AMIGAINFO_ROW, 232, 0, 0x22);
+		GUI_DrawText_Wrapper(info->warp_firmware, x + AMIGAINFO_VALUE, y + AMIGAINFO_ROW, 238, 0, 0x22);
+		y = g_curWidgetYBase + AMIGAINFO_CLOCK + 3;
+		snprintf(mhz, sizeof(mhz), "%d MHz", info->warp_mhz);
+		GUI_DrawText_Wrapper("CPU clock", x + AMIGAINFO_LABEL, y, 232, 0, 0x22);
+		GUI_DrawText_Wrapper(mhz, x + AMIGAINFO_VALUE, y, 238, 0, 0x22);
+		y = g_curWidgetYBase + AMIGAINFO_CLOCK + 20;
+		for (i = 0; i < 4; i++, y += AMIGAINFO_ROW) {
+			const char *line = warning[i];
+			if (line == NULL) line = strcmp(info->cpu, "MC68040") == 0 ? "MC68040: 20 to 50 MHz." : "Only for a MC68060 rev. 6.";
+			GUI_DrawText_Wrapper(line, x + AMIGAINFO_LABEL, y, 232, 0, 0x22);
+		}
+	}
+	GUI_Mouse_Show_Safe();
+}
+
+/** Options - Amiga info: the computer; the - and + buttons change the CPU
+ * clock of a Warp (SYS:C/WarpTool). */
+static void GUI_Amiga_AmigaInfoWindow(void)
+{
+	WidgetProperties options = g_widgetProperties[10];
+	AmigaInfo info;
+	int low, high, step, startMHz;
+	bool done = false;
+
+	amiga_info_read(&info);
+	startMHz = info.warp_mhz;
+	GUI_Amiga_ClockRange(&info, startMHz, &low, &high, &step);
+
+	g_widgetProperties[10].yBase -= (AMIGAINFO_HEIGHT - options.height) / 2;
+	g_widgetProperties[10].height = AMIGAINFO_HEIGHT;
+	GUI_Window_BackupScreen(&s_amigaInfoDesc);
+	GUI_Amiga_AmigaInfoDraw(&info, step != 0);
+	while (!done) {
+		uint16 key = GUI_Widget_HandleEvents(g_widgetLinkedListTail);
+
+		if ((key & 0x8000) != 0) {
+			int i = (key & 0x7FFF) - 0x1E;
+			if (i == 1 || i == 2) {
+				/* to the next whole step (105 -> 100 or 110), within the range */
+				int mhz = info.warp_mhz - info.warp_mhz % step;
+				if (i == 2) mhz += step;
+				else if (mhz == info.warp_mhz) mhz -= step;
+				if (mhz > high) mhz = high;
+				if (mhz < low) mhz = low;
+				if (mhz != info.warp_mhz) {
+					amiga_warp_set_mhz(mhz);
+					amiga_info_read(&info);	/* what the Warp says now */
+				}
+				GUI_Amiga_AmigaInfoDraw(&info, step != 0);
+			} else {
+				done = true;
+			}
+		}
+		GUI_PaletteAnimate();
+		sleepIdle();
+	}
+	GUI_Window_RestoreScreen(&s_amigaInfoDesc);
+	g_widgetProperties[10] = options;
 }
 #endif
 
@@ -947,6 +1105,12 @@ bool GUI_Widget_Options_Click(Widget *w)
 						loop = false;
 					}
 				} break;
+#endif
+
+#if defined(__amigaos__)
+				case 8:
+					GUI_Amiga_AmigaInfoWindow();
+					break;
 #endif
 
 				default: break;

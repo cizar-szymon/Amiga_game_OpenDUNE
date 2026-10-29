@@ -338,6 +338,23 @@ wstrzymana, są kredyty) – i przerysowuje się przy każdej zmianie o 1% (`dis
 Tylko wyświetlanie: gra (i gra LAN) bez zmian. WinUAE, CONCRETE: 8, 21, 33, 46, 59, 71, 84, 97%
 w zrzutach co ~0,6 s (wcześniej co 6,25%).
 
+### Options → Amiga info, róg do Workbencha (29.10.2026, życzenie użytkownika)
+
+- **Amiga info** (trzecia pozycja Options, także w grze LAN): te same dane i możliwości co okno
+  Amiga w Settlers – procesor i rewizja (68060: `MOVEC PCR` w `Supervisor`), FPU, Kickstart,
+  Chip/Fast RAM, karta P96 i jej pamięć, ekran, a z Warpem (`SYS:C/WarpTool Diag`) model, firmware
+  i zegar CPU z przyciskami − / +. 68060: 50–100 MHz co 10 (powyżej zegara z otwarcia okna tylko
+  rev. 6), 68040: 20–50 MHz co 1; zegar, który był przy otwarciu (Amiga 2: 105 MHz), zawsze da się
+  przywrócić, kroki idą do pełnych dziesiątek (105 → 100 → 105). Kod: `os/sysinfo_amiga.c` (kopia
+  `amiga_sysinfo.c` z Settlers, plik tymczasowy `RAM:OpenDUNE-warp.txt`),
+  `GUI_Amiga_AmigaInfoWindow` w `widget_click.c` (okno 10, na czas pokazania 190 wierszy – mieści się
+  w 320×200). Okno Options ma teraz 134 wiersze (7 pozycji).
+- **Róg 2×2 piksele w prawym górnym rogu ekranu**: kliknięcie w dowolnej chwili przenosi na
+  Workbench (`ScreenToBack` + `WBenchToFront` w `Video_HandleEvents`, kliknięcie nie trafia do
+  gry); powrót Lewa Amiga + M. Gra w tym czasie dalej chodzi.
+- Sprawdzone: WinUAE (bez Warpa: „No Warp”), Amiga 2 (Warp7060, firmware 3.058, 105 → 100 → 105 MHz
+  potwierdzone przez `WarpTool Diag`; róg → Workbench na wierzchu).
+
 ### Zoom widoku mapy (29.10.2026, jak w Settlers, decyzja użytkownika)
 
 - **Z** – po kolei ×1 → ×2 → ×3 → ×1; **kółko myszy** – stopień bliżej / dalej (RAWKEY 0x7A/0x7B,

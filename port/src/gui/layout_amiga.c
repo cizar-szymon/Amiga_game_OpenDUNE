@@ -124,10 +124,11 @@ static void Layout_Properties(void)
 	int i;
 
 	memcpy(g_widgetProperties, s_props, sizeof(s_props));
-	/* 10: the Options window of six entries (Resolution, no Load / Save) */
+	/* 10: the Options window of seven entries (Resolution, Amiga info, no
+	 * Load / Save) */
 	g_widgetProperties[10] = g_widgetProperties[16];
-	g_widgetProperties[10].yBase = 41;
-	g_widgetProperties[10].height = 117;
+	g_widgetProperties[10].yBase = 33;
+	g_widgetProperties[10].height = 134;
 	if (!s_big) return;
 
 	g_widgetProperties[0].width = SCREEN_WIDTH / 8;
