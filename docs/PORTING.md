@@ -333,6 +333,7 @@ ostatni. Gra może ruszyć już przy 2 graczach. Bez gracza komputerowego. Drugi
 | Mapy z bazami trzech rodów (`tools/lan_maps.py` → `lan_maps.h`) | ✅ 3 mapy (SCENA020, SCENA022, SCENH021) |
 | Koniec gry: przegrana / wygrana / wyjście (Options → Quit) / serwer zamknięty | ✅ |
 | Gra toczy się pod oknami (fabryka, Options, Mentat) | ✅ |
+| Walka: czołgi Atreidów niszczą Construction Yard Harkonnenów (wybuchy, piechota z budynku) | ✅ sumy równe do kroku 16800 (4,5 min) |
 | Test z trzema Amigami (Amiga 2 niedostępna 29.10) | ⏳ |
 
 ### Jak to działa

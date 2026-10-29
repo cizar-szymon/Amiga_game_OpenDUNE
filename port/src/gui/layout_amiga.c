@@ -380,6 +380,12 @@ void Layout_UpdateLoadSaveButton(void)
 		if (w == NULL) continue;
 		w->offsetX = s_btnX[i];
 		w->width = s_btnW[i];
+		w->height = 16;
+		if (LAN_GAME) {
+			/* no saving in a LAN game: not there at all (an invisible widget still drew its frame) */
+			w->width = 0;
+			w->height = 0;
+		}
 		if (s_twoButtons) {
 			w->clickProc = s_buttons[i].click;
 			w->flags.invisible = !s_big || mentat->flags.invisible || LAN_GAME;
