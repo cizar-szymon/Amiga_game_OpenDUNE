@@ -471,6 +471,14 @@ do niego odwołuje. Gra LAN (okna → `Lan_Run` → krok gry) przekroczyła 16 K
 SmartCrash „line-F” w WinUAE przy SEARCH. Poprawka: odwołanie do `__stkinit` w `os/amiga.c`;
 raport F10 podaje teraz rozmiar stosu (z ikony: 400000).
 
+Zawieszenie Amigi 2 przy wyjściu z gry LAN (29.10): po Ctrl-C (i przy każdym wyjściu z gry po
+grze LAN, `Net_Quit` w atexit) cała Amiga stała – mysz, AmiAgent. Dziennik wyjścia
+(`PROGDIR:exit-log.txt`, linia po linii z zamknięciem pliku, przetrwa reset) pokazał: gra wysłała
+procesowi sieciowemu Ctrl-C, a `WaitSelect` Roadshow na Amidze 2 wracał wciąż z sygnałami 0 –
+proces (priorytet 1) kręcił się dalej, gra czekała na niego bez końca. Na Amidze 1 i w WinUAE
+sygnał dochodził. Poprawka: `Net_Quit` ustawia też flagę `s_quitRequest`, którą pętla procesu
+sprawdza po każdym obudzeniu. Sprawdzone na Amidze 2: wyjście czyste, wszystkie kroki w dzienniku.
+
 ### Znane ograniczenia / dalej
 
 - Test z trzema Amigami (Amiga 2) – gdy będzie dostępna.

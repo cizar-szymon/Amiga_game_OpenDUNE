@@ -22,6 +22,18 @@
 #include "net_amiga.h"
 #include "amiga_prof.h"
 
+extern void Amiga_ExitLog(const char *text);
+
+/* After Net_Quit's signal: the steps of the process into the exit log (a hang
+ * on Amiga 2, 29.10.2026), at most some dozens of lines. */
+static volatile int s_quitTrace;
+/* Net_Quit asks the process to end. Not only by Ctrl-C: Roadshow on Amiga 2
+ * (OS 3.2, 29.10.2026) returned from WaitSelect with no signals while the
+ * Ctrl-C was sent - the process went on, the game waited for it for ever and
+ * the Amiga stood (the process, priority 1, kept the CPU). */
+static volatile int s_quitRequest;
+#define NET_QT(text) do { if (s_quitTrace > 0 && s_quitTrace < 60) { s_quitTrace++; Amiga_ExitLog(text); } } while (0)
+
 extern uint32 AmigaTimer_GetMs(void);
 
 struct Library *SocketBase = NULL;
@@ -741,10 +753,16 @@ static void Net_Main(void)
 		}
 		tv.tv_secs = 0;
 		tv.tv_micro = 200000;
+		NET_QT("net: WaitSelect");
 		WaitSelect(top + 1, &rd, &wr, NULL, timed ? &tv : NULL, &sigs);
+		if (s_quitTrace > 0 && s_quitTrace < 60) {
+			char t[64];
+			snprintf(t, sizeof(t), "net: woke, signals %08lx, top %ld", (unsigned long)sigs, top);
+			NET_QT(t);
+		}
 
 		start = AmigaTimer_EClock();
-		if (sigs & SIGBREAKF_CTRL_C) quit = 1;
+		if ((sigs & SIGBREAKF_CTRL_C) || s_quitRequest) quit = 1;
 
 		for (;;) {
 			/* A frame of the game waits in the ring until it fits into the
@@ -759,6 +777,7 @@ static void Net_Main(void)
 			Net_DoCommand(kind, data, len);
 		}
 
+		NET_QT("net: commands done");
 		if (s_listenFd >= 0 && FD_ISSET(s_listenFd, &rd)) Net_AcceptPeer();
 		if (s_searching && s_udpFd >= 0 && FD_ISSET(s_udpFd, &rd)) Net_ReadAnnouncement();
 		for (i = 0; i < NET_MAX_PEERS; i++) {
@@ -806,16 +825,22 @@ static void Net_Main(void)
 				}
 			}
 		}
+		NET_QT("net: flush");
 		for (i = 0; i < NET_MAX_PEERS; i++) Net_FlushOut(&s_peers[i]);
+		NET_QT("net: flushed");
 		s_countEClocks += AmigaTimer_EClock() - start;
 	}
 
+	Amiga_ExitLog("net: quit");
 	for (i = 0; i < NET_MAX_PEERS; i++) {
 		if (s_peers[i].fd >= 0 && !s_peers[i].connecting) Net_Bye(&s_peers[i], "Disconnected.");
 	}
+	Amiga_ExitLog("net: bye sent");
 	Net_StopAll();
+	Amiga_ExitLog("net: sockets closed");
 	CloseLibrary(SocketBase);
 	SocketBase = NULL;
+	Amiga_ExitLog("net: library closed");
 	FreeSignal(wake);
 	Forbid();
 	s_netTask = NULL;
@@ -833,6 +858,8 @@ int Net_Start(const char *version)
 	s_parentSignal = AllocSignal(-1);
 	if (s_parentSignal < 0) return 0;
 	s_startFailed = 0;
+	s_quitRequest = 0;
+	s_quitTrace = 0;
 	SetSignal(0, 1UL << s_parentSignal);
 	if (CreateNewProcTags(NP_Entry, (ULONG)Net_Main,
 	                      NP_Name, (ULONG)"OpenDUNE LAN",
@@ -855,8 +882,12 @@ int Net_Start(const char *version)
 void Net_Quit(void)
 {
 	if (s_netTask == NULL) return;
+	Amiga_ExitLog("Net_Quit: signal the network process");
+	s_quitTrace = 1;
+	s_quitRequest = 1;
 	Signal((struct Task *)s_netTask, SIGBREAKF_CTRL_C);
 	Wait(1UL << s_parentSignal);
+	Amiga_ExitLog("Net_Quit: it ended");
 	FreeSignal(s_parentSignal);
 	s_parentSignal = -1;
 }

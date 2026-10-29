@@ -47,8 +47,38 @@ static struct MsgPort *s_waitPort;
 static struct timerequest *s_waitReq;	/* UNIT_MICROHZ, sleeping */
 static ULONG s_eclockPerMs;
 
+/* The steps of quitting, one line each into PROGDIR:exit-log.txt (closed after
+ * each line: it stays after a reset), to find where a quit hangs (Amiga 2,
+ * 29.10.2026). Also from the network process (absolute path). */
+static char s_exitLogPath[256];
+
+void Amiga_ExitLog(const char *text)
+{
+	BPTR fh;
+	if (s_exitLogPath[0] == 0) return;
+	fh = Open((CONST_STRPTR)s_exitLogPath, MODE_READWRITE);
+	if (fh == 0) return;
+	Seek(fh, 0, OFFSET_END);
+	Write(fh, (APTR)text, strlen(text));
+	Write(fh, (APTR)"\n", 1);
+	Close(fh);
+}
+
+static void Amiga_ExitLogStart(void)
+{
+	BPTR dir = GetProgramDir();
+	if (dir == 0 || !NameFromLock(dir, (STRPTR)s_exitLogPath, sizeof(s_exitLogPath) - 16)) {
+		s_exitLogPath[0] = 0;
+		return;
+	}
+	AddPart((STRPTR)s_exitLogPath, (CONST_STRPTR)"exit-log.txt", sizeof(s_exitLogPath));
+	DeleteFile((CONST_STRPTR)s_exitLogPath);
+	Amiga_ExitLog("start");
+}
+
 static void AmigaTimer_Close(void)
 {
+	Amiga_ExitLog("atexit: timer close (last)");
 	if (s_waitReq != NULL) {
 		CloseDevice((struct IORequest *)s_waitReq);
 		DeleteIORequest((struct IORequest *)s_waitReq);
@@ -76,6 +106,7 @@ static bool AmigaTimer_Open(void)
 		s_waitReq = NULL;
 	}
 	atexit(AmigaTimer_Close);
+	Amiga_ExitLogStart();
 	return true;
 }
 

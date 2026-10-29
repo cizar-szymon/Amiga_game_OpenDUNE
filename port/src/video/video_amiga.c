@@ -190,9 +190,13 @@ static void Video_SetGeometry(void)
 	for (x = 0; x <= SCREEN_WIDTH; x++) s_colX[x] = (uint16)((x * s_sx2) / 2);
 }
 
+extern void Amiga_ExitLog(const char *text);
+
 static void Video_Cleanup(void)
 {
+	Amiga_ExitLog("atexit: video");
 	Video_Uninit();
+	Amiga_ExitLog("atexit: video closed");
 }
 
 extern bool Layout_SavedResolution(int *w, int *h);
@@ -683,6 +687,7 @@ static void Video_Tick_(void)
 
 	if (SetSignal(0, 0) & SIGBREAKF_CTRL_C) {
 		SetSignal(0, SIGBREAKF_CTRL_C);
+		Amiga_ExitLog("Ctrl-C: exit");
 		exit(0);
 	}
 	if (s_window == NULL) return;
