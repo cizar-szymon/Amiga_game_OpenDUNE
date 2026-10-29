@@ -19,6 +19,9 @@
 #include "../string.h"
 #include "../tile.h"
 #include "../timer.h"
+#if defined(__amigaos__)
+#include "music_amiga.h"
+#endif
 
 
 static void *g_voiceData[NUM_VOICES];            /*!< Preloaded Voices sound data */
@@ -35,6 +38,15 @@ static void Driver_Music_Play(int16 index, uint16 volume)
 	MSBuffer *musicBuffer = g_bufferMusic;
 
 	if (index < 0 || index > 120 || g_gameConfig.music == 0) return;
+
+#if defined(__amigaos__)
+	/* the recordings of the AdLib music (music_amiga.c), not the MIDI */
+	(void)music;
+	(void)musicBuffer;
+	(void)volume;
+	if (s_currentMusic != NULL) Music_Amiga_Play(s_currentMusic, index);
+	return;
+#endif
 
 	if (music->index == 0xFFFF) return;
 

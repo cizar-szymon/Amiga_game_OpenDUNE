@@ -49,6 +49,7 @@
 #include "../wsa.h"
 #if defined(__amigaos__)
 #include "layout_amiga.h"
+#include "../lan_amiga.h"
 #if defined(__amigaos__)
 #include "smooth_amiga.h"
 
@@ -4734,7 +4735,10 @@ void GUI_DrawScreen(Screen screenID)
 #if defined(__amigaos__)
 			/* the picture moved once, in SCREEN_0 and into SCREEN_1 together
 			 * (GUI_Widget_Viewport_Draw then copies only what changed); on the
-			 * card the blitter moves it, else the viewport is sent again */
+			 * card the blitter moves it, else the viewport is sent again;
+			 * first the LAN boxes drawn over it off (they would move along) */
+			Lan_ChatHide();
+			Lan_InfoHide();
 			if (g_viewZoom > 1) {
 				Layout_ZoomShift(xOffset << 4, yOffset << 4);
 			} else {

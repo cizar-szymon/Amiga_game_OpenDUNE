@@ -1,8 +1,9 @@
 /** @file src/os/bugreport_amiga.c Bug report on F10 (AmigaOS).
  *
- * F10 (Video_Key, the video driver's tick) asks for a report; the game loop
- * writes it (AmigaBug_Tick), with the game in a consistent state, into the
- * save directory, NNN the first free number:
+ * F10 (Video_Key, the video driver's tick) asks for a report; the next tick
+ * of the video driver writes it (AmigaBug_Tick, on every screen: the game
+ * logic is between its steps there), into the save directory, NNN the first
+ * free number:
  *   bugNNN.txt         version, game and screen state, every unit
  *   bugNNN.dat         a saved game of that moment (loadable: copy it to
  *                      _saveNNN.dat)
@@ -163,7 +164,7 @@ static void AmigaBug_WriteText(const char *name, int number)
 	s_text = NULL;
 }
 
-/** In the game loop: writes a requested report. */
+/** In the video driver's tick (every screen): writes a requested report. */
 void AmigaBug_Tick(void)
 {
 	char name[32], desc[32];

@@ -1452,6 +1452,24 @@ bool Lan_SendChat(const uint8 *data, int length)
  * time and the last step the games agreed ("same"), or OUT OF STEP, or
  * WAITING. Without it these show only on the message line when they happen.
  */
+static int s_infoW;	/* the width of the line drawn in SCREEN_0 (0: none) */
+
+/**
+ * The LAN line off SCREEN_0: the map under it again from SCREEN_1 (stretched
+ * when zoomed). Before the view is moved in SCREEN_0 (the line would move with
+ * it, also into SCREEN_1) and before a shorter line.
+ */
+void Lan_InfoHide(void)
+{
+	if (s_infoW == 0) return;
+	GUI_Mouse_Hide_Safe();
+	g_zoomCopy++;
+	GUI_Screen_Copy(0, (int16)(SCREEN_HEIGHT - 26), 0, (int16)(SCREEN_HEIGHT - 26), (int16)((s_infoW + 7) / 8), 10, SCREEN_1, SCREEN_0);
+	g_zoomCopy--;
+	GUI_Mouse_Show_Safe();
+	s_infoW = 0;
+}
+
 void Lan_InfoDraw(void)
 {
 	char text[96];
@@ -1476,12 +1494,18 @@ void Lan_InfoDraw(void)
 		}
 	}
 	if (s_paused) n += snprintf(text + n, sizeof(text) - n, " PAUSE");
-	else if (s_waiting) n += snprintf(text + n, sizeof(text) - n, " WAITING");
+	else if (s_waiting && AmigaTimer_GetMs() - s_waitSince > 300) {
+		/* a real stop, not the short wait for a turn of most steps (as the
+		 * message line) */
+		n += snprintf(text + n, sizeof(text) - n, " WAITING");
+	}
 	if (s_outOfStep) snprintf(text + n, sizeof(text) - n, " OUT OF STEP %lu", (unsigned long)s_outOfStepAt);
 
 	old = GFX_Screen_SetActive(SCREEN_0);
 	GUI_DrawText_Wrapper(NULL, 0, 0, 0, 0, 0x22);
 	w = Font_GetStringWidth(text) + 4;
+	if (w < s_infoW) Lan_InfoHide();	/* no end of the longer line left */
+	s_infoW = w;
 	GUI_Mouse_Hide_Safe();
 	GUI_DrawFilledRectangle(0, (int16)(SCREEN_HEIGHT - 26), (int16)(w - 1), (int16)(SCREEN_HEIGHT - 17), 12);
 	GUI_DrawText_Wrapper("%s", 2, (int16)(SCREEN_HEIGHT - 25), (uint8)(s_outOfStep ? g_table_houseInfo[HOUSE_HARKONNEN].minimapColor

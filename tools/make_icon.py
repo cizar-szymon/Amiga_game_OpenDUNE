@@ -3,7 +3,7 @@
 (copied from the Vastar port).
 
   python tools/make_icon.py OUT.info --frame build/shots/frame_001600.bmp --crop X Y W H
-                            [--preview OUT.png] [--tooltypes "SCALE=1" "(STATS)" ...]
+                            [--preview OUT.png] [--tooltypes "SCALE=1" "(STATS)" ...] [--lit-frame] [--drawer]
 
 The frame comes from the PC version (vastar -headless -shots DIR N plus a -script that
 starts a game). The icon has a classic 4 colour image (any Workbench) and an OS 3.5+
@@ -103,13 +103,25 @@ def tool_types(types):
     return out
 
 
-def disk_object(rgb, w, h, types, selected=None):
-    """selected: the image shown when the icon is selected (else the colours inverted)"""
+def drawer_data():
+    """OldDrawerData (the drawer's window: NewWindow + current x, y), placed after the DiskObject"""
+    return struct.pack(">hhhhBBIIIIIIIhhHHHii", 50, 50, 400, 200, 0xFF, 0xFF, 0, 0, 0, 0, 0, 0, 0,
+                       90, 40, 0xFFFF, 0xFFFF, 1, 0, 0)
+
+
+def disk_object(rgb, w, h, types, selected=None, drawer=False):
+    """selected: the image shown when the icon is selected (else the colours inverted);
+    drawer: a drawer's icon (WBDRAWER, the window's data) instead of a tool's"""
     flags = 0x0006 if selected else 0x0004	# GADGIMAGE | GADGHIMAGE (two images)
     gadget = struct.pack(">IhhhhHHHIIIIIHI", 0, 0, 0, w, h + 1, flags, 0x0003, 0x0001,
                          1, 1 if selected else 0, 0, 0, 0, 0, 1)
-    head = struct.pack(">HH", 0xE310, 1) + gadget + struct.pack(
-        ">BBIIiiIII", 3, 0, 0, 1 if types else 0, -0x80000000, -0x80000000, 0, 0, 16384)
+    if drawer:
+        head = struct.pack(">HH", 0xE310, 1) + gadget + struct.pack(
+            ">BBIIiiIII", 2, 0, 0, 0, -0x80000000, -0x80000000, 1, 0, 0) + drawer_data()
+        types = []
+    else:
+        head = struct.pack(">HH", 0xE310, 1) + gadget + struct.pack(
+            ">BBIIiiIII", 3, 0, 0, 1 if types else 0, -0x80000000, -0x80000000, 0, 0, 16384)
     image = struct.pack(">hhhhhIBBI", 0, 0, w, h, 2, 1, 3, 0, 0) + planar(rgb, w, h)
     if selected:
         image += struct.pack(">hhhhhIBBI", 0, 0, w, h, 2, 1, 3, 0, 0) + planar(selected, w, h)
@@ -118,7 +130,9 @@ def disk_object(rgb, w, h, types, selected=None):
         raise SystemExit("more than 256 colours")
     remap = {c: i for i, c in enumerate(colors)}
     images = [[remap[c] for c in rgb]] + ([[remap[c] for c in selected]] if selected else [])
-    return head + image + (tool_types(types) if types else b"") + color_icon(images, w, h, colors)
+    # a drawer of an OS 2+ icon (gadget UserData 1): DrawerData2 (flags: show icons, view by icon)
+    extra = struct.pack(">IH", 1, 1) if drawer else b""
+    return head + image + (tool_types(types) if types else b"") + extra + color_icon(images, w, h, colors)
 
 
 def lit_frame(rgb, w, h, width=3):
@@ -141,12 +155,13 @@ def main():
     ap.add_argument("--preview")
     ap.add_argument("--tooltypes", nargs="*", default=[])
     ap.add_argument("--lit-frame", action="store_true", help="selected image: a lit frame round the picture")
+    ap.add_argument("--drawer", action="store_true", help="a drawer's icon (the game's directory) instead of the program's")
     args = ap.parse_args()
     x, y, w, h = args.crop
     img = Image.open(args.frame).convert("RGB").crop((x, y, x + w, y + h))
     rgb = list(img.getdata())
     selected = lit_frame(rgb, w, h) if args.lit_frame else None
-    open(args.out, "wb").write(disk_object(rgb, w, h, args.tooltypes, selected))
+    open(args.out, "wb").write(disk_object(rgb, w, h, args.tooltypes, selected, args.drawer))
     if args.preview:
         img.resize((w * 6, h * 6), Image.NEAREST).save(args.preview)
         if selected:

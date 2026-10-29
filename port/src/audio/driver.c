@@ -16,6 +16,9 @@
 #include "../file.h"
 #include "../timer.h"
 #include "../inifile.h"
+#if defined(__amigaos__)
+#include "music_amiga.h"
+#endif
 
 static bool s_driverInstalled[16];
 static bool s_driverLoaded[16];
@@ -175,6 +178,9 @@ bool Driver_Music_IsPlaying(void)
 {
 	MSBuffer *buffer = g_bufferMusic;
 
+#if defined(__amigaos__)
+	return Music_Amiga_IsPlaying();	/* the recordings (music_amiga.c) */
+#endif
 	if (g_driverMusic->index == 0xFFFF) return false;
 	if (buffer->index == 0xFFFF) return false;
 
@@ -217,6 +223,9 @@ void Driver_Music_Stop(void)
 	Driver *music = g_driverMusic;
 	MSBuffer *musicBuffer = g_bufferMusic;
 
+#if defined(__amigaos__)
+	Music_Amiga_Stop();
+#endif
 	if (music->index == 0xFFFF) return;
 	if (musicBuffer->index == 0xFFFF) return;
 
@@ -458,6 +467,9 @@ void Driver_Music_FadeOut(void)
 	Driver *music = g_driverMusic;
 	MSBuffer *musicBuffer = g_bufferMusic;
 
+#if defined(__amigaos__)
+	Music_Amiga_FadeOut();
+#endif
 	if (music->index == 0xFFFF) return;
 	if (musicBuffer->index == 0xFFFF) return;
 

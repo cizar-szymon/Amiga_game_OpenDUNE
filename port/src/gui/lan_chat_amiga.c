@@ -219,6 +219,25 @@ static void Chat_DrawFrame(int x, int y, int w, int h)
 	GFX_Screen_SetDirty(SCREEN_0, (uint16)x, (uint16)y, (uint16)(x + w), (uint16)(y + h));
 }
 
+static int s_boxX, s_boxY, s_boxW, s_boxH;	/* where the box was drawn */
+
+/**
+ * The box off SCREEN_0: the map under it again from SCREEN_1 (stretched when
+ * zoomed), before the view is moved in SCREEN_0 (the box would move with it,
+ * also into SCREEN_1). The next frame draws it again.
+ */
+void Lan_ChatHide(void)
+{
+	if (!s_shown) return;
+	GUI_Mouse_Hide_Safe();
+	g_zoomCopy++;
+	GUI_Screen_Copy((int16)(s_boxX / 8), (int16)s_boxY, (int16)(s_boxX / 8), (int16)s_boxY,
+	                (int16)((s_boxX + s_boxW + 7) / 8 - s_boxX / 8), (int16)s_boxH, SCREEN_1, SCREEN_0);
+	g_zoomCopy--;
+	GUI_Mouse_Show_Safe();
+	s_shown = false;
+}
+
 /** After each frame of the map screen: the box over SCREEN_0, or the viewport again where it was. */
 void Lan_ChatDraw(void)
 {
@@ -274,4 +293,8 @@ void Lan_ChatDraw(void)
 	GUI_Mouse_Show_Safe();
 	GFX_Screen_SetActive(old);
 	s_shown = true;
+	s_boxX = x;
+	s_boxY = y;
+	s_boxW = w;
+	s_boxH = h;
 }

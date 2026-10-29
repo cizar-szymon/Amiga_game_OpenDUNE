@@ -148,6 +148,8 @@ extern void Layout_ZoomRequest(int step);
 extern bool Lan_ChatKey(uint16 code, bool up);
 
 extern void AmigaBug_Request(void);
+extern void AmigaBug_Tick(void);
+extern void Music_Amiga_Tick(void);
 extern void AmigaBug_Printf(const char *format, ...);
 
 static bool Video_OpenP96(void)
@@ -642,6 +644,54 @@ bool Video_ScrollView(int16 dx, int16 dy, int16 x, int16 y, int16 w, int16 h)
 	return true;
 }
 
+/*
+ * After the blitter moved the viewport (gx, gy, gw, gh, game pixels) by dx, dy:
+ * what the card showed there moved too - the pointer the game had just taken
+ * off, changes not sent yet, the FPS counter. Their places were marked at the
+ * old position; the same marks moved by dx, dy are added, so those places are
+ * compared with the copy and sent again.
+ */
+static void Video_DirtyMoved(int gx, int gy, int gw, int gh, int dx, int dy)
+{
+	static uint32 old[SCREEN_HEIGHT_MAX][GFX_DIRTY_WORDS];
+	int x0 = gx + (dx > 0 ? dx : 0), x1 = gx + gw + (dx < 0 ? dx : 0);
+	int y0 = gy + (dy > 0 ? dy : 0), y1 = gy + gh + (dy < 0 ? dy : 0);
+	int bdx = dx / 16, y, b, top = -1, bottom = -1;
+
+	if (y1 > SCREEN_HEIGHT) y1 = SCREEN_HEIGHT;
+	if (x0 >= x1 || y0 >= y1) return;
+	if ((dx & 15) != 0) {
+		/* (not whole blocks: never for whole tiles) all of it */
+		GFX_Screen_SetDirty(SCREEN_0, (uint16)x0, (uint16)y0, (uint16)x1, (uint16)y1);
+		return;
+	}
+	memcpy(old[y0 - dy], g_dirty_blocks[y0 - dy], (y1 - y0) * sizeof(old[0]));
+	for (y = y0; y < y1; y++) {
+		const uint32 *src = old[y - dy];
+		for (b = x0 >> 4; b < (x1 + 15) >> 4; b++) {
+			int s = b - bdx;
+			if ((src[s >> 5] & (1UL << (s & 31))) == 0) continue;
+			g_dirty_blocks[y][b >> 5] |= 1UL << (b & 31);
+			if (top < 0) top = y;
+			bottom = y;
+		}
+	}
+	/* the dirty area (the rows the sending looks at) */
+	if (top >= 0) {
+		GFX_Screen_SetDirty(SCREEN_0, (uint16)x0, (uint16)top, (uint16)(x0 + 1), (uint16)(top + 1));
+		GFX_Screen_SetDirty(SCREEN_0, (uint16)x0, (uint16)bottom, (uint16)(x0 + 1), (uint16)(bottom + 1));
+	}
+	if (s_showFPS) {
+		/* the counter's box (Video_DrawFPS, 1:1) where the blitter put it */
+		int fx0 = dx, fx1 = 48 + dx, fy0 = s_lh - 14 + dy, fy1 = s_lh + dy;
+		if (fx0 < x0) fx0 = x0;
+		if (fy0 < y0) fy0 = y0;
+		if (fx1 > x1) fx1 = x1;
+		if (fy1 > y1) fy1 = y1;
+		if (fx0 < fx1 && fy0 < fy1) GFX_Screen_SetDirty(SCREEN_0, (uint16)fx0, (uint16)fy0, (uint16)fx1, (uint16)fy1);
+	}
+}
+
 /* The pending scroll in VRAM (blitter) and in the copy; false if not possible. */
 static bool Video_DoScroll(void)
 {
@@ -668,6 +718,7 @@ static bool Video_DoScroll(void)
 	} else {
 		for (r = 0; r < ch; r++) memmove(s_shadow + (ty + r) * s_width + tx, s_shadow + (sy + r) * s_width + sx, cw);
 	}
+	Video_DirtyMoved(s_scrollRect[0], s_scrollRect[1], s_scrollRect[2], s_scrollRect[3], dx, dy);
 	return true;
 }
 
@@ -738,6 +789,11 @@ static void Video_Tick_(void)
 	Video_HandleEvents();
 	PROF_END(PROF_V_EVENTS)
 
+	/* F10: the report at once, on every screen (windows, the score, the
+	 * menus too - they have loops of their own), before the screen is locked */
+	AmigaBug_Tick();
+	Music_Amiga_Tick();	/* the music's next buffers (every screen) */
+
 	{
 		/* back from the Workbench (the corner, Left Amiga + M): Intuition
 		 * shows the screen's title bar over the picture and the window is not
@@ -746,12 +802,17 @@ static void Video_Tick_(void)
 		bool now = IntuitionBase->FirstScreen == s_screen;
 		if (now && !front) {
 			ActivateWindow(s_window);
+			SetRast(s_window->RPort, 0);
 			s_needRepaint = true;
 		}
 		if (now && (s_screen->Flags & SHOWTITLE) != 0) {
 			/* (Intuition may show it again after the screen came to the
-			 * front; the bar takes the clicks on the top bar's buttons) */
+			 * front; the bar takes the clicks on the top bar's buttons).
+			 * The repaint sends only the game's picture: with a smaller one
+			 * in the middle (320x200 screens: the menus, a mission's end) the
+			 * bar stayed above it - the whole screen cleared first */
 			ShowTitle(s_screen, FALSE);
+			SetRast(s_window->RPort, 0);
 			s_needRepaint = true;
 		}
 		front = now;

@@ -77,7 +77,6 @@
 #if defined(__amigaos__)
 #include "gui/rts_amiga.h"
 #include "gui/layout_amiga.h"
-extern void AmigaBug_Tick(void);
 #include "os/amiga_prof.h"
 #endif
 
@@ -1112,7 +1111,6 @@ static void GameLoop_Main(void)
 		RTS_Tick();
 		AmigaProf_Tick();
 		Layout_UpdateLoadSaveButton();
-		AmigaBug_Tick();
 #endif
 		if (g_gameMode == GM_MENU) {
 			GameLoop_GameIntroAnimationMenu();
@@ -1216,7 +1214,12 @@ static void GameLoop_Main(void)
 				g_musicInBattle = -1;
 			} else {
 				g_musicInBattle = 0;
+#if defined(__amigaos__)
+				/* the recordings play without the MIDI (music_amiga.c) */
+				if (g_timerGUI > l_timerNext) {
+#else
 				if (g_enableSoundMusic != 0 && g_timerGUI > l_timerNext) {
+#endif
 					if (!Driver_Music_IsPlaying()) {
 						Music_Play(MUSIC_RANDOM(0, 8) + 8);
 						l_timerNext = g_timerGUI + 300;

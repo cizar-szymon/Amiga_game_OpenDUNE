@@ -94,6 +94,8 @@ extern void Lan_ChatReceived(int slot, const uint8 *text, int length);
 extern bool Lan_ChatKey(uint16 code, bool up);
 extern bool Lan_ChatOpen(void);
 extern void Lan_ChatDraw(void);
+extern void Lan_ChatHide(void);
 extern void Lan_InfoDraw(void);
+extern void Lan_InfoHide(void);
 
 #endif /* LAN_AMIGA_H */

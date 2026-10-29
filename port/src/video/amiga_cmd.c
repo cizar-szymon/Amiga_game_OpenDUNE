@@ -130,6 +130,8 @@ static void Cmd_Shot(void)
 	Close(f);
 }
 
+extern const char *Music_Amiga_Now(void);
+
 static void Cmd_State(void)
 {
 	char buf[256];
@@ -140,6 +142,7 @@ static void Cmd_State(void)
 	            (int)g_gameMode, (int)g_playerHouseID, (unsigned)g_campaignID, (unsigned)g_scenarioID,
 	            (unsigned)g_mouseX, (unsigned)g_mouseY, RTS_SelectionType(),
 	            RTS_SelectedUnit(), RTS_GroupCount(), (unsigned long)g_timerGame);
+	n += snprintf(buf + n, sizeof(buf) - n, "music %s\n", Music_Amiga_Now());
 	Write(f, buf, n);
 	Close(f);
 }

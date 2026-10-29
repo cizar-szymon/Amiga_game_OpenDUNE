@@ -12,7 +12,7 @@
 | 2. Natywny backend: obraz `video_amiga.c` (8-bit CLUT, 800×600 = 2,5×3, 640×400 = 2×2), mysz, klawiatura, timer `os/amiga.c`, katalogi `readdir_amiga.c`, głosy Paula `dsp_amiga.c` | ✅ 28.10 (gra od intro do misji 1) |
 | 2b. Duża mapa: rozgrywka 640×480 1:1 (35×27 kafli), menu/mentat/fabryka 320×200 ×2 (`gui/layout_amiga.c`) | ✅ 28.10 (misja 1, Mentat, Options) |
 | 2c. Sterowanie: zaznaczanie prostokątem, rozkaz prawym przyciskiem (`gui/rts_amiga.c`, `rts_controls=1`) | ✅ 28.10 (ruch grupy sprawdzony) |
-| 3. Muzyka (MIDI: CAMD jak NovaCoder albo własny syntezator) – teraz `midi_none.c`, cisza | ⏳ |
+| 3. Muzyka: nagrania muzyki AdLib zrobione raz na PC (`tools/music/make_music.py`), odtwarzane z dysku przez Paulę (`music_amiga.c`), niżej „Muzyka” | ✅ |
 | 4. Ikona, Tool Types, numer wydania, opisy | ⏳ |
 
 ## Źródła
@@ -292,6 +292,8 @@ Pomiar, misja 5 (62×62, Harkonnen, `misja5`), przewijanie przy krawędzi + ruch
   bez FPS, ramki menu i „V1.07”, pomniejszony do 112×70 (o 30% mniej niż pierwsze 160×100),
   119 kolorów; zaznaczona ma złotą, „podświetloną” ramkę (drugi obraz ikony, klasyczny i ColorIcon):
   `python tools/make_icon.py build/amiga/OpenDUNE.info --frame tools/icon/title112.png --crop 0 0 112 70 --lit-frame`.
+  Ikona szuflady gry (ten sam obrazek, okno 400×200) obok katalogu, np. `WorkSD:Games/OpenDUNEWarp.info`:
+  `python tools/make_icon.py build/OpenDUNEWarp.info --frame tools/icon/title112.png --crop 0 0 112 70 --lit-frame --drawer`.
   Przy pierwszej instalacji nadpisano tam przez pomyłkę `opendune.ini`; przywrócone domyślnym
   z paczki NovaCodera (własne ustawienia użytkownika utracone).
 
@@ -421,7 +423,7 @@ Misja 8 Atreides (62×62, `debug_start_scenario=8`), `debug_stats=1`, `framerate
 - Najcięższe jest odsłanianie mapy przez wiele jadących jednostek naraz (rysowanie 4,6 ms na
   wywołanie, 16 KB/klatkę na kartę), a i tak zostaje ~22% wolnego CPU i 54–55 fps przy limicie 60.
 - Znaleziony błąd: po przewinięciu w pionie na karcie zostaje kawałek kursora (biała strzałka) pod
-  pozycją myszy – zrzut `clutshot` po 6 krokach w dół i 6 w górę. Do poprawienia.
+  pozycją myszy – zrzut `clutshot` po 6 krokach w dół i 6 w górę. Poprawione, niżej.
 
 ### Pomiar gry LAN (29.10.2026, 3 graczy, `tools/lan_test.sh 154 160` z `PEER=1`)
 Serwer Amiga 1 (Harkonnen, Warp1260X @ 100 MHz, 640×360, `lan_info=1`, `debug_stats=1`), WinUAE
@@ -444,6 +446,80 @@ Serwer Amiga 1 (Harkonnen, Warp1260X @ 100 MHz, 640×360, `lan_info=1`, `debug_s
     dłuższego (np. „WAITING G3”, „PEER: WAITING ;”);
   - „WAITING” widać na serwerze prawie stale, choć tempo gry jest pełne – to krótkie czekanie na
     turę w każdym kroku, napis nie odróżnia go od prawdziwego zatrzymania.
+
+### Ślady po przewijaniu blitterem, linia `lan_info` (29.10.2026, poprawione)
+- Przyczyna śladów na karcie (kursor, przez chwilę licznik FPS o kafel obok): blitter przesuwa
+  w VRAM to, co karta pokazywała – także kursor, który gra właśnie zdjęła (miejsce oznaczone jako
+  zmienione w starym położeniu), zmiany jeszcze niewysłane i licznik FPS. Poprawka
+  (`Video_DirtyMoved`, `video_amiga.c`): po przesunięciu oznaczenia bloków 16 px w widoku są
+  dodawane także przesunięte o dx, dy (plus pole licznika FPS w nowym miejscu) – te miejsca są
+  porównane z kopią i wysłane ponownie.
+- Linia `lan_info` i okno czatu są rysowane w SCREEN_0 nad mapą; `GFX_ShiftViewport` przesuwał je
+  razem z mapą, także do SCREEN_1 (stąd druga, trwała linia). Przed przesunięciem widoku
+  `Lan_InfoHide` / `Lan_ChatHide` odtwarzają mapę pod nimi z SCREEN_1 (przy zoomie rozciągniętą),
+  następna klatka rysuje je od nowa. Krótsza linia najpierw zdejmuje dłuższą (bez końcówek).
+- „WAITING” w linii dopiero po 300 ms czekania (jak napis na pasku komunikatów).
+- Sprawdzone w WinUAE 640×480 (misja 8 i gra LAN z `lan_peer.py 127.0.0.1`): przewijanie
+  w pionie, poziomie, po skosie, przy krawędzi z otwartym czatem i przy zoomie ×2 – obraz karty =
+  obraz gry (różnią się tylko licznik FPS i migająca ramka zaznaczenia); 8 zrzutów karty w trakcie
+  ciągłego przewijania bez pikseli licznika poza jego miejscem.
+
+### F10 na każdym ekranie (29.10.2026, życzenie użytkownika)
+- Raport pisała tylko główna pętla gry, więc F10 w ekranach z własną pętlą (wynik misji, Hall of
+  Fame, odprawa, okna Options/Load/Save, menu) czekał do powrotu na mapę i pokazywał inny moment.
+  Teraz `AmigaBug_Tick` jest wołany z `Video_Tick` (każdy ekran, zadanie gry, między krokami
+  logiki), zaraz po obsłudze klawiszy. Zapis gry `bugNNN.dat` jak dotąd tylko w trakcie misji.
+- Sprawdzone w WinUAE: F10 w menu głównym i w Hall of Fame dają raport od razu.
+
+### Muzyka (29.10.2026, decyzja użytkownika: nagrania robione raz, dokładane do katalogu gry)
+- Wcześniej cisza (`midi_none.c`, „Music is ON” bez skutku). Dane PC mają muzykę jako AdLib
+  (`.ADL`), General MIDI (`.XMI`) i MT-32 (`.C55`); wybrana wersja AdLib (Sound Blaster), bo da
+  się ją nagrać bez ROM-ów MT-32 i bez banku brzmień.
+- `tools/music/make_music.py` (raz, na PC): wyciąga `.ADL` z `SOUND.PAK`, w Dockerze buduje
+  `render_adl.cpp` (AdPlug, odtwarzacz Westwood ADL + emulator Nuked OPL3) i nagrywa każdy z 37
+  utworów `g_table_musics` (plik, numer = indeks gry) → `build/music/DUNE<n>_<nr>.RAW`:
+  nagłówek `ODMU`, początek pętli, długość (32 bity, big endian), potem 8 bitów ze znakiem,
+  mono, 22030 Hz (okres Pauli PAL 161), jedno wzmocnienie dla wszystkich. Pliki z danych gry –
+  nigdy w repo (`build/`); kopiuje się je do katalogu gry jako `MUSIC` (`PROGDIR:MUSIC`, ini
+  `music_dir`).
+- Utwory, które oryginał zapętla (8 z nich, w tym menu), są nagrane raz z punktem powrotu.
+  Pętla szukana po nutach uderzanych w każdym takcie (72 Hz): sterownik Westwoodu ma efekty
+  losowe, więc nuty powtarzają się w 80–100%, nie wszystkie zapisy do OPL; wybrany najkrótszy
+  okres z dopasowaniem w granicach 1 punktu od najlepszego. Pętle 43–183 s.
+- Wynik: 33 pliki, 74,6 MB, 56 min. Cztery pozycje są w wersji AdLib puste (`DUNE17_4`,
+  `DUNE1_8`, `DUNE0_3`, `DUNE0_5`) – brak pliku, gra wtedy nic nie gra.
+- `audio/music_amiga.c`: dwa kanały Pauli, które zostawiły głosy (lewy i prawy, te same próbki),
+  4 bufory po 0,5 s w Chip RAM w kolejce `audio.device`; bufor odegrany na obu kanałach jest
+  czytany z pliku od nowa w `Music_Amiga_Tick` (z `Video_Tick`, każdy ekran). Pętla: `Seek` do
+  początku pętli. Wyciszanie (`Driver_Music_FadeOut`) 2 s, głośność ini `music_volume`
+  (0–64, domyślnie 40). Podpięte w `Driver_Music_Play/Stop/IsPlaying/FadeOut`; losowanie
+  utworów w misji nie zależy już od MIDI (`g_enableSoundMusic`).
+- Sprawdzone: WinUAE – menu `DUNE7_6`, odprawa `DUNE7_3`, mapa losowy utwór, Music OFF zatrzymuje,
+  ON po chwili losuje następny; pozycja w nagraniu rośnie w czasie rzeczywistym (`od.py --state`,
+  linia `music`). Amiga 1: to samo w menu. Odsłuch i szwy pętli – użytkownik.
+- Pi400 (Amiberry): nagranie wyjścia HDMI (`pw-record` z monitora ujścia) – muzyka zgodna
+  z plikiem `DUNE7_6` (korelacja obwiedni 0,95), mowa i efekty przy wyłączonej muzyce słychać;
+  użytkownik potwierdził na słuch.
+
+### Pasek tytułu na ekranach 320×200 (29.10.2026, raporty BUG007/008 z Amigi 1)
+- Na końcu misji (ekran 320×200 na środku 640×480) u góry został pasek tytułu ekranu „OpenDUNE”.
+  Gra chowa pasek (`ShowTitle(FALSE)`) i wysyła obraz od nowa, ale tylko obszar obrazu gry: na
+  mapie (cały ekran) pasek znikał, przy mniejszym obrazie na środku zostawał w czarnym tle.
+- Poprawka: po schowaniu paska i po powrocie z Workbencha najpierw `SetRast` całego okna, potem
+  cały obraz od nowa. W WinUAE paska po powrocie nie dało się wywołać (także bez poprawki); na
+  Amidze 1 przejście menu → Workbench → Amiga+M daje czyste górne wiersze. Do potwierdzenia przez
+  użytkownika na ekranie końca misji.
+
+### Platforma testowa Pi400 + Amiberry (29.10.2026)
+- Raspberry Pi 400 (Debian 13, labwc), Amiberry 8.5.0, konfiguracja jak WinUAE:
+  `~/Amiberry/Configurations/OpenDUNE_A1200_OS32_net.uae` (68060 + JIT, Z3 256 MB, RTG 32 MB,
+  `bsdsocket_emu`), dyski `System` (kopia systemu z WinUAE z AmiAgentem), `OpenDUNE` (= `ODUNE:`,
+  kopia `build/amiga` z `MUSIC`), `DuneData` (= `DDATA:`). AmiAgent: `amiagent-pi.cfg` (poza repo).
+- Start i restart: `~/bin/amiberry-opendune.sh`; autostart po zalogowaniu
+  (`~/.config/autostart/amiberry-opendune.desktop`).
+- Workbench wracał do PAL 640×256: zapisany tryb WinUAE `UAE:1024x768` 32 bit BGRA (ID
+  `77041303`) nie istnieje w Amiberry (32 bity jako RGBA, `77041302`); w kopii
+  `screenmode.prefs` ID zmienione – Workbench w RTG 1024×768.
 
 ## Gra LAN (gałąź `lan-game`, 29.10.2026)
 
