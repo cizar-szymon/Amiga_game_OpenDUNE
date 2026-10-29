@@ -495,6 +495,15 @@ Napis „LAN: WAITING for …” zostawał na pasku komunikatów, choć gra szł
 zamalowuje też pasek; wołane, gdy czekanie się skończy (pod oknem – po jego zamknięciu).
 Sprawdzone na Amidze 2 (400×300) z WinUAE.
 
+Pusty „Server address” na Amidze 2: jej stos to **warpSOCKET** (CS-Lab, bsdsocket.library 30.66
+z 26.10.2026), nie Roadshow. `tools/amiga/netaddr.c` (29.10) pokazał różnice:
+1. gniazdo UDP „połączone” na zewnątrz + `getsockname()` → 0.0.0.0 (Roadshow, WinUAE: własny adres);
+2. `gethostbyname(gethostname())` („warp”) – brak adresu;
+3. `ioctl SIOCGIFCONF` – działa: `lo0` 127.0.0.1, `wifi0` 192.168.9.187;
+4. `WaitSelect` z oczekującym Ctrl-C zwraca −1 i sygnały 0 (WinUAE: 0 i 0x1000) – przyczyna
+   zawieszenia przy wyjściu (wyżej).
+Gra bierze teraz, gdy 1. da 0.0.0.0, pierwszy interfejs nie-127 z `SIOCGIFCONF`. Sprawdzone na Amidze 2.
+
 ### Znane ograniczenia / dalej
 
 - Test z trzema Amigami (Amiga 2) – gdy będzie dostępna.

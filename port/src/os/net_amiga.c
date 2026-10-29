@@ -14,6 +14,8 @@
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <netdb.h>
+#include <net/if.h>
+#include <sys/sockio.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -332,6 +334,31 @@ static void Net_LocalAddress(char *text, int size)
 			Net_AddressText(me.sin_addr.s_addr, text, size);
 		}
 		CloseSocket(fd);
+	}
+	if (text[0] == 0) {
+		/* warpSOCKET (Amiga 2, 29.10.2026): getsockname() above gives 0.0.0.0 and
+		 * the host name has no address; the interfaces have it: the first that
+		 * is not the loopback */
+		static char buf[1024];
+		struct ifconf ifc;
+		fd = socket(AF_INET, SOCK_DGRAM, 0);
+		if (fd >= 0) {
+			ifc.ifc_len = sizeof(buf);
+			ifc.ifc_buf = buf;
+			if (IoctlSocket(fd, SIOCGIFCONF, (char *)&ifc) == 0) {
+				char *p = buf, *end = buf + ifc.ifc_len;
+				while (p < end && text[0] == 0) {
+					struct ifreq *ifr = (struct ifreq *)p;
+					int addrLen = ifr->ifr_addr.sa_len > sizeof(struct sockaddr) ? ifr->ifr_addr.sa_len : (int)sizeof(struct sockaddr);
+					if (ifr->ifr_addr.sa_family == AF_INET) {
+						ULONG a = ((struct sockaddr_in *)&ifr->ifr_addr)->sin_addr.s_addr;
+						if (a != 0 && (ntohl(a) >> 24) != 127) Net_AddressText(a, text, size);
+					}
+					p += sizeof(ifr->ifr_name) + addrLen;
+				}
+			}
+			CloseSocket(fd);
+		}
 	}
 	if (text[0] == 0) {
 		char host[64];
