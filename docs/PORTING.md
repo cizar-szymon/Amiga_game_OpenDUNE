@@ -479,6 +479,15 @@ końcu dwa szare prostokąty. Teraz bez wyszarzania.
   generatora `2a7f2639`), sumy zgodne w krokach 3900, 4200; mgła i pozycje jednostek wróciły.
   Nie sprawdzone: 3 graczy, zerwanie połączenia w trakcie przesyłania.
 
+### `lan_info=1` (29.10.2026, jak LANINFO w Settlers)
+
+Opcja ini (domyślnie wyłączona): w grze LAN nad licznikiem FPS linia – pozostali gracze, ich czas
+odpowiedzi i ostatni krok, w którym sumy były zgodne („same N”; dołączający mierzy tylko serwer),
+albo PAUSE / WAITING / OUT OF STEP N (na czerwono). Bez opcji te stany tylko na pasku
+komunikatów, gdy się zdarzą. `Lan_InfoDraw` po każdej klatce mapy (jak okienko czatu). Sprawdzone
+w WinUAE (serwer + `lan_peer.py`: „LAN PEER 0 ms”, „… PAUSE”); „same” z dwiema Amigami – do
+sprawdzenia.
+
 ### Okna (320×200, `gui/lan_menu_amiga.c`)
 
 - „Play on LAN”: START SERVER / JOIN SERVER / BACK (bez bsdsocket.library: komunikat).

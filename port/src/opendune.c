@@ -1269,6 +1269,7 @@ static void GameLoop_Main(void)
 			GUI_DrawScreen(SCREEN_0);
 #if defined(__amigaos__)
 			Lan_ChatDraw();	/* the chat box of a LAN game over it */
+			Lan_InfoDraw();	/* ini lan_info=1: the LAN line over the FPS */
 #endif
 			PROF_END(PROF_DRAW)
 		}

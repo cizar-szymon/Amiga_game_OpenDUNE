@@ -38,6 +38,8 @@
 #include "explosion.h"
 #include "gui/gui.h"
 #include "gui/widget.h"
+#include "gui/font.h"
+#include "gui/layout_amiga.h"
 #include "house.h"
 #include "map.h"
 #include "opendune.h"
@@ -161,6 +163,9 @@ static bool s_waiting;
 static uint32 s_waitSince;
 static bool s_inStep;
 static bool s_outOfStep;
+static uint32 s_outOfStepAt;			/* the step where the sums first differed */
+static uint32 s_lastSame[LAN_MAX_PLAYERS];	/* the last step the sums agreed, by player */
+static bool s_lanInfo;				/* ini lan_info=1: the LAN line always */
 static uint32 s_sums[8], s_sumSteps[8];	/* own sums of the last checks */
 static uint16 s_noSilo[HOUSE_MAX];
 static uint8 s_savedSpeed, s_savedHints;
@@ -634,10 +639,12 @@ static void Lan_CompareSum(int slot, uint32 step, uint32 mine, uint32 sum)
 			return;
 		}
 		s_outOfStep = true;
+		s_outOfStepAt = step;
 		Lan_Log("OUT OF STEP at %lu: mine %08lx, %s %08lx\n", (unsigned long)step, (unsigned long)mine, g_lanPlayers[slot].name, (unsigned long)sum);
 		GUI_DisplayText("LAN: OUT OF STEP with %s (step %lu)", 1, g_lanPlayers[slot].name, (unsigned long)step);
 	} else {
 		Lan_Log("step %lu: %s same %08lx\n", (unsigned long)step, g_lanPlayers[slot].name, (unsigned long)sum);
+		if (slot < LAN_MAX_PLAYERS) s_lastSame[slot] = step;
 	}
 }
 
@@ -1015,6 +1022,7 @@ static void Lan_ResetTurns(void)
 	s_turnBase = 0;
 	s_waiting = false;
 	s_outOfStep = false;
+	memset(s_lastSame, 0, sizeof(s_lastSame));
 	s_ended = false;
 	s_leave = false;
 	s_paused = false;
@@ -1037,6 +1045,7 @@ void Lan_StartGame(void)
 	s_delay = delay;
 	Lan_ResetTurns();
 	s_trace = IniFile_GetInteger("debug_lan_trace", 0) != 0;
+	s_lanInfo = IniFile_GetInteger("lan_info", 0) != 0;
 	{
 		extern uint32 g_lanTraceFrom, g_lanTraceTo;
 		g_lanTraceFrom = (uint32)IniFile_GetInteger("debug_lan_trace_from", -1);
@@ -1435,6 +1444,50 @@ bool Lan_SendChat(const uint8 *data, int length)
 	}
 	if (n == 0) return false;
 	return Net_Send(g_lanServer ? NET_ALL : 0, MT_CHAT, data, length) != 0;
+}
+
+/**
+ * ini lan_info=1 (as LANINFO of the Settlers port): a line over the FPS
+ * counter, after each frame of the map screen - the others, their response
+ * time and the last step the games agreed ("same"), or OUT OF STEP, or
+ * WAITING. Without it these show only on the message line when they happen.
+ */
+void Lan_InfoDraw(void)
+{
+	char text[96];
+	int slot, n, w;
+	Screen old;
+
+	if (!g_lanGame || !s_lanInfo || g_lanModal > 0 || !Layout_IsBig()) return;
+	if (g_gameMode != GM_NORMAL || g_selectionType == SELECTIONTYPE_MENTAT) return;
+	n = snprintf(text, sizeof(text), "LAN");
+	for (slot = 0; slot < LAN_MAX_PLAYERS && n < (int)sizeof(text) - 32; slot++) {
+		LanPlayer *p = &g_lanPlayers[slot];
+		if (slot == g_lanMe || !p->used) continue;
+		if (!g_lanServer && slot != 0) {
+			n += snprintf(text + n, sizeof(text) - n, " %s", p->name);	/* (only the server is measured) */
+			continue;
+		}
+		if (p->gone) {
+			n += snprintf(text + n, sizeof(text) - n, " %s gone", p->name);
+		} else {
+			n += snprintf(text + n, sizeof(text) - n, " %s %d ms", p->name, p->ping < 0 ? 0 : p->ping);
+			if (!s_outOfStep && s_lastSame[slot] != 0) n += snprintf(text + n, sizeof(text) - n, " same %lu", (unsigned long)s_lastSame[slot]);
+		}
+	}
+	if (s_paused) n += snprintf(text + n, sizeof(text) - n, " PAUSE");
+	else if (s_waiting) n += snprintf(text + n, sizeof(text) - n, " WAITING");
+	if (s_outOfStep) snprintf(text + n, sizeof(text) - n, " OUT OF STEP %lu", (unsigned long)s_outOfStepAt);
+
+	old = GFX_Screen_SetActive(SCREEN_0);
+	GUI_DrawText_Wrapper(NULL, 0, 0, 0, 0, 0x22);
+	w = Font_GetStringWidth(text) + 4;
+	GUI_Mouse_Hide_Safe();
+	GUI_DrawFilledRectangle(0, (int16)(SCREEN_HEIGHT - 26), (int16)(w - 1), (int16)(SCREEN_HEIGHT - 17), 12);
+	GUI_DrawText_Wrapper("%s", 2, (int16)(SCREEN_HEIGHT - 25), (uint8)(s_outOfStep ? g_table_houseInfo[HOUSE_HARKONNEN].minimapColor
+	                     : g_table_houseInfo[HOUSE_ORDOS].minimapColor), 0, 0x22, text);
+	GUI_Mouse_Show_Safe();
+	GFX_Screen_SetActive(old);
 }
 
 /** The player quits the LAN game (Options); the game loop ends it (Lan_CheckEnd). */
