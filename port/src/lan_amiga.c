@@ -706,6 +706,9 @@ static bool Lan_BeginTurn(int32 turn)
 	return true;
 }
 
+static void Lan_UpdateSeen(bool all);
+static void Lan_ResetSeen(void);
+
 static void Lan_Step(void)
 {
 	s_inStep = true;
@@ -798,6 +801,7 @@ void Lan_Run(void)
 		Lan_Step();
 		n++;
 	}
+	if (n > 0) Lan_UpdateSeen(false);
 	if (s_waiting && now - s_waitSince > 300) {
 		static uint32 shown;
 		if (now - shown > 1000) {
@@ -927,7 +931,106 @@ void Lan_StartGame(void)
 		g_selectionPosition = cy;
 		Map_SetSelection(cy);
 	}
+	Lan_ResetSeen();
 	s_stepBase = AmigaTimer_GetMs();
+}
+
+/* ---- fog of war, for each player its own
+ *
+ * The simulation sees the whole map (g_map[].isUnveiled everywhere, the same
+ * on every Amiga: explosions, animations, walls depend on it). What a player
+ * sees is this Amiga's own: s_seen, the tiles around its house's units and
+ * structures, never hidden again (as in Dune II). Only the drawing uses it
+ * (viewport, radar, selection); the game is not changed by it. */
+
+static uint8 s_seen[4096 / 8];
+static uint16 s_unitTile[UNIT_INDEX_MAX];
+static uint16 s_structureTile[STRUCTURE_INDEX_MAX_SOFT];
+
+bool Lan_TileShown(uint16 packed)
+{
+	return (s_seen[(packed & 0xFFF) >> 3] & (1 << (packed & 7))) != 0;
+}
+
+/** The fog over a seen tile: 0, or the border towards unseen neighbours; g_veiledTileID unseen. */
+uint16 Lan_FogOverlay(uint16 packed)
+{
+	uint16 tileID = 0;
+	int i;
+	if (!Lan_TileShown(packed)) return g_veiledTileID;
+	for (i = 0; i < 4; i++) {
+		uint16 neighbour = packed + g_table_mapDiff[i];
+		if (Tile_IsOutOfMap(neighbour) || !Lan_TileShown(neighbour)) tileID |= 1 << i;
+	}
+	return tileID == 0 ? 0 : g_iconMap[g_iconMap[ICM_ICONGROUP_FOG_OF_WAR] + tileID];
+}
+
+static void Lan_SeeAround(tile32 position, uint16 radius)
+{
+	int x, y, i, j;
+	uint16 packed = Tile_PackTile(position);
+	tile32 centre;
+
+	if (radius == 0 || !Map_IsValidPosition(packed)) return;
+	x = Tile_GetPackedX(packed);
+	y = Tile_GetPackedY(packed);
+	Tile_MakeXY(centre, x, y);
+	for (i = -(int)radius; i <= (int)radius; i++) {
+		for (j = -(int)radius; j <= (int)radius; j++) {
+			tile32 t;
+			uint16 p;
+			if (x + i < 0 || x + i >= 64 || y + j < 0 || y + j >= 64) continue;
+			p = Tile_PackXY(x + i, y + j);
+			if (Lan_TileShown(p)) continue;
+			Tile_MakeXY(t, x + i, y + j);
+			if (Tile_GetDistanceRoundedUp(centre, t) > radius) continue;
+			s_seen[p >> 3] |= 1 << (p & 7);
+			/* redraw it and its neighbours (fog borders), on the radar too */
+			Map_Update(p, 0, true);
+			Map_MarkTileDirty(p);
+		}
+	}
+}
+
+/** What the local house sees now (once a turn; all: every unit and structure again). */
+static void Lan_UpdateSeen(bool all)
+{
+	int i;
+	for (i = 0; i < UNIT_INDEX_MAX; i++) {
+		Unit *u = Unit_Get_ByIndex(i);
+		uint16 packed;
+		if (!u->o.flags.s.used || u->o.flags.s.isNotOnMap || Unit_GetHouseID(u) != g_lanLocalHouse) continue;
+		if ((u->o.position.x == 0xFFFF && u->o.position.y == 0xFFFF) || (u->o.position.x == 0 && u->o.position.y == 0)) continue;
+		packed = Tile_PackTile(u->o.position);
+		if (!all && s_unitTile[i] == packed) continue;
+		s_unitTile[i] = packed;
+		Lan_SeeAround(u->o.position, g_table_unitInfo[u->o.type].o.fogUncoverRadius);
+	}
+	for (i = 0; i < STRUCTURE_INDEX_MAX_SOFT; i++) {
+		Structure *s = Structure_Get_ByIndex(i);
+		const StructureInfo *si;
+		tile32 position;
+		uint16 packed;
+		if (!s->o.flags.s.used || s->o.houseID != g_lanLocalHouse) continue;
+		packed = Tile_PackTile(s->o.position);
+		if (!all && s_structureTile[i] == packed) continue;
+		s_structureTile[i] = packed;
+		si = &g_table_structureInfo[s->o.type];
+		position = s->o.position;
+		if (g_dune2_enhanced) {
+			position.x += 256 * (g_table_structure_layoutSize[si->layout].width  - 1) / 2;
+			position.y += 256 * (g_table_structure_layoutSize[si->layout].height - 1) / 2;
+		}
+		Lan_SeeAround(position, si->o.fogUncoverRadius);
+	}
+}
+
+static void Lan_ResetSeen(void)
+{
+	memset(s_seen, 0, sizeof(s_seen));
+	memset(s_unitTile, 0xFF, sizeof(s_unitTile));
+	memset(s_structureTile, 0xFF, sizeof(s_structureTile));
+	Lan_UpdateSeen(true);
 }
 
 /** The player quits the LAN game (Options); the game loop ends it (Lan_CheckEnd). */

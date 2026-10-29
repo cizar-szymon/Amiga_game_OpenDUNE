@@ -201,10 +201,15 @@ extern int g_lanModal;	/* > 0: a window over the game; the game goes on in sleep
 #define LAN_UI (g_lanGame && (!g_lanSim || g_lanUI > 0))
 #define LAN_GAME g_lanGame
 #define LOCAL_HOUSE_ID ((HouseType)(g_lanGame ? g_lanLocalHouse : g_playerHouseID))
+/* the player sees the tile (drawing only; in a LAN game this Amiga's own fog) */
+extern bool Lan_TileShown(uint16 packed);
+extern uint16 Lan_FogOverlay(uint16 packed);
+#define TILE_SHOWN(packed) (g_lanGame ? Lan_TileShown(packed) : g_map[packed].isUnveiled)
 #else
 #define LAN_GAME false
 #define LAN_UI false
 #define LOCAL_HOUSE_ID g_playerHouseID
+#define TILE_SHOWN(packed) (g_map[packed].isUnveiled)
 #endif
 extern bool House_UpdateRadarState(House *h);
 extern void House_UpdateCreditsStorage(uint8 houseID);

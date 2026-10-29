@@ -301,7 +301,7 @@ bool GUI_Widget_Viewport_Click(Widget *w)
 			position = Unit_FindTargetAround(packed);
 		}
 
-		if (g_map[position].overlayTileID != g_veiledTileID || g_debugScenario) {
+		if ((g_map[position].overlayTileID != g_veiledTileID && TILE_SHOWN(position)) || g_debugScenario) {
 			if (Object_GetByPackedTile(position) != NULL || g_debugScenario) {
 				Map_SetSelection(position);
 				Unit_DisplayStatusText(g_unitSelected);
@@ -424,7 +424,7 @@ void GUI_Widget_Viewport_Draw(bool forceRedraw, bool hasScrolled, bool drawToMai
 				t = &g_map[curPos];
 				left = x << 4;
 
-				if (!g_debugScenario && g_veiledTileID == t->overlayTileID) {
+				if (!g_debugScenario && (g_veiledTileID == t->overlayTileID || !TILE_SHOWN(curPos))) {
 					/* draw a black rectangle */
 					GUI_DrawFilledRectangle(left, top, left + 15, top + 15, 12);
 					continue;
@@ -435,6 +435,13 @@ void GUI_Widget_Viewport_Draw(bool forceRedraw, bool hasScrolled, bool drawToMai
 				if (t->overlayTileID != 0 && !g_debugScenario) {
 					GFX_DrawTile(t->overlayTileID, left, top, t->houseID);
 				}
+#if defined(__amigaos__)
+				/* LAN: this player's fog border */
+				if (g_lanGame && !g_debugScenario) {
+					uint16 fog = Lan_FogOverlay(curPos);
+					if (fog != 0) GFX_DrawTile(fog, left, top, t->houseID);
+				}
+#endif
 			}
 		}
 		g_dirtyViewportCount = 0;
@@ -456,7 +463,7 @@ void GUI_Widget_Viewport_Draw(bool forceRedraw, bool hasScrolled, bool drawToMai
 		if (!u->o.flags.s.isDirty && !forceRedraw) continue;
 		u->o.flags.s.isDirty = false;
 
-		if (!g_map[Tile_PackTile(u->o.position)].isUnveiled && !g_debugScenario) continue;
+		if (!TILE_SHOWN(Tile_PackTile(u->o.position)) && !g_debugScenario) continue;
 
 		sprite = g_sprites[g_table_unitInfo[u->o.type].groundSpriteID];
 		GUI_Widget_Viewport_GetSprite_HousePalette(sprite, Unit_GetHouseID(u), paletteHouse);
@@ -519,7 +526,7 @@ void GUI_Widget_Viewport_Draw(bool forceRedraw, bool hasScrolled, bool drawToMai
 			if ((!u->o.flags.s.isDirty || u->o.flags.s.isNotOnMap) && !forceRedraw && !BitArray_Test(g_dirtyViewport, packed)) continue;
 			u->o.flags.s.isDirty = false;
 
-			if (!g_map[packed].isUnveiled && !g_debugScenario) continue;
+			if (!TILE_SHOWN(packed) && !g_debugScenario) continue;
 
 			ui = &g_table_unitInfo[u->o.type];
 
@@ -679,7 +686,7 @@ void GUI_Widget_Viewport_Draw(bool forceRedraw, bool hasScrolled, bool drawToMai
 
 		e->isDirty = false;
 
-		if (!g_map[curPos].isUnveiled && !g_debugScenario) continue;
+		if (!TILE_SHOWN(curPos) && !g_debugScenario) continue;
 		if (!Map_IsPositionInViewport(e->position, &x, &y)) continue;
 
 		/*GUI_Widget_Viewport_GetSprite_HousePalette(g_sprites[e->spriteID], e->houseID, paletteHouse);*/
@@ -716,7 +723,7 @@ void GUI_Widget_Viewport_Draw(bool forceRedraw, bool hasScrolled, bool drawToMai
 			if ((!u->o.flags.s.isDirty || u->o.flags.s.isNotOnMap) && !forceRedraw && !BitArray_Test(g_dirtyViewport, curPos)) continue;
 			u->o.flags.s.isDirty = false;
 
-			if (!g_map[curPos].isUnveiled && !g_debugScenario) continue;
+			if (!TILE_SHOWN(curPos) && !g_debugScenario) continue;
 
 			ui = &g_table_unitInfo[u->o.type];
 
@@ -933,7 +940,7 @@ bool GUI_Widget_Viewport_DrawTile(uint16 packed)
 
 	if (mapScale == 0 || BitArray_Test(g_displayedMinimap, packed)) return false;
 
-	if ((g_map[packed].isUnveiled && House_Get_ByIndex(LOCAL_HOUSE_ID)->flags.radarActivated) || g_debugScenario) {
+	if ((TILE_SHOWN(packed) && House_Get_ByIndex(LOCAL_HOUSE_ID)->flags.radarActivated) || g_debugScenario) {
 		uint16 type = Map_GetLandscapeType(packed);
 		Unit *u;
 

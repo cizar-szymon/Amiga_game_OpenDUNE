@@ -20,8 +20,22 @@
 const char amiga_version[] = "$VER: OpenDUNE 0.01 (28.10.2026)";
 
 /* libnix: a stack of this size is set up before main() (start from an icon
- * gets 4 KB otherwise) */
+ * gets only the icon's stack otherwise). __stack alone does not do it: the
+ * code that swaps the stack (swapstack.o, __stkinit in the init list) is only
+ * linked in when something refers to it. Without it, the LAN game (Lan_Run
+ * from the windows) overflowed the 16 KB of the icon into g_map (29.10.2026). */
 unsigned long __stack = 400000;
+extern void __stkinit(void);
+void (*const amiga_stackSwap)(void) = __stkinit;
+
+/** The stack of the game (for the bug report): its size and what is free below here. */
+void Amiga_StackInfo(unsigned long *size, unsigned long *free)
+{
+	struct Task *me = FindTask(NULL);
+	ULONG here = (ULONG)&me;
+	*size = (ULONG)me->tc_SPUpper - (ULONG)me->tc_SPLower;
+	*free = here - (ULONG)me->tc_SPLower;
+}
 
 /* libnix's I/O calls __chkabort(), which on Ctrl-C calls exit() in the middle
  * of a file operation; Ctrl-C is handled in Video_Tick() instead. */

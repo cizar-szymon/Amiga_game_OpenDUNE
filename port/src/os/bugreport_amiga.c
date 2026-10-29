@@ -41,6 +41,7 @@ extern const uint8 *Video_Amiga_Palette(void);
 extern void Video_Amiga_Report(void);
 extern void Smooth_Report(void);
 extern int RTS_GroupCount(void);
+extern void Amiga_StackInfo(unsigned long *size, unsigned long *free);
 
 static volatile bool s_requested;
 
@@ -123,6 +124,11 @@ static void AmigaBug_WriteText(const char *name, int number)
 	s_textLen = 0;
 
 	AmigaBug_Printf("OpenDUNE bug report %d\nversion %s, built %s\n\n", number, g_opendune_revision, g_opendune_build_date);
+	{
+		unsigned long size, free;
+		Amiga_StackInfo(&size, &free);
+		AmigaBug_Printf("stack: %lu bytes, %lu free here\n", size, free);
+	}
 	AmigaBug_Printf("game: mode %d, scenario %u, campaign %u, house %d, credits %u\n",
 	        (int)g_gameMode, (unsigned)g_scenarioID, (unsigned)g_campaignID, (int)g_playerHouseID, (unsigned)g_playerCredits);
 	AmigaBug_Printf("timers: game %lu, GUI %lu, now %lu ms\n",

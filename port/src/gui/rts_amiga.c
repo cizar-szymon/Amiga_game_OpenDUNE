@@ -340,7 +340,7 @@ static void RTS_Order(int x, int y)
 	{
 		Unit *tu = Unit_Get_ByPackedTile(target);
 		Structure *ts = Structure_Get_ByPackedTile(target);
-		if (g_map[target].overlayTileID != g_veiledTileID) {
+		if (g_map[target].overlayTileID != g_veiledTileID && TILE_SHOWN(target)) {
 			if (tu != NULL && !House_AreAllied(Unit_GetHouseID(tu), LOCAL_HOUSE_ID)) enemy = true;
 			if (ts != NULL && !House_AreAllied(ts->o.houseID, LOCAL_HOUSE_ID)) enemy = true;
 		}

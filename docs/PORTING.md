@@ -351,7 +351,15 @@ ostatni. Gra może ruszyć już przy 2 graczach. Bez gracza komputerowego. Drugi
   symulacji); każda Amiga gra i widzi swój ród (`g_lanLocalHouse`, `LOCAL_HOUSE_ID`); zachowania
   „gracz / komputer” z flagi `House_IsHuman()` (poza grą LAN = `g_playerHouseID`, bez zmian).
   Sojusze: ludzie walczą ze wszystkimi. Komunikaty, dźwięki, kredyty na pasku – dla lokalnego rodu.
-- **Bez mgły wojny** w grze LAN (mgła jest jedna, z punktu widzenia „gracza” symulacji).
+- **Mgła wojny każdego gracza osobno** (od 29.10, prośba użytkownika: nie widać wroga, dopóki
+  nie dojadą tam nasze jednostki). Symulacja widzi całą mapę (`isUnveiled` wszędzie, to samo na
+  każdej Amidze – zależą od tego eksplozje, animacje, ściany). Każda Amiga ma własną mapę
+  widzianych pól (`s_seen` w `lan_amiga.c`): okolice jednostek i budynków lokalnego rodu
+  (promienie `fogUncoverRadius` jak w oryginale), raz na turę z pozycji, które się zmieniły; pola
+  nie zakrywają się z powrotem. Używa jej tylko rysowanie: `TILE_SHOWN()` (`house.h`) w
+  `gui/viewport.c` (pola, jednostki, eksplozje, radar, wybór kliknięciem), `rts_amiga.c`,
+  `widget_draw.c`; brzegi mgły z `Lan_FogOverlay()`. Sprawdzone: Amiga 1 + WinUAE, każdy widzi
+  tylko swoją bazę, jazda odsłania pas terenu, sumy równe.
 - **Interfejs nie zmienia gry:** `g_lanSim` = symulacja (krok, rozkazy tury, wczytanie);
   `LAN_UI` = kod interfejsu (także gdy symulacja woła `Unit_Select`, `Map_SetSelection`,
   `GUI_ChangeSelectionType`, `GUI_Widget_ActionPanel_Draw` – opakowane licznikiem `g_lanUI`). Poza
@@ -407,6 +415,15 @@ ostatni. Gra może ruszyć już przy 2 graczach. Bez gracza komputerowego. Drugi
 4. Płyty betonu: sąsiedztwo sprawdzane względem lokalnego rodu (`Structure_Place`).
 5. Pod oknem Options: skrypty jednostek w `SCREEN_2` nadpisane → jednostki bez skryptów.
 6. Brak `g_lanSim = false` na końcu kroku → interfejs liczony jako symulacja.
+
+Przepełnienie stosu przy starcie z ikony (29.10, raport F10 BUG001 z Amigi 1): czarny pas w
+poprzek mapy na serwerze; w `BUG001.DAT` pola 3472–3597 `g_map` zawierały stos gry (adresy
+powrotu, pozycja myszy 416,275). Ikona daje 16384 bajty stosu, a `__stack = 400000` nic nie
+robiło – kod libnix zmieniający stos (`swapstack.o`, `__stkinit`) dołącza się tylko, gdy coś się
+do niego odwołuje. Gra LAN (okna → `Lan_Run` → krok gry) przekroczyła 16 KB i pisała po `g_map`
+(suma kontrolna nie obejmuje mapy, więc bez „OUT OF STEP”). Prawdopodobnie ta sama przyczyna:
+SmartCrash „line-F” w WinUAE przy SEARCH. Poprawka: odwołanie do `__stkinit` w `os/amiga.c`;
+raport F10 podaje teraz rozmiar stosu (z ikony: 400000).
 
 ### Znane ograniczenia / dalej
 

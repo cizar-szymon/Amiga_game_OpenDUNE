@@ -387,7 +387,12 @@ void Video_Uninit(void)
 	if (P96Base != NULL) { CloseLibrary(P96Base); P96Base = NULL; }
 	free(s_framebuffer);
 	s_framebuffer = NULL;
-	g_consoleActive = true;
+	/* started from an icon: no console (libnix would open a window on the
+	 * Workbench for "Thank you for playing Dune II.") */
+	{
+		extern struct WBStartup *_WBenchMsg;
+		g_consoleActive = (_WBenchMsg == NULL);
+	}
 }
 
 static void Video_SendMouse(void)
