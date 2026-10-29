@@ -63,6 +63,22 @@ uint16 g_structureIndex;
 /**
  * Loop over all structures, preforming various of tasks.
  */
+#if defined(__amigaos__)
+/**
+ * How far the structures' build step is (0..256): the display moves the
+ * percent on between the steps (every 30 ticks) - smoother, the game is
+ * not changed by it.
+ */
+uint16 Structure_TickFraction(void)
+{
+	uint32 interval = Tools_AdjustToGameSpeed(30, 15, 60, true);
+	int32 left = (int32)(s_tickStructureStructure - g_timerGame);
+	if (interval == 0 || left <= 0) return 256;
+	if ((uint32)left >= interval) return 0;
+	return (uint16)((interval - (uint32)left) * 256 / interval);
+}
+#endif
+
 void GameLoop_Structure(void)
 {
 	PoolFindStruct find;

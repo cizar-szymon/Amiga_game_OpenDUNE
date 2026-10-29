@@ -329,6 +329,15 @@ kończyć program – z menu można zagrać przez LAN; z programu wychodzi Exit 
 `g_quitToMenu` z `widget_click.c`, `GameLoop_QuitToMenu` w pętli głównej (jak po grze LAN);
 podpis z `String_Get_ByIndex(STR_QUIT_PLAYING)`. Sprawdzone w WinUAE (misja 5 → menu → Play on LAN).
 
+### Płynny procent budowy (29.10.2026, uwaga użytkownika)
+
+Gra liczy postęp budowy co 30 tików (0,5 s): przy krótkich budowach (CONCRETE) procent skakał o
+kilka naraz. Panel pokazuje go teraz płynnie: między krokami przesuwa go o czas, który minął
+(`Structure_TickFraction`, `GUI_Amiga_BuildPercent` w `widget_draw.c`) – gdy budowa idzie (nie
+wstrzymana, są kredyty) – i przerysowuje się przy każdej zmianie o 1% (`displayedPercent`).
+Tylko wyświetlanie: gra (i gra LAN) bez zmian. WinUAE, CONCRETE: 8, 21, 33, 46, 59, 71, 84, 97%
+w zrzutach co ~0,6 s (wcześniej co 6,25%).
+
 ### Zoom widoku mapy (29.10.2026, jak w Settlers, decyzja użytkownika)
 
 - **Z** – po kolei ×1 → ×2 → ×3 → ×1; **kółko myszy** – stopień bliżej / dalej (RAWKEY 0x7A/0x7B,

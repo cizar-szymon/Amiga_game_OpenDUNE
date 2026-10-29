@@ -132,6 +132,54 @@ void GUI_Widget_SpriteButton_Draw(Widget *w)
 	GFX_Screen_SetActive(SCREEN_0);
 }
 
+#if defined(__amigaos__)
+/* The build time of what a factory makes (0: nothing / unknown). */
+static uint16 GUI_Amiga_BuildTime(const Structure *s)
+{
+	if (s->o.type == STRUCTURE_CONSTRUCTION_YARD) return g_table_structureInfo[s->objectType].o.buildTime;
+	if (s->o.type == STRUCTURE_REPAIR) {
+		if (s->o.linkedID == 0xFF) return 0;
+		return g_table_unitInfo[Unit_Get_ByIndex(s->o.linkedID)->o.type].o.buildTime;
+	}
+	if (s->objectType >= UNIT_MAX) return 0;
+	return g_table_unitInfo[s->objectType].o.buildTime;
+}
+
+/*
+ * The percent of a build, smooth: the game counts it on every 30 ticks
+ * (CONCRETE: some percent at once); between them it is moved on by the time
+ * gone since (Structure_TickFraction), as the game will - when building
+ * (not on hold, credits there). Only the display.
+ */
+static uint16 GUI_Amiga_BuildPercent(const Structure *s, uint16 buildTime)
+{
+	uint32 total = (uint32)buildTime * 256, cd = s->countDown;
+	const StructureInfo *si = &g_table_structureInfo[s->o.type];
+
+	if (total == 0) return 0;
+	if (!s->o.flags.s.onHold && cd != 0 && s->state == STRUCTURE_STATE_BUSY && s->o.linkedID != 0xFF &&
+	    si->o.flags.factory && House_Get_ByIndex(s->o.houseID)->credits > 0) {
+		uint32 speed = 256, sub;
+		if (s->o.hitpoints < si->o.hitpoints) speed = (uint32)s->o.hitpoints * 256 / si->o.hitpoints;
+		sub = speed * Structure_TickFraction() / 256;
+		if (sub >= speed) sub = speed - 1;	/* the step itself shows the last bit */
+		cd = cd > sub ? cd - sub : 0;
+	}
+	if (cd > total) cd = total;
+	return (uint16)((total - cd) * 100 / total);
+}
+
+/* The percent the panel of a structure shows (0xFFFF: none). */
+static uint16 GUI_Amiga_PanelPercent(const Structure *s)
+{
+	uint16 t;
+	if (s->state != STRUCTURE_STATE_BUSY || s->countDown == 0) return 0xFFFF;
+	t = GUI_Amiga_BuildTime(s);
+	return t == 0 ? 0xFFFF : GUI_Amiga_BuildPercent(s, t);
+}
+#endif
+
+
 /**
  * Draw a sprite/text button widget to the display, relative to 0,0.
  *
@@ -229,6 +277,13 @@ void GUI_Widget_SpriteTextButton_Draw(Widget *w)
 	if (g_productionStringID == STR_D_DONE) {
 		uint16 buildTime;
 		uint16 timeLeft;
+#if defined(__amigaos__)
+		buildTime = GUI_Amiga_BuildTime(s);
+		if (buildTime != 0) {
+			percentDone = GUI_Amiga_BuildPercent(s, buildTime);
+			goto percentKnown;
+		}
+#endif
 
 		if (s->o.type == STRUCTURE_CONSTRUCTION_YARD) {
 			const StructureInfo *si;
@@ -252,6 +307,9 @@ void GUI_Widget_SpriteTextButton_Draw(Widget *w)
 		timeLeft = buildTime - (s->countDown + 255) / 256;
 		percentDone = 100 * timeLeft / buildTime;
 	}
+#if defined(__amigaos__)
+percentKnown:
+#endif
 
 	if (g_productionStringID == STR_UPGRADINGD_DONE) {
 		percentDone = 100 - s->upgradeTimeLeft;
@@ -429,6 +487,7 @@ static uint16 GUI_Widget_ActionPanel_GetActionType(bool forceDraw)
 	static uint16 displayedActionType       = 1;
 	static uint16 displayedHitpoints        = 0xFFFF;
 	static uint16 displayedIndex            = 0xFFFF;
+	static uint16 displayedPercent          = 0xFFFF;	/* (Amiga: the smooth build percent) */
 	static uint16 displayedCountdown        = 0xFFFF;
 	static uint16 displayedObjectType       = 0xFFFF;
 	static uint32 displayedStructureFlags   = 0;
@@ -479,6 +538,9 @@ static uint16 GUI_Widget_ActionPanel_GetActionType(bool forceDraw)
 				|| s->o.hitpoints       != displayedHitpoints
 				|| s->o.index           != displayedIndex
 				|| s->countDown         != displayedCountdown
+#if defined(__amigaos__)
+				|| GUI_Amiga_PanelPercent(s) != displayedPercent	/* the smooth percent */
+#endif
 				|| s->upgradeTimeLeft   != displayedUpgradeTime
 				|| s->o.linkedID        != displayedLinkedID
 				|| s->objectType        != displayedObjectType
@@ -524,6 +586,9 @@ static uint16 GUI_Widget_ActionPanel_GetActionType(bool forceDraw)
 			displayedIndex            = s->o.index;
 			displayedObjectType       = s->objectType;
 			displayedCountdown        = s->countDown;
+#if defined(__amigaos__)
+			displayedPercent          = GUI_Amiga_PanelPercent(s);
+#endif
 			displayedUpgradeTime      = s->upgradeTimeLeft;
 			displayedLinkedID         = s->o.linkedID;
 			displayedStructureFlags   = s->o.flags.all;
