@@ -4436,10 +4436,13 @@ void GUI_HallOfFame_Show(uint16 score)
 	GUI_Mouse_Hide_Safe();
 
 	if (score == 0xFFFF) {
+#if !defined(__amigaos__)
+		/* (Amiga: from the menu also without one: the empty table is made below) */
 		if (!File_Exists_Personal("SAVEFAME.DAT")) {
 			GUI_Mouse_Show_Safe();
 			return;
 		}
+#endif
 		s_ticksPlayed = 0;
 	}
 

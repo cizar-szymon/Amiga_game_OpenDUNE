@@ -721,6 +721,14 @@ static void GameLoop_QuitToMenu(void)
 #define STR_MENU_SECOND STR_REPLAY_INTRODUCTION
 #endif
 
+#if defined(__amigaos__)
+/* Hall of Fame always in the main menu (the user's wish; an empty table before
+ * the first mission is won) */
+#define MENU_HAS_FAME() true
+#else
+#define MENU_HAS_FAME() File_Exists_Personal("SAVEFAME.DAT")
+#endif
+
 static void GameLoop_GameIntroAnimationMenu(void)
 {
 	static const uint16 mainMenuStrings[][6] = {
@@ -741,7 +749,7 @@ static void GameLoop_GameIntroAnimationMenu(void)
 
 	if (index == 0xFFFF) {
 		hasSave = File_Exists_Personal("_save000.dat");
-		hasFame = File_Exists_Personal("SAVEFAME.DAT");
+		hasFame = MENU_HAS_FAME();
 		index = (hasFame ? 2 : 0) + (hasSave ? 1 : 0);
 	}
 
@@ -817,7 +825,7 @@ static void GameLoop_GameIntroAnimationMenu(void)
 
 			GFX_SetPalette(g_palette2);
 
-			hasFame = File_Exists_Personal("SAVEFAME.DAT");
+			hasFame = MENU_HAS_FAME();
 			drawMenu = true;
 			break;
 
@@ -851,7 +859,7 @@ static void GameLoop_GameIntroAnimationMenu(void)
 	}
 	if (index == 0xFFFF) {
 		hasSave = File_Exists_Personal("_save000.dat");
-		hasFame = File_Exists_Personal("SAVEFAME.DAT");
+		hasFame = MENU_HAS_FAME();
 		index = (hasFame ? 2 : 0) + (hasSave ? 1 : 0);
 	}
 #endif
