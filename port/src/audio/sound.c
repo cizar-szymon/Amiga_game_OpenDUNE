@@ -348,7 +348,7 @@ void Sound_StartSound(uint16 index)
 
 		filename = g_table_voices[index].string;
 		if (filename[0] == '?') {
-			snprintf(filenameBuffer, sizeof(filenameBuffer), filename + 1, g_playerHouseID < HOUSE_MAX ? g_table_houseInfo[g_playerHouseID].prefixChar : ' ');
+			snprintf(filenameBuffer, sizeof(filenameBuffer), filename + 1, LOCAL_HOUSE_ID < HOUSE_MAX ? g_table_houseInfo[LOCAL_HOUSE_ID].prefixChar : ' ');
 
 			Driver_Voice_LoadFile(filenameBuffer, g_readBuffer, g_readBufferSize);
 

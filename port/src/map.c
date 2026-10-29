@@ -97,7 +97,21 @@ uint16 Map_MoveDirection(uint16 direction)
  *
  * @param packed The packed tile to set the selection on.
  */
+#if defined(__amigaos__)
+static void Map_SetSelection_Inner(uint16 packed);
+
+/* (a LAN game: always the interface, also when the simulation calls it) */
 void Map_SetSelection(uint16 packed)
+{
+	g_lanUI++;
+	Map_SetSelection_Inner(packed);
+	g_lanUI--;
+}
+
+static void Map_SetSelection_Inner(uint16 packed)
+#else
+void Map_SetSelection(uint16 packed)
+#endif
 {
 	if (g_selectionType == SELECTIONTYPE_TARGET) return;
 
@@ -115,7 +129,7 @@ void Map_SetSelection(uint16 packed)
 			const StructureInfo *si;
 
 			si = &g_table_structureInfo[s->o.type];
-			if (s->o.houseID == g_playerHouseID && g_selectionType != SELECTIONTYPE_MENTAT) {
+			if (s->o.houseID == LOCAL_HOUSE_ID && g_selectionType != SELECTIONTYPE_MENTAT) {
 				GUI_DisplayHint(si->o.hintStringID, si->o.spriteID);
 			}
 
@@ -415,6 +429,13 @@ void Map_MakeExplosion(uint16 type, tile32 position, uint16 hitpoints, uint16 un
 {
 	uint16 reactionDistance = (type == EXPLOSION_DEATH_HAND) ? 32 : 16;
 	uint16 positionPacked = Tile_PackTile(position);
+#if defined(__amigaos__)
+	if (LAN_UI) {	/* a LAN game: only the simulation (the same on every Amiga) */
+		extern void Lan_TraceTag(const char *tag, uint32 value, void *caller);
+		Lan_TraceTag("expl-ui", 0, __builtin_return_address(0));
+		return;
+	}
+#endif
 
 	if (!s_debugNoExplosionDamage && hitpoints != 0) {
 		PoolFindStruct find;
@@ -442,7 +463,7 @@ void Map_MakeExplosion(uint16 type, tile32 position, uint16 hitpoints, uint16 un
 				Unit_Damage(u, hitpoints >> (distance >> 2), 0);
 			}
 
-			if (u->o.houseID == g_playerHouseID) continue;
+			if (House_IsHuman(u->o.houseID)) continue;
 
 			us = Tools_Index_GetUnit(unitOriginEncoded);
 			if (us == NULL) continue;
@@ -685,7 +706,7 @@ void Map_Bloom_ExplodeSpice(uint16 packed, uint8 houseID)
 		Map_MakeExplosion(EXPLOSION_SPICE_BLOOM_TREMOR, Tile_UnpackTile(packed), 0, 0);
 	}
 
-	if (houseID == g_playerHouseID) Sound_Output_Feedback(36);
+	if (houseID == LOCAL_HOUSE_ID) Sound_Output_Feedback(36);
 
 	Map_FillCircleWithSpice(packed, 5);
 }
@@ -975,12 +996,13 @@ uint16 Map_FindLocationTile(uint16 locationID, uint8 houseID)
 
 			case 4: /* Air */
 				ret = Tile_PackXY(mapInfo->minX + Tools_RandomLCG_Range(0, mapInfo->sizeX), mapInfo->minY + Tools_RandomLCG_Range(0, mapInfo->sizeY));
-				if (houseID == g_playerHouseID && !Map_IsValidPosition(ret)) ret = 0;
+				if (House_IsHuman(houseID) && !Map_IsValidPosition(ret)) ret = 0;
 				break;
 
 			case 5: /* Visible */
-				ret = Tile_PackXY(Tile_GetPackedX(g_minimapPosition) + Tools_RandomLCG_Range(0, 14), Tile_GetPackedY(g_minimapPosition) + Tools_RandomLCG_Range(0, 9));
-				if (houseID == g_playerHouseID && !Map_IsValidPosition(ret)) ret = 0;
+				/* (LAN game: not the local view; the scenario's, the same on each Amiga) */
+				ret = Tile_PackXY(Tile_GetPackedX(LAN_GAME ? g_lanSimViewPos : g_minimapPosition) + Tools_RandomLCG_Range(0, 14), Tile_GetPackedY(LAN_GAME ? g_lanSimViewPos : g_minimapPosition) + Tools_RandomLCG_Range(0, 9));
+				if (House_IsHuman(houseID) && !Map_IsValidPosition(ret)) ret = 0;
 				break;
 
 			case 6: /* Enemy Base */
@@ -1014,7 +1036,7 @@ uint16 Map_FindLocationTile(uint16 locationID, uint8 houseID)
 					}
 				}
 
-				if (houseID == g_playerHouseID && !Map_IsValidPosition(ret)) ret = 0;
+				if (House_IsHuman(houseID) && !Map_IsValidPosition(ret)) ret = 0;
 				break;
 			}
 

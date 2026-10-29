@@ -37,6 +37,7 @@
 #if defined(__amigaos__)
 #include "rts_amiga.h"
 #include "layout_amiga.h"
+#include "../lan_amiga.h"
 #endif
 
 
@@ -102,19 +103,27 @@ bool GUI_Widget_SpriteTextButton_Click(Widget *w)
 				g_structureActiveType = s->objectType;
 				g_selectionState = Structure_IsValidBuildLocation(g_selectionRectanglePosition, g_structureActiveType);
 				g_structureActivePosition = g_selectionPosition;
-				s->o.linkedID = STRUCTURE_INVALID;
+				if (!LAN_GAME) s->o.linkedID = STRUCTURE_INVALID;	/* a LAN game: when placed */
 
 				GUI_ChangeSelectionType(SELECTIONTYPE_PLACE);
 			}
 			break;
 
 		case STR_ON_HOLD:
+			if (LAN_GAME) {
+				Lan_StructureCommand(LAN_STRUCTURE_RESUME, s, 0);
+				break;
+			}
 			s->o.flags.s.repairing = false;
 			s->o.flags.s.onHold    = false;
 			s->o.flags.s.upgrading = false;
 			break;
 
 		case STR_BUILD_IT:
+			if (LAN_GAME) {
+				Lan_StructureCommand(LAN_STRUCTURE_BUILD, s, s->objectType);
+				break;
+			}
 			Structure_BuildObject(s, s->objectType);
 			break;
 
@@ -125,6 +134,10 @@ bool GUI_Widget_SpriteTextButton_Click(Widget *w)
 			break;
 
 		case STR_D_DONE:
+			if (LAN_GAME) {
+				Lan_StructureCommand(LAN_STRUCTURE_HOLD, s, 0);
+				break;
+			}
 			s->o.flags.s.onHold = true;
 			break;
 	}
@@ -258,7 +271,7 @@ bool GUI_Widget_TextButton_Click(Widget *w)
 	ui = &g_table_unitInfo[u->o.type];
 
 	actions = ui->o.actionsPlayer;
-	if (Unit_GetHouseID(u) != g_playerHouseID && u->o.type != UNIT_HARVESTER) {
+	if (Unit_GetHouseID(u) != LOCAL_HOUSE_ID && u->o.type != UNIT_HARVESTER) {
 		actions = g_table_actionsAI;
 	}
 
@@ -277,7 +290,7 @@ bool GUI_Widget_TextButton_Click(Widget *w)
 	}
 
 	if (u->deviated != 0) {
-		Unit_Deviation_Decrease(u, 5);
+		Lan_UnitDeviate(u);
 		if (u->deviated == 0) {
 			GUI_Widget_MakeNormal(w, false);
 			return true;
@@ -296,12 +309,7 @@ bool GUI_Widget_TextButton_Click(Widget *w)
 		return true;
 	}
 
-	Object_Script_Variable4_Clear(&u->o);
-	u->targetAttack = 0;
-	u->targetMove = 0;
-	u->route[0] = 0xFF;
-
-	Unit_SetAction(u, action);
+	Lan_UnitOrder(u, action, LAN_ORDER_NONE, 0);
 #if defined(__amigaos__)
 	RTS_GroupAction(u, action, 0xFFFF);	/* the rest of a selected group too */
 #endif
@@ -357,7 +365,9 @@ bool GUI_Widget_Cancel_Click(Widget *w)
 
 		assert(s2 != NULL);
 
-		if (s != NULL) {
+		if (LAN_GAME) {
+			/* nothing was taken from the Construction Yard (lan_amiga.c) */
+		} else if (s != NULL) {
 			s->o.linkedID = s2->o.index & 0xFF;
 		} else {
 			Structure_Free(s2);
@@ -422,6 +432,10 @@ bool GUI_Widget_RepairUpgrade_Click(Widget *w)
 
 	s = Structure_Get_ByPackedTile(g_selectionPosition);
 
+	if (LAN_GAME) {
+		Lan_StructureCommand(LAN_STRUCTURE_REPAIR_UPGRADE, s, 0);
+		return false;
+	}
 	if (Structure_SetRepairingState(s, -1, w)) return false;
 	Structure_SetUpgradingState(s, -1, w);
 
@@ -845,6 +859,7 @@ bool GUI_Widget_Options_Click(Widget *w)
 					break;
 
 				case 3:
+					if (LAN_GAME) break;	/* not in a LAN game */
 					/* "Are you sure you wish to restart?" */
 					if (!GUI_YesNo(STR_ARE_YOU_SURE_YOU_WISH_TO_RESTART)) break;
 
@@ -853,6 +868,7 @@ bool GUI_Widget_Options_Click(Widget *w)
 					break;
 
 				case 4:
+					if (LAN_GAME) break;	/* not in a LAN game */
 					/* "Are you sure you wish to pick a new house?" */
 					if (!GUI_YesNo(STR_ARE_YOU_SURE_YOU_WISH_TO_PICK_A_NEW_HOUSE)) break;
 
@@ -868,6 +884,13 @@ bool GUI_Widget_Options_Click(Widget *w)
 				case 6:
 					/* "Are you sure you want to quit playing?" */
 					loop = !GUI_YesNo(STR_ARE_YOU_SURE_YOU_WANT_TO_QUIT_PLAYING);
+#if defined(__amigaos__)
+					if (LAN_GAME) {
+						/* a LAN game: leave it (the others go on) and back to the menu */
+						if (!loop) Lan_LeaveGame();
+						break;
+					}
+#endif
 					g_running = loop;
 
 					Sound_Output_Feedback(0xFFFE);
@@ -1308,7 +1331,7 @@ bool GUI_Production_ResumeGame_Click(Widget *w)
 
 			i++;
 
-			GUI_DrawCredits(g_playerHouseID, 0);
+			GUI_DrawCredits(LOCAL_HOUSE_ID, 0);
 		}
 	}
 
@@ -1534,7 +1557,7 @@ static void GUI_Purchase_ShowInvoice(void)
 	Input_History_Clear();
 
 	for (; GUI_Widget_HandleEvents(w) == 0; sleepIdle()) {
-		GUI_DrawCredits(g_playerHouseID, 0);
+		GUI_DrawCredits(LOCAL_HOUSE_ID, 0);
 
 		GUI_FactoryWindow_UpdateSelection(false);
 

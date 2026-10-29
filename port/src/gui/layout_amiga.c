@@ -32,6 +32,7 @@
 #include "gui.h"
 #include "widget.h"
 #include "layout_amiga.h"
+#include "../house.h"
 
 uint16 g_viewportTilesW = 15;
 uint16 g_viewportTilesH = 10;
@@ -381,11 +382,11 @@ void Layout_UpdateLoadSaveButton(void)
 		w->width = s_btnW[i];
 		if (s_twoButtons) {
 			w->clickProc = s_buttons[i].click;
-			w->flags.invisible = !s_big || mentat->flags.invisible;
+			w->flags.invisible = !s_big || mentat->flags.invisible || LAN_GAME;
 		} else {
 			/* one button: LOAD/SAVE with the small window */
 			w->clickProc = &GUI_Widget_LoadSave_Click;
-			w->flags.invisible = !s_big || mentat->flags.invisible || i > 0;
+			w->flags.invisible = !s_big || mentat->flags.invisible || i > 0 || LAN_GAME;
 		}
 	}
 }
@@ -507,7 +508,7 @@ void Layout_DrawLoadSaveButton(Screen screenID)
 	Screen old;
 
 	s_bar = &s_barLayouts[0];
-	if (!s_big) return;
+	if (!s_big || LAN_GAME) return;	/* (a LAN game: no saving) */
 	buf = GFX_Screen_Get_ByIndex(screenID);
 	scratch = GFX_Screen_Get_ByIndex(SCREEN_3);	/* credits and intro only */
 

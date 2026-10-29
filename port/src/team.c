@@ -16,6 +16,14 @@
 
 static uint32 s_tickTeamGameLoop = 0; /*!< Indicates next time the GameLoop function is executed. */
 
+#if defined(__amigaos__)
+/** LAN game: the next times from 0 (the same on every Amiga at the start). */
+void Team_ResetTicks(void)
+{
+	s_tickTeamGameLoop = 0;
+}
+#endif
+
 /**
  * Loop over all teams, performing various of tasks.
  */

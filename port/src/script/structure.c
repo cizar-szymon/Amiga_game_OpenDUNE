@@ -129,13 +129,13 @@ uint16 Script_Structure_RefineSpice(ScriptEngine *script)
 	if (harvesterStep == 0) return 0;
 
 	creditsStep = 7;
-	if (u->o.houseID != g_playerHouseID) {
+	if (!House_IsHuman(u->o.houseID)) {
 		creditsStep += (Tools_Random_256() % 4) - 1;
 	}
 
 	creditsStep *= harvesterStep;
 
-	if (House_AreAllied(g_playerHouseID, s->o.houseID)) {
+	if (House_AreAllied(LOCAL_HOUSE_ID, s->o.houseID)) {
 		g_scenario.harvestedAllied += creditsStep;
 		if (g_scenario.harvestedAllied > 65000) g_scenario.harvestedAllied = 65000;
 	} else {
@@ -212,7 +212,7 @@ uint16 Script_Structure_FindUnitByType(ScriptEngine *script)
 
 	u = Unit_Get_ByIndex(s->o.linkedID);
 
-	if (g_playerHouseID == s->o.houseID && u->o.type == UNIT_HARVESTER && (u->targetLast.x == 0 && u->targetLast.y == 0) && position != 0) {
+	if (House_IsHuman(s->o.houseID) && u->o.type == UNIT_HARVESTER && (u->targetLast.x == 0 && u->targetLast.y == 0) && position != 0) {
 		return IT_NONE;
 	}
 
@@ -256,7 +256,7 @@ uint16 Script_Structure_Unknown0C5A(ScriptEngine *script)
 		if (s->o.linkedID == 0xFF) Structure_SetState(s, STRUCTURE_STATE_IDLE);
 		Object_Script_Variable4_Clear(&s->o);
 
-		if (s->o.houseID == g_playerHouseID) Sound_Output_Feedback(g_playerHouseID + 49);
+		if (s->o.houseID == LOCAL_HOUSE_ID) Sound_Output_Feedback(LOCAL_HOUSE_ID + 49);
 
 		return 1;
 	}
@@ -276,17 +276,17 @@ uint16 Script_Structure_Unknown0C5A(ScriptEngine *script)
 	Unit_SetOrientation(u, Tile_GetDirection(s->o.position, u->o.position) & 0xE0, true, 0);
 	Unit_SetOrientation(u, u->orientation[0].current, true, 1);
 
-	if (u->o.houseID == g_playerHouseID && u->o.type == UNIT_HARVESTER) {
+	if (u->o.houseID == LOCAL_HOUSE_ID && u->o.type == UNIT_HARVESTER) {
 		GUI_DisplayHint(STR_SEARCH_FOR_SPICE_FIELDS_TO_HARVEST, 0x6A);
 	}
 
 	if (s->o.linkedID == 0xFF) Structure_SetState(s, STRUCTURE_STATE_IDLE);
 	Object_Script_Variable4_Clear(&s->o);
 
-	if (s->o.houseID != g_playerHouseID) return 1;
+	if (s->o.houseID != LOCAL_HOUSE_ID) return 1;
 	if (s->o.type == STRUCTURE_REPAIR) return 1;
 
-	Sound_Output_Feedback(g_playerHouseID + ((u->o.type == UNIT_HARVESTER) ? 68 : 30));
+	Sound_Output_Feedback(LOCAL_HOUSE_ID + ((u->o.type == UNIT_HARVESTER) ? 68 : 30));
 
 	return 1;
 }
@@ -494,7 +494,7 @@ uint16 Script_Structure_VoicePlay(ScriptEngine *script)
 
 	s = g_scriptCurrentStructure;
 
-	if (s->o.houseID != g_playerHouseID) return 0;
+	if (s->o.houseID != LOCAL_HOUSE_ID) return 0;
 
 	Voice_PlayAtTile(STACK_PEEK(1), s->o.position);
 
@@ -614,7 +614,7 @@ uint16 Script_Structure_Destroy(ScriptEngine *script)
 
 		u->o.hitpoints = g_table_unitInfo[UNIT_SOLDIER].o.hitpoints * (Tools_Random_256() & 3) / 256;
 
-		if (s->o.houseID != g_playerHouseID) {
+		if (!House_IsHuman(s->o.houseID)) {
 			Unit_SetAction(u, ACTION_ATTACK);
 			continue;
 		}
@@ -627,7 +627,7 @@ uint16 Script_Structure_Destroy(ScriptEngine *script)
 	}
 
 	if (g_debugScenario) return 0;
-	if (s->o.houseID != g_playerHouseID) return 0;
+	if (s->o.houseID != LOCAL_HOUSE_ID) return 0;
 
 	if (g_config.language == LANGUAGE_FRENCH) {
 		GUI_DisplayText("%s %s %s", 0, String_Get_ByIndex(g_table_structureInfo[s->o.type].o.stringID_full), g_table_houseInfo[s->o.houseID].name, String_Get_ByIndex(STR_IS_DESTROYED));

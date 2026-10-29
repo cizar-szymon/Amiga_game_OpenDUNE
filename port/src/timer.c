@@ -31,6 +31,7 @@
 #include "os/error.h"
 
 #include "timer.h"
+#include "house.h"
 
 
 
@@ -389,7 +390,12 @@ void Timer_Remove(void (*callback)(void))
 void Timer_Tick(void)
 {
 	if ((s_timersActive & TIMER_GUI)  != 0) g_timerGUI++;
+#if defined(__amigaos__)
+	/* a LAN game moves the game's time itself (Lan_Step) */
+	if ((s_timersActive & TIMER_GAME) != 0 && !g_lanGame) g_timerGame++;
+#else
 	if ((s_timersActive & TIMER_GAME) != 0) g_timerGame++;
+#endif
 	g_timerInput++;
 	g_timerSleep++;
 

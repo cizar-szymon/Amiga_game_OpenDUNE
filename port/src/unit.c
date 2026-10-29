@@ -46,6 +46,20 @@ static uint32 s_tickUnitScript    = 0; /*!< Indicates next time the Script funct
 static uint32 s_tickUnitUnknown5  = 0; /*!< Indicates next time the Unknown5 function is executed. */
 static uint32 s_tickUnitDeviation = 0; /*!< Indicates next time the Deviation function is executed. */
 
+#if defined(__amigaos__)
+/** LAN game: the next times from 0 (the same on every Amiga at the start). */
+void Unit_ResetTicks(void)
+{
+	s_tickUnitMovement = 0;
+	s_tickUnitRotation = 0;
+	s_tickUnitBlinking = 0;
+	s_tickUnitUnknown4 = 0;
+	s_tickUnitScript = 0;
+	s_tickUnitUnknown5 = 0;
+	s_tickUnitDeviation = 0;
+}
+#endif
+
 Unit *g_unitActive = NULL;
 Unit *g_unitHouseMissile = NULL;
 Unit *g_unitSelected = NULL;
@@ -296,7 +310,8 @@ void GameLoop_Unit(void)
 			if (u->o.script.delay == 0) {
 				if (Script_IsLoaded(&u->o.script)) {
 					int opcodesLeft = SCRIPT_UNIT_OPCODES_PER_TICK + 2;
-					if (!ui->o.flags.scriptNoSlowdown && !Map_IsPositionInViewport(u->o.position, NULL, NULL)) {
+					/* (LAN game: not by the view, it differs on each Amiga) */
+					if (!LAN_GAME && !ui->o.flags.scriptNoSlowdown && !Map_IsPositionInViewport(u->o.position, NULL, NULL)) {
 						opcodesLeft = 3;
 					}
 
@@ -465,7 +480,7 @@ Unit *Unit_Create(uint16 index, uint8 typeID, uint8 houseID, tile32 position, in
 
 	Unit_UpdateMap(1, u);
 
-	Unit_SetAction(u, (houseID == g_playerHouseID) ? ui->o.actionsPlayer[3] : ui->actionAI);
+	Unit_SetAction(u, House_IsHuman(houseID) ? ui->o.actionsPlayer[3] : ui->actionAI);
 
 	return u;
 }
@@ -881,7 +896,7 @@ bool Unit_SetPosition(Unit *u, tile32 position)
 		Unit_HouseUnitCount_Add(u, g_playerHouseID);
 	}
 
-	if (u->o.houseID != g_playerHouseID || u->o.type == UNIT_HARVESTER || u->o.type == UNIT_SABOTEUR) {
+	if (!House_IsHuman(u->o.houseID) || u->o.type == UNIT_HARVESTER || u->o.type == UNIT_SABOTEUR) {
 		Unit_SetAction(u, ui->actionAI);
 	} else {
 		Unit_SetAction(u, ui->o.actionsPlayer[3]);
@@ -1202,7 +1217,7 @@ bool Unit_Deviation_Decrease(Unit *unit, uint16 amount)
 	Unit_UpdateMap(2, unit);
 	unit->o.flags.s.bulletIsBig = false;
 
-	if (unit->o.houseID == g_playerHouseID) {
+	if (House_IsHuman(unit->o.houseID)) {
 		Unit_SetAction(unit, ui->o.actionsPlayer[3]);
 	} else {
 		Unit_SetAction(unit, ui->actionAI);
@@ -1258,7 +1273,7 @@ bool Unit_Deviate(Unit *unit, uint16 probability, uint8 houseID)
 
 	if (probability == 0) probability = g_table_houseInfo[unit->o.houseID].toughness;
 
-	if (unit->o.houseID != g_playerHouseID) {
+	if (!House_IsHuman(unit->o.houseID)) {
 		probability -= probability / 8;
 	}
 
@@ -1269,7 +1284,7 @@ bool Unit_Deviate(Unit *unit, uint16 probability, uint8 houseID)
 
 	Unit_UpdateMap(2, unit);
 
-	if (g_playerHouseID == unit->deviatedHouse) {
+	if (House_IsHuman(unit->deviatedHouse)) {
 		Unit_SetAction(unit, ui->o.actionsPlayer[3]);
 	} else {
 		Unit_SetAction(unit, ui->actionAI);
@@ -1384,7 +1399,7 @@ bool Unit_Move(Unit *unit, uint16 distance)
 			if (s != NULL) {
 				/* ENHANCEMENT -- make sonic blast trigger counter attack, but
 				 * do not warn about base under attack (original behaviour). */
-				if (g_dune2_enhanced && s->o.houseID != g_playerHouseID && !House_AreAllied(unit->o.houseID, s->o.houseID)) {
+				if (g_dune2_enhanced && !House_IsHuman(s->o.houseID) && !House_AreAllied(unit->o.houseID, s->o.houseID)) {
 					Structure_HouseUnderAttack(s->o.houseID);
 				}
 
@@ -1566,7 +1581,7 @@ bool Unit_Damage(Unit *unit, uint16 damage, uint16 range)
 			Sound_Output_Feedback(20);
 		} else {
 			if (!ui->o.flags.noMessageOnDeath && alive) {
-				Sound_Output_Feedback((houseID == g_playerHouseID || g_campaignID > 3) ? houseID + 14 : 13);
+				if (!LAN_GAME || houseID == LOCAL_HOUSE_ID) Sound_Output_Feedback((houseID == LOCAL_HOUSE_ID || g_campaignID > 3) ? houseID + 14 : 13);
 			}
 		}
 
@@ -1578,7 +1593,7 @@ bool Unit_Damage(Unit *unit, uint16 damage, uint16 range)
 		Map_MakeExplosion((damage < 25) ? EXPLOSION_IMPACT_SMALL : EXPLOSION_IMPACT_MEDIUM, unit->o.position, 0, 0);
 	}
 
-	if (houseID != g_playerHouseID && unit->actionID == ACTION_AMBUSH && unit->o.type != UNIT_HARVESTER) {
+	if (!House_IsHuman(houseID) && unit->actionID == ACTION_AMBUSH && unit->o.type != UNIT_HARVESTER) {
 		Unit_SetAction(unit, ACTION_ATTACK);
 	}
 
@@ -1706,7 +1721,21 @@ void Unit_SetOrientation(Unit *unit, int8 orientation, bool rotateInstantly, uin
  *
  * @param unit The Unit to select.
  */
+#if defined(__amigaos__)
+static void Unit_Select_Inner(Unit *unit);
+
+/* (a LAN game: always the interface, also when the simulation calls it) */
 void Unit_Select(Unit *unit)
+{
+	g_lanUI++;
+	Unit_Select_Inner(unit);
+	g_lanUI--;
+}
+
+static void Unit_Select_Inner(Unit *unit)
+#else
+void Unit_Select(Unit *unit)
+#endif
 {
 	if (unit == g_unitSelected) return;
 
@@ -1727,7 +1756,7 @@ void Unit_Select(Unit *unit)
 		return;
 	}
 
-	if (Unit_GetHouseID(unit) == g_playerHouseID) {
+	if (Unit_GetHouseID(unit) == LOCAL_HOUSE_ID) {
 		const UnitInfo *ui;
 
 		ui = &g_table_unitInfo[unit->o.type];
@@ -1808,7 +1837,7 @@ Unit *Unit_CreateWrapper(uint8 houseID, UnitType typeID, uint16 destination)
 		return NULL;
 	}
 
-	if (House_AreAllied(houseID, g_playerHouseID) || Unit_IsTypeOnMap(houseID, UNIT_CARRYALL)) {
+	if (House_AreAllied(houseID, g_playerHouseID) || House_IsHuman(houseID) || Unit_IsTypeOnMap(houseID, UNIT_CARRYALL)) {
 		carryall->o.flags.s.byScenario = true;
 	}
 
@@ -2599,7 +2628,7 @@ void Unit_LaunchHouseMissile(uint16 packed)
 
 	packed = Tile_PackTile(tile);
 
-	isAI = g_unitHouseMissile->o.houseID != g_playerHouseID;
+	isAI = !House_IsHuman(g_unitHouseMissile->o.houseID);
 
 	Unit_Free(g_unitHouseMissile);
 
@@ -2702,15 +2731,15 @@ void Unit_HouseUnitCount_Add(Unit *unit, uint8 houseID)
 		}
 	}
 
-	if (houseID == g_playerHouseID && g_selectionType != SELECTIONTYPE_MENTAT) {
+	if (houseID == g_playerHouseID && (LAN_GAME || g_selectionType != SELECTIONTYPE_MENTAT)) {
 		if (unit->o.type == UNIT_SANDWORM) {
 			if (hp->timerSandwormAttack == 0) {
 				if (g_musicInBattle == 0) g_musicInBattle = 1;
 
-				Sound_Output_Feedback(37);
+				if (!LAN_GAME) Sound_Output_Feedback(37);
 
 				if (g_config.language == LANGUAGE_ENGLISH) {
-					GUI_DisplayHint(STR_WARNING_SANDWORMS_SHAIHULUD_ROAM_DUNE_DEVOURING_ANYTHING_ON_THE_SAND, 105);
+					if (!LAN_GAME) GUI_DisplayHint(STR_WARNING_SANDWORMS_SHAIHULUD_ROAM_DUNE_DEVOURING_ANYTHING_ON_THE_SAND, 105);
 				}
 
 				hp->timerSandwormAttack = 8;
@@ -2722,7 +2751,7 @@ void Unit_HouseUnitCount_Add(Unit *unit, uint8 houseID)
 				if (g_musicInBattle == 0) g_musicInBattle = 1;
 
 				if (unit->o.type == UNIT_SABOTEUR) {
-					Sound_Output_Feedback(12);
+					if (!LAN_GAME) Sound_Output_Feedback(12);
 				} else {
 					if (g_scenarioID < 3) {
 						PoolFindStruct find;
@@ -2740,9 +2769,9 @@ void Unit_HouseUnitCount_Add(Unit *unit, uint8 houseID)
 							feedbackID = 1;
 						}
 
-						Sound_Output_Feedback(feedbackID);
+						if (!LAN_GAME) Sound_Output_Feedback(feedbackID);
 					} else {
-						Sound_Output_Feedback(unit->o.houseID + 6);
+						if (!LAN_GAME) Sound_Output_Feedback(unit->o.houseID + 6);
 					}
 				}
 

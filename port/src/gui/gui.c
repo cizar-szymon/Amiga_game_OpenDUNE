@@ -51,6 +51,13 @@
 #include "layout_amiga.h"
 #if defined(__amigaos__)
 #include "smooth_amiga.h"
+
+#if defined(__amigaos__)
+/* a LAN game: the interface draws its own random numbers, never the simulation's */
+#define Tools_Random_256() (g_lanGame ? Tools_RandomUI_256() : (Tools_Random_256)())
+#define Tools_RandomLCG_Range(a, b) (g_lanGame ? Tools_RandomUI_Range(a, b) : (Tools_RandomLCG_Range)(a, b))
+#define Tools_RandomLCG_Seed(a) do { if (!g_lanGame) (Tools_RandomLCG_Seed)(a); } while (0)
+#endif
 #endif
 #endif
 
@@ -1466,7 +1473,7 @@ static uint16 Update_Score(int16 score, uint16 *harvestedAllied, uint16 *harvest
 		u = Unit_Find(&find);
 		if (u == NULL) break;
 
-		if (House_AreAllied(Unit_GetHouseID(u), g_playerHouseID)) {
+		if (House_AreAllied(Unit_GetHouseID(u), LOCAL_HOUSE_ID)) {
 			sumHarvestedAllied += u->amount * 7;
 		} else {
 			sumHarvestedEnnemy += u->amount * 7;
@@ -1543,13 +1550,13 @@ static void GUI_HallOfFame_DrawBackground(uint16 score, bool hallOfFame)
 	Sprites_LoadImage("FAME.CPS", SCREEN_1, g_palette_998A);
 
 	xSrc = 1;
-	if (g_playerHouseID <= HOUSE_ORDOS) {
-		xSrc = (g_playerHouseID * 56 + 8) / 8;
+	if (LOCAL_HOUSE_ID <= HOUSE_ORDOS) {
+		xSrc = (LOCAL_HOUSE_ID * 56 + 8) / 8;
 	}
 
 	GUI_Screen_Copy(xSrc, 136, 0, 8, 7, 56, SCREEN_1, SCREEN_1);
 
-	if (g_playerHouseID > HOUSE_ORDOS) {
+	if (LOCAL_HOUSE_ID > HOUSE_ORDOS) {
 		xSrc += 7;
 	}
 
@@ -1584,7 +1591,7 @@ static void GUI_HallOfFame_DrawBackground(uint16 score, bool hallOfFame)
 		GUI_DrawText_Wrapper(String_Get_ByIndex(STR_HALL_OF_FAME2), SCREEN_WIDTH / 2, 15, 15, 0, 0x122);
 	}
 
-	switch (g_playerHouseID) {
+	switch (LOCAL_HOUSE_ID) {
 		case HOUSE_HARKONNEN:
 			colour = 149;
 			offset = 0;
@@ -2126,6 +2133,8 @@ void GUI_DrawInterfaceAndRadar(Screen screenID)
 	w = GUI_Widget_Get_ByIndex(g_widgetLinkedListHead, 2);
 	GUI_Widget_Draw(w);
 
+	/* (a LAN game: the map is the same; these change the game, not the interface's business) */
+	if (!LAN_UI) {
 	find.houseID = HOUSE_INVALID;
 	find.index   = 0xFFFF;
 	find.type    = 0xFFFF;
@@ -2152,6 +2161,7 @@ void GUI_DrawInterfaceAndRadar(Screen screenID)
 
 		Unit_UpdateMap(1, u);
 	}
+	}
 
 	if (screenID == SCREEN_0) {
 		GFX_Screen_SetActive(SCREEN_0);
@@ -2159,7 +2169,7 @@ void GUI_DrawInterfaceAndRadar(Screen screenID)
 		GUI_Mouse_Hide_Safe();
 
 		GUI_Screen_Copy(0, 0, 0, 0, SCREEN_WIDTH / 8, SCREEN_HEIGHT, SCREEN_1, SCREEN_0);
-		GUI_DrawCredits(g_playerHouseID, (g_playerCredits == 0xFFFF) ? 2 : 1);
+		GUI_DrawCredits(LOCAL_HOUSE_ID, (g_playerCredits == 0xFFFF) ? 2 : 1);
 		GUI_SetPaletteAnimated(g_palette1, 15);
 
 		GUI_Mouse_Show_Safe();
@@ -2167,7 +2177,7 @@ void GUI_DrawInterfaceAndRadar(Screen screenID)
 
 	GFX_Screen_SetActive(oldScreenID);
 
-	GUI_DrawCredits(g_playerHouseID, 2);
+	GUI_DrawCredits(LOCAL_HOUSE_ID, 2);
 
 	Input_History_Clear();
 }
@@ -2285,7 +2295,21 @@ void GUI_DrawCredits(uint8 houseID, uint16 mode)
  * Change the selection type.
  * @param selectionType The new selection type.
  */
+#if defined(__amigaos__)
+static void GUI_ChangeSelectionType_Inner(uint16 selectionType);
+
+/* (a LAN game: always the interface, also when the simulation calls it) */
 void GUI_ChangeSelectionType(uint16 selectionType)
+{
+	g_lanUI++;
+	GUI_ChangeSelectionType_Inner(selectionType);
+	g_lanUI--;
+}
+
+static void GUI_ChangeSelectionType_Inner(uint16 selectionType)
+#else
+void GUI_ChangeSelectionType(uint16 selectionType)
+#endif
 {
 	Screen oldScreenID;
 
@@ -2849,8 +2873,8 @@ static void GUI_FactoryWindow_Init(void)
 
 	GUI_Palette_RemapScreen(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_1, g_remap);
 
-	GUI_Screen_Copy(xSrc[g_playerHouseID], ySrc[g_playerHouseID], 0, 8, 7, 40, SCREEN_1, SCREEN_1);
-	GUI_Screen_Copy(xSrc[g_playerHouseID], ySrc[g_playerHouseID], 0, 152, 7, 40, SCREEN_1, SCREEN_1);
+	GUI_Screen_Copy(xSrc[LOCAL_HOUSE_ID], ySrc[LOCAL_HOUSE_ID], 0, 8, 7, 40, SCREEN_1, SCREEN_1);
+	GUI_Screen_Copy(xSrc[LOCAL_HOUSE_ID], ySrc[LOCAL_HOUSE_ID], 0, 152, 7, 40, SCREEN_1, SCREEN_1);
 
 	GUI_FactoryWindow_CreateWidgets();
 	GUI_FactoryWindow_LoadGraymapTbl();
@@ -2892,7 +2916,7 @@ static void GUI_FactoryWindow_Init(void)
 
 	GUI_FactoryWindow_DrawDetails();
 
-	GUI_DrawCredits(g_playerHouseID, 1);
+	GUI_DrawCredits(LOCAL_HOUSE_ID, 1);
 
 	GFX_Screen_SetActive(oldScreenID);
 }
@@ -2925,7 +2949,7 @@ FactoryResult GUI_DisplayFactoryWindow(bool isConstructionYard, bool isStarPort,
 	for (g_factoryWindowResult = FACTORY_CONTINUE; g_factoryWindowResult == FACTORY_CONTINUE; sleepIdle()) {
 		uint16 event;
 
-		GUI_DrawCredits(g_playerHouseID, 0);
+		GUI_DrawCredits(LOCAL_HOUSE_ID, 0);
 
 		GUI_FactoryWindow_UpdateSelection(false);
 
@@ -2936,7 +2960,7 @@ FactoryResult GUI_DisplayFactoryWindow(bool isConstructionYard, bool isStarPort,
 		GUI_PaletteAnimate();
 	}
 
-	GUI_DrawCredits(g_playerHouseID, 1);
+	GUI_DrawCredits(LOCAL_HOUSE_ID, 1);
 
 	GFX_Screen_SetActive(oldScreenID);
 
@@ -4617,10 +4641,12 @@ void GUI_DrawScreen(Screen screenID)
 
 	if (!GFX_Screen_IsActive(SCREEN_0)) g_viewport_forceRedraw = true;
 
-	Explosion_Tick();
-	Animation_Tick();
-	Unit_Sort();
 #if defined(__amigaos__)
+	if (!g_lanGame) {	/* a LAN game: in its steps (Lan_Step) */
+		Explosion_Tick();
+		Animation_Tick();
+		Unit_Sort();
+	}
 	Smooth_MarkMoving();	/* units between two positions are drawn every frame */
 #endif
 

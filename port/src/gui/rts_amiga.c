@@ -50,6 +50,14 @@
 #include "../string.h"
 #include "../table/strings.h"
 #include "rts_amiga.h"
+#include "../lan_amiga.h"
+
+#if defined(__amigaos__)
+/* a LAN game: the interface draws its own random numbers, never the simulation's */
+#define Tools_Random_256() (g_lanGame ? Tools_RandomUI_256() : (Tools_Random_256)())
+#define Tools_RandomLCG_Range(a, b) (g_lanGame ? Tools_RandomUI_Range(a, b) : (Tools_RandomLCG_Range)(a, b))
+#define Tools_RandomLCG_Seed(a) do { if (!g_lanGame) (Tools_RandomLCG_Seed)(a); } while (0)
+#endif
 
 #define MAX_GROUP 64
 #define DRAG_START 4	/* pixels before a press becomes a rectangle */
@@ -88,7 +96,7 @@ static bool RTS_Active(void)
 
 static bool RTS_HasOwnSelection(void)
 {
-	return s_groupCount > 0 || (g_unitSelected != NULL && Unit_GetHouseID(g_unitSelected) == g_playerHouseID);
+	return s_groupCount > 0 || (g_unitSelected != NULL && Unit_GetHouseID(g_unitSelected) == LOCAL_HOUSE_ID);
 }
 
 /**
@@ -165,7 +173,7 @@ static Unit *RTS_GroupUnit(int i)
 {
 	Unit *u = Unit_Get_ByIndex(s_group[i]);
 	if (u == NULL || !u->o.flags.s.used || !u->o.flags.s.allocated || u->o.flags.s.isNotOnMap) return NULL;
-	if (Unit_GetHouseID(u) != g_playerHouseID) return NULL;
+	if (Unit_GetHouseID(u) != LOCAL_HOUSE_ID) return NULL;
 	return u;
 }
 
@@ -197,7 +205,7 @@ static void RTS_ClearGroup(void)
 static bool RTS_Selectable(Unit *u)
 {
 	if (!u->o.flags.s.used || !u->o.flags.s.allocated || u->o.flags.s.isNotOnMap) return false;
-	if (Unit_GetHouseID(u) != g_playerHouseID) return false;
+	if (Unit_GetHouseID(u) != LOCAL_HOUSE_ID) return false;
 	if (u->o.type == UNIT_CARRYALL || u->o.type == UNIT_ORNITHOPTER || u->o.type == UNIT_FRIGATE) return false;
 	if (u->o.type == UNIT_SANDWORM) return false;
 	if (u->o.type >= UNIT_MISSILE_HOUSE && u->o.type <= UNIT_MISSILE_TROOPER) return false;
@@ -216,7 +224,7 @@ static void RTS_SelectRect(int x0, int y0, int x1, int y1)
 	y0 -= 40;
 	y1 -= 40;
 
-	find.houseID = g_playerHouseID;
+	find.houseID = LOCAL_HOUSE_ID;
 	find.index = 0xFFFF;
 	find.type = 0xFFFF;
 	while ((u = Unit_Find(&find)) != NULL && n < MAX_GROUP) {
@@ -306,19 +314,14 @@ void RTS_GroupAction(Unit *done, uint16 action, uint16 packed)
 		Unit *u = RTS_GroupUnit(i);
 		if (u == NULL || u == done || !RTS_CanDo(u, action)) continue;
 
-		Object_Script_Variable4_Clear(&u->o);
-		u->targetAttack = 0;
-		u->targetMove = 0;
-		u->route[0] = 0xFF;
-		Unit_SetAction(u, action);
-		if (packed == 0xFFFF) continue;
-
-		if (action == ACTION_MOVE) {
-			Unit_SetDestination(u, Tools_Index_Encode(RTS_FormationDest(u, packed, cx, cy), IT_TILE));
+		if (packed == 0xFFFF) {
+			Lan_UnitOrder(u, action, LAN_ORDER_NONE, 0);
+		} else if (action == ACTION_MOVE) {
+			Lan_UnitOrder(u, action, LAN_ORDER_DESTINATION, Tools_Index_Encode(RTS_FormationDest(u, packed, cx, cy), IT_TILE));
 		} else if (action == ACTION_HARVEST) {
-			u->targetMove = Tools_Index_Encode(RTS_FormationDest(u, packed, cx, cy), IT_TILE);
+			Lan_UnitOrder(u, action, LAN_ORDER_MOVE_TARGET, Tools_Index_Encode(RTS_FormationDest(u, packed, cx, cy), IT_TILE));
 		} else {
-			Unit_SetTarget(u, Tools_Index_Encode(Unit_FindTargetAround(packed), IT_TILE));
+			Lan_UnitOrder(u, action, LAN_ORDER_TARGET, Tools_Index_Encode(Unit_FindTargetAround(packed), IT_TILE));
 		}
 	}
 }
@@ -338,8 +341,8 @@ static void RTS_Order(int x, int y)
 		Unit *tu = Unit_Get_ByPackedTile(target);
 		Structure *ts = Structure_Get_ByPackedTile(target);
 		if (g_map[target].overlayTileID != g_veiledTileID) {
-			if (tu != NULL && !House_AreAllied(Unit_GetHouseID(tu), g_playerHouseID)) enemy = true;
-			if (ts != NULL && !House_AreAllied(ts->o.houseID, g_playerHouseID)) enemy = true;
+			if (tu != NULL && !House_AreAllied(Unit_GetHouseID(tu), LOCAL_HOUSE_ID)) enemy = true;
+			if (ts != NULL && !House_AreAllied(ts->o.houseID, LOCAL_HOUSE_ID)) enemy = true;
 		}
 	}
 
@@ -355,20 +358,14 @@ static void RTS_Order(int x, int y)
 		action = (enemy && RTS_CanDo(u, ACTION_ATTACK)) ? ACTION_ATTACK : ACTION_MOVE;
 		if (!RTS_CanDo(u, action)) continue;
 
-		Object_Script_Variable4_Clear(&u->o);
-		u->targetAttack = 0;
-		u->targetMove = 0;
-		u->route[0] = 0xFF;
-		Unit_SetAction(u, action);
-
 		if (action == ACTION_ATTACK) {
 			Unit *t;
-			Unit_SetTarget(u, Tools_Index_Encode(target, IT_TILE));
-			t = Tools_Index_GetUnit(u->targetAttack);
+			Lan_UnitOrder(u, action, LAN_ORDER_TARGET, Tools_Index_Encode(target, IT_TILE));
+			t = LAN_GAME ? Unit_Get_ByPackedTile(target) : Tools_Index_GetUnit(u->targetAttack);
 			if (t != NULL) t->blinkCounter = 8;
 		} else {
 			encoded = Tools_Index_Encode(RTS_FormationDest(u, packed, cx, cy), IT_TILE);
-			Unit_SetDestination(u, encoded);
+			Lan_UnitOrder(u, action, LAN_ORDER_DESTINATION, encoded);
 		}
 		if (first == NULL) first = u;
 	}
@@ -379,7 +376,7 @@ static void RTS_Order(int x, int y)
 	} else if (g_table_unitInfo[first->o.type].movementType == MOVEMENT_FOOT) {
 		Sound_StartSound(g_table_actionInfo[enemy ? ACTION_ATTACK : ACTION_MOVE].soundID);
 	} else {
-		Sound_StartSound(((Tools_Random_256() & 0x1) == 0) ? 20 : 17);
+		Sound_StartSound((((LAN_GAME ? (uint8)AmigaTimer_GetMs() : Tools_Random_256()) & 0x1) == 0) ? 20 : 17);
 	}
 }
 
@@ -455,6 +452,7 @@ static void RTS_Pause(void)
 
 	if (s_pauseRequest) {
 		s_pauseRequest = false;
+		if (g_lanGame) return;	/* not in a LAN game */
 		if (onMap || s_paused) {
 			s_paused = !s_paused;
 			Timer_SetTimer(TIMER_GAME, !s_paused);
@@ -506,7 +504,7 @@ void RTS_Tick(void)
 	if (g_unitSelected != s_lastSelected) {
 		s_lastSelected = g_unitSelected;
 		RTS_ClearGroup();
-		if (g_unitSelected != NULL && Unit_GetHouseID(g_unitSelected) == g_playerHouseID) {
+		if (g_unitSelected != NULL && Unit_GetHouseID(g_unitSelected) == LOCAL_HOUSE_ID) {
 			s_group[0] = g_unitSelected->o.index;
 			s_groupCount = 1;
 		}

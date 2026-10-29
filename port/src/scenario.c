@@ -24,6 +24,9 @@
 #include "timer.h"
 #include "unit.h"
 #include "gui/gui.h"
+#if defined(__amigaos__)
+#include "lan_amiga.h"
+#endif
 
 Scenario g_scenario;
 
@@ -73,6 +76,10 @@ static void Scenario_Load_House(uint8 houseID)
 
 	h->flags.human = true;
 
+#if defined(__amigaos__)
+	/* a LAN game: the simulation's player is the server's house */
+	if (g_lanGame && houseID != g_lanPlayers[0].house) return;
+#endif
 	g_playerHouseID       = houseID;
 	g_playerHouse         = h;
 	g_playerCreditsNoSilo = h->credits;
@@ -529,8 +536,19 @@ bool Scenario_Load(uint16 scenarioID, uint8 houseID)
 
 	/* Load scenario file */
 	sprintf(filename, "SCEN%c%03hu.INI", g_table_houseInfo[houseID].name[0], scenarioID);
+#if defined(__amigaos__)
+	if (g_lanGame) {
+		/* the LAN game's scenario, made from a map (lan_amiga.c) */
+		extern const char *Lan_ScenarioText(void);
+		const char *text = Lan_ScenarioText();
+		s_scenarioBuffer = malloc(strlen(text) + 1);
+		strcpy(s_scenarioBuffer, text);
+	} else
+#endif
+	{
 	if (!File_Exists(filename)) return false;
 	s_scenarioBuffer = File_ReadWholeFile(filename);
+	}
 
 	memset(&g_scenario, 0, sizeof(Scenario));
 
@@ -557,6 +575,12 @@ bool Scenario_Load(uint16 scenarioID, uint8 houseID)
 
 	g_tickScenarioStart = g_timerGame;
 
+#if defined(__amigaos__)
+	if (g_lanGame) {
+		/* no fog of war in a LAN game: everything is seen from the start */
+		for (i = 0; i < 64 * 64; i++) g_map[i].isUnveiled = true;
+	}
+#endif
 	free(s_scenarioBuffer); s_scenarioBuffer = NULL;
 	return true;
 }

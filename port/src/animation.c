@@ -14,6 +14,10 @@
 #include "tile.h"
 #include "timer.h"
 #include "tools.h"
+#include "house.h"
+
+/* LAN game: the game's time (the same steps on every Amiga), else the GUI's */
+#define EFFECT_TIMER (LAN_GAME ? g_timerGame : g_timerGUI)
 
 enum {
 	ANIMATION_MAX = 112
@@ -31,6 +35,14 @@ typedef struct Animation {
 
 static Animation g_animations[ANIMATION_MAX];
 static uint32 s_animationTimer; /*!< Timer for animations. */
+
+#if defined(__amigaos__)
+/** LAN game: the next times from 0 (the same on every Amiga at the start). */
+void Animation_ResetTicks(void)
+{
+	s_animationTimer = 0;
+}
+#endif
 
 /**
  * Stop with this Animation.
@@ -91,7 +103,7 @@ static void Animation_Func_Pause(Animation *animation, int16 parameter)
 {
 	assert(parameter >= 0);
 
-	animation->tickNext = g_timerGUI + parameter + (Tools_Random_256() % 4);
+	animation->tickNext = EFFECT_TIMER + parameter + (Tools_Random_256() % 4);
 }
 
 /**
@@ -222,6 +234,16 @@ void Animation_Start(const AnimationCommandStruct *commands, tile32 tile, uint16
 	uint16 packed = Tile_PackTile(tile);
 	Tile *t;
 	int i;
+#if defined(__amigaos__)
+	{
+		extern void Lan_TraceTag(const char *tag, uint32 value, void *caller);
+		if (LAN_UI) {	/* a LAN game: only the simulation (the same on every Amiga) */
+			Lan_TraceTag("anim-ui", Tile_PackTile(tile), __builtin_return_address(0));
+			return;
+		}
+		Lan_TraceTag("anim", Tile_PackTile(tile), __builtin_return_address(0));
+	}
+#endif
 
 	t = &g_map[packed];
 	Animation_Stop_ByTile(packed);
@@ -229,7 +251,7 @@ void Animation_Start(const AnimationCommandStruct *commands, tile32 tile, uint16
 	for (i = 0; i < ANIMATION_MAX; i++, animation++) {
 		if (animation->commands != NULL) continue;
 
-		animation->tickNext   = g_timerGUI;
+		animation->tickNext   = EFFECT_TIMER;
 		animation->tileLayout = tileLayout;
 		animation->houseID    = houseID;
 		animation->current    = 0;
@@ -254,6 +276,16 @@ void Animation_Stop_ByTile(uint16 packed)
 	Animation *animation = g_animations;
 	Tile *t = &g_map[packed];
 	int i;
+#if defined(__amigaos__)
+	{
+		extern void Lan_TraceTag(const char *tag, uint32 value, void *caller);
+		if (LAN_UI) {	/* a LAN game: only the simulation (the same on every Amiga) */
+			Lan_TraceTag("animstop-ui", packed, __builtin_return_address(0));
+			return;
+		}
+		Lan_TraceTag("animstop", packed, __builtin_return_address(0));
+	}
+#endif
 
 	if (!t->hasAnimation) return;
 
@@ -274,13 +306,13 @@ void Animation_Tick(void)
 	Animation *animation = g_animations;
 	int i;
 
-	if (s_animationTimer > g_timerGUI) return;
+	if (s_animationTimer > EFFECT_TIMER) return;
 	s_animationTimer += 10000;
 
 	for (i = 0; i < ANIMATION_MAX; i++, animation++) {
 		if (animation->commands == NULL) continue;
 
-		if (animation->tickNext <= g_timerGUI) {
+		if (animation->tickNext <= EFFECT_TIMER) {
 			const AnimationCommandStruct *commands = animation->commands + animation->current;
 			int16 parameter = commands->parameter;
 			assert((parameter & 0x0800) == 0 || (parameter & 0xF000) != 0); /* Validate if the compiler sign-extends correctly */

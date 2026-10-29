@@ -43,6 +43,19 @@ static uint32 s_tickHouseReinforcement = 0;
 static uint32 s_tickHouseMissileCountdown = 0;
 static uint32 s_tickHouseStarportAvailability = 0;
 
+#if defined(__amigaos__)
+/** LAN game: the next times from 0 (the same on every Amiga at the start). */
+void House_ResetTicks(void)
+{
+	s_tickHouseHouse = 0;
+	s_tickHouseStarport = 0;
+	s_tickHouseReinforcement = 0;
+	s_tickHouseMissileCountdown = 0;
+	s_tickHouseStarportAvailability = 0;
+	g_tickHousePowerMaintenance = 0;
+}
+#endif
+
 static void House_EnsureHarvesterAvailable(uint8 houseID);
 
 /**
@@ -184,6 +197,12 @@ void GameLoop_House(void)
 		if (tickHouse) {
 			/* ENHANCEMENT -- Originally this code was outside the house loop, which seems very odd.
 			 *  This problem is considered to be so bad, that the original code has been removed. */
+#if defined(__amigaos__)
+			if (g_lanGame) {
+				extern void Lan_HouseCredits(House *h);
+				Lan_HouseCredits(h);	/* each person's house as the player's */
+			} else
+#endif
 			if (h->index != g_playerHouseID) {
 				if (h->creditsStorage < h->credits) {
 					h->credits = h->creditsStorage;
@@ -338,7 +357,7 @@ static void House_EnsureHarvesterAvailable(uint8 houseID)
 
 	if (Unit_CreateWrapper(houseID, UNIT_HARVESTER, Tools_Index_Encode(s->o.index, IT_STRUCTURE)) == NULL) return;
 
-	if (houseID != g_playerHouseID) return;
+	if (houseID != LOCAL_HOUSE_ID) return;
 
 	GUI_DisplayText(String_Get_ByIndex(STR_HARVESTER_IS_HEADING_TO_REFINERY), 0);
 }
@@ -360,7 +379,22 @@ bool House_AreAllied(uint8 houseID1, uint8 houseID2)
 		return (houseID1 == HOUSE_ATREIDES || houseID2 == HOUSE_ATREIDES);
 	}
 
-	return (houseID1 != g_playerHouseID && houseID2 != g_playerHouseID);
+	/* the computer's houses are allied, every person fights everyone */
+	return !House_IsHuman(houseID1) && !House_IsHuman(houseID2);
+}
+
+/**
+ * A house played by a person (the player; in a LAN game each player's house).
+ * @param houseID The house.
+ * @return True if a person plays it.
+ */
+bool House_IsHuman(uint8 houseID)
+{
+	if (houseID >= HOUSE_MAX) return false;
+#if defined(__amigaos__)
+	if (g_lanGame) return House_Get_ByIndex(houseID)->flags.human;
+#endif
+	return houseID == g_playerHouseID;
 }
 
 /**
@@ -375,7 +409,7 @@ bool House_UpdateRadarState(House *h)
 	uint16 frameCount;
 	bool activate;
 
-	if (h == NULL || h->index != g_playerHouseID) return false;
+	if (h == NULL || h->index != LOCAL_HOUSE_ID) return false;
 
 	wsa = NULL;
 
@@ -516,7 +550,7 @@ void House_CalculatePowerAndCredit(House *h)
 	}
 
 	/* Check if we are low on power */
-	if (h->index == g_playerHouseID && h->powerUsage > h->powerProduction) {
+	if (h->index == LOCAL_HOUSE_ID && h->powerUsage > h->powerProduction) {
 		GUI_DisplayText(String_Get_ByIndex(STR_INSUFFICIENT_POWER_WINDTRAP_IS_NEEDED), 1);
 	}
 

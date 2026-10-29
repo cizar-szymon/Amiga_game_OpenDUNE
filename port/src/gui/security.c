@@ -25,6 +25,13 @@
 #include "../tools.h"
 #include "../wsa.h"
 
+#if defined(__amigaos__)
+/* a LAN game: the interface draws its own random numbers, never the simulation's */
+#define Tools_Random_256() (g_lanGame ? Tools_RandomUI_256() : (Tools_Random_256)())
+#define Tools_RandomLCG_Range(a, b) (g_lanGame ? Tools_RandomUI_Range(a, b) : (Tools_RandomLCG_Range)(a, b))
+#define Tools_RandomLCG_Seed(a) do { if (!g_lanGame) (Tools_RandomLCG_Seed)(a); } while (0)
+#endif
+
 
 static void GUI_Security_DrawText(char *text)
 {

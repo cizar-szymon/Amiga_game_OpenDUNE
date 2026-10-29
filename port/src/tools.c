@@ -5,6 +5,8 @@
 #include "types.h"
 
 #include "tools.h"
+#include "house.h"
+#include "timer.h"
 
 #include "config.h"
 #include "pool/structure.h"
@@ -236,10 +238,45 @@ Object *Tools_Index_GetObject(uint16 encoded)
  *
  * @return The random value.
  */
+#if defined(__amigaos__)
+/* tests (opendune.ini debug_lan_trace_from / _to, game ticks): who draws the
+ * simulation's random numbers, in RAM:OpenDUNE-lan.txt (lan_amiga.c) */
+uint32 g_lanTraceFrom = 0xFFFFFFFF, g_lanTraceTo = 0;
+extern void Lan_TraceRandom(void *caller);
+
+/* LAN game: the interface's random numbers (sounds, music) are its own */
+static uint32 s_randomUI = 0x1234567;
+static uint8 Tools_RandomUI(void)
+{
+	s_randomUI = s_randomUI * 1103515245UL + 12345;
+	return (uint8)(s_randomUI >> 16);
+}
+
+uint8 Tools_RandomUI_256(void)
+{
+	return Tools_RandomUI();
+}
+
+uint16 Tools_RandomUI_Range(uint16 min, uint16 max)
+{
+	if (min > max) {
+		uint16 t = min;
+		min = max;
+		max = t;
+	}
+	return (uint16)(min + ((Tools_RandomUI() << 8) | Tools_RandomUI()) % (max - min + 1));
+}
+#endif
+
 uint8 Tools_Random_256(void)
 {
 	uint16 val16;
 	uint8 val8;
+
+#if defined(__amigaos__)
+	if (LAN_UI) return Tools_RandomUI();
+	if (g_lanGame && g_timerGame >= g_lanTraceFrom && g_timerGame <= g_lanTraceTo) Lan_TraceRandom(__builtin_return_address(0));
+#endif
 
 	val16 = (s_randomSeed[1] << 8) | s_randomSeed[2];
 	val8 = ((val16 ^ 0x8000) >> 15) & 1;
@@ -263,6 +300,14 @@ void Tools_Random_Seed(uint32 seed)
 	s_randomSeed[2] = (seed >> 16) & 0xFF;
 	s_randomSeed[3] = (seed >> 24) & 0xFF;
 }
+
+#if defined(__amigaos__)
+/** The state of both random generators, for the LAN game's checksum. */
+uint32 Tools_Random_State(void)
+{
+	return (((uint32)s_randomSeed[0] << 24) | ((uint32)s_randomSeed[1] << 16) | ((uint32)s_randomSeed[2] << 8)) ^ s_randomLCG;
+}
+#endif
 
 /**
  * Set the seed for the LCG randomizer.
@@ -292,6 +337,14 @@ static int16 Tools_RandomLCG(void)
 uint16 Tools_RandomLCG_Range(uint16 min, uint16 max)
 {
 	uint16 ret;
+
+#if defined(__amigaos__)
+	if (LAN_UI) {
+		if (min > max) { ret = min; min = max; max = ret; }
+		return (uint16)(min + ((Tools_RandomUI() << 8) | Tools_RandomUI()) % (max - min + 1));
+	}
+	if (g_lanGame && g_timerGame >= g_lanTraceFrom && g_timerGame <= g_lanTraceTo) Lan_TraceRandom((void *)((uint32)__builtin_return_address(0) | 1));
+#endif
 
 	if (min > max) {
 		uint16 temp = min;

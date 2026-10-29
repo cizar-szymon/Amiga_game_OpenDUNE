@@ -32,6 +32,11 @@ extern uint8 Tools_Random_256(void);
 extern void Tools_Random_Seed(uint32 seed);
 extern void Tools_RandomLCG_Seed(uint16 seed);
 extern uint16 Tools_RandomLCG_Range(uint16 min, uint16 max);
+#if defined(__amigaos__)
+/* the interface's own random numbers (LAN game: the simulation's stay the same everywhere) */
+extern uint8 Tools_RandomUI_256(void);
+extern uint16 Tools_RandomUI_Range(uint16 min, uint16 max);
+#endif
 
 #define BITARRAY_MACROS
 

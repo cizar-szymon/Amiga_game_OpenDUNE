@@ -94,6 +94,9 @@ static int Cmd_KeyCode(const char *name)
 		char c = name[0];
 		if (c >= 'A' && c <= 'Z') c += 'a' - 'A';
 		if (c == ' ') return 0x40;
+		if (c == '.') return 0x39;
+		if (c == ',') return 0x38;
+		if (c == '-') return 0x0B;
 		if ((p = strchr(row1, c)) != NULL) return 0x01 + (int)(p - row1);
 		if ((p = strchr(rowq, c)) != NULL) return 0x10 + (int)(p - rowq);
 		if ((p = strchr(rowa, c)) != NULL) return 0x20 + (int)(p - rowa);

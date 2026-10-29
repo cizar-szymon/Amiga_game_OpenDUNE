@@ -34,6 +34,8 @@
 #include "tools.h"
 #include "unit.h"
 
+extern uint8 g_validateHouseID;
+
 
 Structure *g_structureActive = NULL;
 uint16 g_structureActivePosition = 0;
@@ -44,6 +46,17 @@ static uint32 s_tickStructureDegrade   = 0; /*!< Indicates next time Degrade fun
 static uint32 s_tickStructureStructure = 0; /*!< Indicates next time Structures function is executed. */
 static uint32 s_tickStructureScript    = 0; /*!< Indicates next time Script function is executed. */
 static uint32 s_tickStructurePalace    = 0; /*!< Indicates next time Palace function is executed. */
+
+#if defined(__amigaos__)
+/** LAN game: the next times from 0 (the same on every Amiga at the start). */
+void Structure_ResetTicks(void)
+{
+	s_tickStructureDegrade = 0;
+	s_tickStructureStructure = 0;
+	s_tickStructureScript = 0;
+	s_tickStructurePalace = 0;
+}
+#endif
 
 uint16 g_structureIndex;
 
@@ -107,7 +120,7 @@ void GameLoop_Structure(void)
 			if (s->countDown != 0) {
 				s->countDown--;
 
-				if (s->o.houseID == g_playerHouseID) {
+				if (s->o.houseID == LOCAL_HOUSE_ID) {
 					GUI_Widget_ActionPanel_Draw(true);
 				}
 			}
@@ -157,7 +170,7 @@ void GameLoop_Structure(void)
 					h->credits -= repairCost;
 
 					/* AIs repair in early games slower than in later games */
-					if (s->o.houseID == g_playerHouseID || g_campaignID >= 3) {
+					if (House_IsHuman(s->o.houseID) || g_campaignID >= 3) {
 						s->o.hitpoints += 5;
 					} else {
 						s->o.hitpoints += 3;
@@ -191,7 +204,7 @@ void GameLoop_Structure(void)
 					}
 
 					/* For AIs, we slow down building speed in all but the last campaign */
-					if (g_playerHouseID != s->o.houseID) {
+					if (!House_IsHuman(s->o.houseID)) {
 						if (buildSpeed > g_campaignID * 20 + 95) buildSpeed = g_campaignID * 20 + 95;
 					}
 
@@ -219,8 +232,8 @@ void GameLoop_Structure(void)
 
 							Structure_SetState(s, STRUCTURE_STATE_READY);
 
-							if (s->o.houseID == g_playerHouseID) {
-								if (s->o.type != STRUCTURE_BARRACKS && s->o.type != STRUCTURE_WOR_TROOPER) {
+							if (House_IsHuman(s->o.houseID)) {
+								if (s->o.houseID == LOCAL_HOUSE_ID && s->o.type != STRUCTURE_BARRACKS && s->o.type != STRUCTURE_WOR_TROOPER) {
 									uint16 stringID = STR_IS_COMPLETED_AND_AWAITING_ORDERS;
 									if (s->o.type == STRUCTURE_HIGH_TECH) stringID = STR_IS_COMPLETE;
 									if (s->o.type == STRUCTURE_CONSTRUCTION_YARD) stringID = STR_IS_COMPLETED_AND_READY_TO_PLACE;
@@ -263,9 +276,9 @@ void GameLoop_Structure(void)
 						}
 					} else {
 						/* Out of money means the building gets put on hold */
-						if (s->o.houseID == g_playerHouseID) {
+						if (House_IsHuman(s->o.houseID)) {
 							s->o.flags.s.onHold = true;
-							GUI_DisplayText(String_Get_ByIndex(STR_INSUFFICIENT_FUNDS_CONSTRUCTION_IS_HALTED), 0);
+							if (s->o.houseID == LOCAL_HOUSE_ID) GUI_DisplayText(String_Get_ByIndex(STR_INSUFFICIENT_FUNDS_CONSTRUCTION_IS_HALTED), 0);
 						}
 					}
 				}
@@ -296,7 +309,7 @@ void GameLoop_Structure(void)
 
 								Structure_SetState(s, STRUCTURE_STATE_READY);
 
-								if (s->o.houseID == g_playerHouseID) Sound_Output_Feedback(g_playerHouseID + 55);
+								if (s->o.houseID == LOCAL_HOUSE_ID) Sound_Output_Feedback(LOCAL_HOUSE_ID + 55);
 							}
 						}
 					} else if (h->credits != 0) {
@@ -306,7 +319,7 @@ void GameLoop_Structure(void)
 				}
 
 				/* AI maintenance on structures */
-				if (h->flags.isAIActive && s->o.flags.s.allocated && s->o.houseID != g_playerHouseID && h->credits != 0) {
+				if (h->flags.isAIActive && s->o.flags.s.allocated && !House_IsHuman(s->o.houseID) && h->credits != 0) {
 					/* When structure is below 50% hitpoints, start repairing */
 					if (s->o.hitpoints < si->o.hitpoints / 2) {
 						Structure_SetRepairingState(s, 1, NULL);
@@ -416,7 +429,7 @@ Structure *Structure_Create(uint16 index, uint8 typeID, uint8 houseID, uint16 po
 	s->countDown = 0;
 
 	/* AIs get the full upgrade immediately */
-	if (houseID != g_playerHouseID) {
+	if (!House_IsHuman(houseID)) {
 		while (true) {
 			if (!Structure_IsUpgradable(s)) break;
 			s->upgradeLevel++;
@@ -439,7 +452,24 @@ Structure *Structure_Create(uint16 index, uint8 typeID, uint8 houseID, uint16 po
  * @param position The (packed) tile to place the struction on.
  * @return True if and only if the structure is placed on the map.
  */
+static bool Structure_PlaceIt(Structure *s, uint16 position);
+
+/**
+ * Place a structure on the map (Structure_PlaceIt). A LAN game: the buildings
+ * and concrete it has to touch are its house's, not the local player's.
+ */
 bool Structure_Place(Structure *s, uint16 position)
+{
+	uint8 old = g_validateHouseID;
+	bool ret;
+
+	if (s != NULL && LAN_GAME) g_validateHouseID = s->o.houseID;	/* (the original: the player's) */
+	ret = Structure_PlaceIt(s, position);
+	g_validateHouseID = old;
+	return ret;
+}
+
+static bool Structure_PlaceIt(Structure *s, uint16 position)
 {
 	const StructureInfo *si;
 	int16 validBuildLocation;
@@ -528,13 +558,13 @@ bool Structure_Place(Structure *s, uint16 position)
 	}
 
 	validBuildLocation = Structure_IsValidBuildLocation(position, s->o.type);
-	if (validBuildLocation == 0 && s->o.houseID == g_playerHouseID && !g_debugScenario && g_validateStrictIfZero == 0) return false;
+	if (validBuildLocation == 0 && House_IsHuman(s->o.houseID) && !g_debugScenario && g_validateStrictIfZero == 0) return false;
 
 	/* ENHANCEMENT -- In Dune2, it only removes the fog around the top-left tile of a structure, leaving for big structures the right in the fog. */
 	if (!g_dune2_enhanced && s->o.houseID == g_playerHouseID) Tile_RemoveFogInRadius(Tile_UnpackTile(position), 2);
 
 	s->o.seenByHouses |= 1 << s->o.houseID;
-	if (s->o.houseID == g_playerHouseID) s->o.seenByHouses |= 0xFF;
+	if (House_IsHuman(s->o.houseID)) s->o.seenByHouses |= 0xFF;
 
 	s->o.flags.s.isNotOnMap = false;
 
@@ -627,7 +657,7 @@ void Structure_CalculateHitpointsMax(House *h)
 
 	if (h == NULL) return;
 
-	if (h->index == g_playerHouseID) House_UpdateRadarState(h);
+	if (h->index == LOCAL_HOUSE_ID) House_UpdateRadarState(h);
 
 	if (h->powerUsage == 0) {
 		power = 256;
@@ -724,6 +754,10 @@ uint32 Structure_GetStructuresBuilt(House *h)
 	return result;
 }
 
+/* The house whose buildings and concrete a new structure has to touch:
+ * HOUSE_INVALID the local player (placing it), else (Structure_Place) its own. */
+uint8 g_validateHouseID = HOUSE_INVALID;
+
 /**
  * Checks if the given position is a valid location for the given structure type.
  *
@@ -739,6 +773,7 @@ int16 Structure_IsValidBuildLocation(uint16 position, StructureType type)
 	uint16 neededSlabs;
 	bool isValid;
 	uint16 curPos;
+	uint8 validateHouse = (g_validateHouseID != HOUSE_INVALID) ? g_validateHouseID : LOCAL_HOUSE_ID;
 
 	si = &g_table_structureInfo[type];
 	layoutTile = g_table_structure_layoutTiles[si->layout];
@@ -795,14 +830,14 @@ int16 Structure_IsValidBuildLocation(uint16 position, StructureType type)
 			curPos = position + offset;
 			s = Structure_Get_ByPackedTile(curPos);
 			if (s != NULL) {
-				if (s->o.houseID != g_playerHouseID) continue;
+				if (s->o.houseID != validateHouse) continue;
 				isValid = true;
 				break;
 			}
 
 			lst = Map_GetLandscapeType(curPos);
 			if (lst != LST_CONCRETE_SLAB && lst != LST_WALL) continue;
-			if (g_map[curPos].houseID != g_playerHouseID) continue;
+			if (g_map[curPos].houseID != validateHouse) continue;
 
 			isValid = true;
 			break;
@@ -1021,7 +1056,7 @@ static void Structure_Destroy(Structure *s)
 
 	h->credits -= (h->creditsStorage == 0) ? h->credits : min(h->credits, (h->credits * 256 / h->creditsStorage) * si->creditsStorage / 256);
 
-	if (s->o.houseID != g_playerHouseID) h->credits += si->o.buildCredits + (g_campaignID > 7 ? si->o.buildCredits / 2 : 0);
+	if (!House_IsHuman(s->o.houseID)) h->credits += si->o.buildCredits + (g_campaignID > 7 ? si->o.buildCredits / 2 : 0);
 
 	if (s->o.type != STRUCTURE_WINDTRAP) return;
 
@@ -1058,7 +1093,7 @@ bool Structure_Damage(Structure *s, uint16 damage, uint16 range)
 		score = si->o.buildCredits / 100;
 		if (score < 1) score = 1;
 
-		if (House_AreAllied(g_playerHouseID, s->o.houseID)) {
+		if (House_AreAllied(LOCAL_HOUSE_ID, s->o.houseID)) {
 			g_scenario.destroyedAllied++;
 			g_scenario.score -= score;
 		} else {
@@ -1068,7 +1103,7 @@ bool Structure_Damage(Structure *s, uint16 damage, uint16 range)
 
 		Structure_Destroy(s);
 
-		if (g_playerHouseID == s->o.houseID) {
+		if (LOCAL_HOUSE_ID == s->o.houseID) {
 			uint16 index;
 
 			switch (s->o.houseID) {
@@ -1439,6 +1474,56 @@ static void Structure_CancelBuild(Structure *s)
  * @param objectType The type of the object to build or a special value (0xFFFD, 0xFFFE, 0xFFFF).
  * @return ??.
  */
+#if defined(__amigaos__)
+#include "lan_amiga.h"
+
+/* A LAN game: the factory window only chooses; what was chosen goes to the
+ * others as an order (Lan_StructureCommand) and is done in its turn. Nothing
+ * of the game changes here (no Starport in a LAN game). */
+static bool Structure_LanFactoryWindow(Structure *s)
+{
+	const StructureInfo *si = &g_table_structureInfo[s->o.type];
+	uint16 upgradeCost = 0;
+	uint32 buildable;
+	FactoryResult res;
+	uint8 i;
+
+	if (Structure_IsUpgradable(s) && si->o.hitpoints == s->o.hitpoints) {
+		upgradeCost = (si->o.buildCredits + (si->o.buildCredits >> 15)) / 2;
+	}
+	if (upgradeCost != 0 && s->o.type == STRUCTURE_HIGH_TECH && s->o.houseID == HOUSE_HARKONNEN) upgradeCost = 0;
+
+	buildable = Structure_GetBuildable(s);
+	if (buildable == 0) return false;
+
+	g_factoryWindowConstructionYard = (s->o.type == STRUCTURE_CONSTRUCTION_YARD);
+	for (i = 0; i < (g_factoryWindowConstructionYard ? STRUCTURE_MAX : UNIT_MAX); i++) {
+		if ((buildable & (1 << i)) == 0) continue;
+		if (g_factoryWindowConstructionYard) g_table_structureInfo[i].o.available = 1;
+		else g_table_unitInfo[i].o.available = 1;
+	}
+
+	Sprites_UnloadTiles();
+	memmove(g_palette1, g_paletteActive, 256 * 3);
+	GUI_ChangeSelectionType(SELECTIONTYPE_MENTAT);
+	res = GUI_DisplayFactoryWindow(g_factoryWindowConstructionYard, 0, upgradeCost);
+	Sprites_LoadTiles();
+	GFX_SetPalette(g_palette1);
+	GUI_ChangeSelectionType(SELECTIONTYPE_STRUCTURE);
+
+	if (res == FACTORY_UPGRADE) {
+		Lan_StructureCommand(LAN_STRUCTURE_UPGRADE, s, 0);
+	} else if (res == FACTORY_BUY) {
+		uint16 chosen = 0xFFFF;
+		for (i = 0; i < 25; i++) {
+			if (g_factoryWindowItems[i].amount != 0) chosen = g_factoryWindowItems[i].objectType;
+		}
+		if (chosen != 0xFFFF) Lan_StructureCommand(LAN_STRUCTURE_BUILD, s, chosen);
+	}
+	return false;
+}
+#endif
+
 bool Structure_BuildObject(Structure *s, uint16 objectType)
 {
 	const StructureInfo *si;
@@ -1447,6 +1532,9 @@ bool Structure_BuildObject(Structure *s, uint16 objectType)
 	ObjectInfo *oi;
 
 	if (s == NULL) return false;
+#if defined(__amigaos__)
+	if (g_lanGame && objectType == 0xFFFF) return Structure_LanFactoryWindow(s);
+#endif
 
 	si = &g_table_structureInfo[s->o.type];
 
@@ -1613,7 +1701,7 @@ bool Structure_BuildObject(Structure *s, uint16 objectType)
 
 					if (u == NULL) {
 						h->credits += g_table_unitInfo[UNIT_CARRYALL].o.buildCredits;
-						if (s->o.houseID != g_playerHouseID) continue;
+						if (s->o.houseID != LOCAL_HOUSE_ID) continue;
 						GUI_DisplayText(String_Get_ByIndex(STR_UNABLE_TO_CREATE_MORE), 2);
 						continue;
 					}
@@ -1666,14 +1754,14 @@ bool Structure_BuildObject(Structure *s, uint16 objectType)
 
 		Structure_SetState(s, STRUCTURE_STATE_BUSY);
 
-		if (s->o.houseID != g_playerHouseID) return true;
+		if (s->o.houseID != LOCAL_HOUSE_ID) return true;
 
 		GUI_DisplayText(String_Get_ByIndex(STR_PRODUCTION_OF_S_HAS_STARTED), 2, str);
 
 		return true;
 	}
 
-	if (s->o.houseID != g_playerHouseID) return false;
+	if (s->o.houseID != LOCAL_HOUSE_ID) return false;
 
 	GUI_DisplayText(String_Get_ByIndex(STR_UNABLE_TO_CREATE_MORE), 2);
 
@@ -1697,7 +1785,7 @@ bool Structure_SetUpgradingState(Structure *s, int8 state, Widget *w)
 	if (state == -1) state = s->o.flags.s.upgrading ? 0 : 1;
 
 	if (state == 0 && s->o.flags.s.upgrading) {
-		if (s->o.houseID == g_playerHouseID) {
+		if (s->o.houseID == LOCAL_HOUSE_ID) {
 			GUI_DisplayText(String_Get_ByIndex(STR_UPGRADING_STOPS), 2);
 		}
 
@@ -1711,7 +1799,7 @@ bool Structure_SetUpgradingState(Structure *s, int8 state, Widget *w)
 
 	if (state == 0 || s->o.flags.s.upgrading || s->upgradeTimeLeft == 0) return ret;
 
-	if (s->o.houseID == g_playerHouseID) {
+	if (s->o.houseID == LOCAL_HOUSE_ID) {
 		GUI_DisplayText(String_Get_ByIndex(STR_UPGRADING_STARTS), 2);
 	}
 
@@ -1746,7 +1834,7 @@ bool Structure_SetRepairingState(Structure *s, int8 state, Widget *w)
 	if (state == -1) state = s->o.flags.s.repairing ? 0 : 1;
 
 	if (state == 0 && s->o.flags.s.repairing) {
-		if (s->o.houseID == g_playerHouseID) {
+		if (s->o.houseID == LOCAL_HOUSE_ID) {
 			GUI_DisplayText(String_Get_ByIndex(STR_REPAIRING_STOPS), 2);
 		}
 
@@ -1760,7 +1848,7 @@ bool Structure_SetRepairingState(Structure *s, int8 state, Widget *w)
 
 	if (state == 0 || s->o.flags.s.repairing || s->o.hitpoints == g_table_structureInfo[s->o.type].o.hitpoints) return ret;
 
-	if (s->o.houseID == g_playerHouseID) {
+	if (s->o.houseID == LOCAL_HOUSE_ID) {
 		GUI_DisplayText(String_Get_ByIndex(STR_REPAIRING_STARTS), 2);
 	}
 
@@ -1787,6 +1875,8 @@ void Structure_UpdateMap(Structure *s)
 	if (s == NULL) return;
 	if (!s->o.flags.s.used) return;
 	if (s->o.flags.s.isNotOnMap) return;
+	/* a LAN game: not from the interface (selection, redraw); it restarts the animation */
+	if (LAN_UI) return;
 
 	si = &g_table_structureInfo[s->o.type];
 
@@ -1892,6 +1982,11 @@ uint32 Structure_GetBuildable(Structure *s)
 
 				localsi->o.available = 0;
 
+#if defined(__amigaos__)
+				/* LAN game: no Palace (one house missile in the game) and no Starport (its
+				 * window draws the simulation's random numbers) */
+				if (g_lanGame && (i == STRUCTURE_PALACE || i == STRUCTURE_STARPORT)) continue;
+#endif
 				availableCampaign = localsi->o.availableCampaign;
 				structuresRequired = localsi->o.structuresRequired;
 
@@ -1900,13 +1995,13 @@ uint32 Structure_GetBuildable(Structure *s)
 					availableCampaign = 2;
 				}
 
-				if ((structuresBuilt & structuresRequired) == structuresRequired || s->o.houseID != g_playerHouseID) {
+				if ((structuresBuilt & structuresRequired) == structuresRequired || !House_IsHuman(s->o.houseID)) {
 					if (s->o.houseID != HOUSE_HARKONNEN && i == STRUCTURE_LIGHT_VEHICLE) {
 						availableCampaign = 2;
 					}
 
 					if (g_campaignID >= availableCampaign - 1 && (localsi->o.availableHouse & (1 << s->o.houseID)) != 0) {
-						if (s->upgradeLevel >= localsi->o.upgradeLevelRequired || s->o.houseID != g_playerHouseID) {
+						if (s->upgradeLevel >= localsi->o.upgradeLevelRequired || !House_IsHuman(s->o.houseID)) {
 							localsi->o.available = 1;
 
 							ret |= (1 << i);
@@ -1937,7 +2032,7 @@ void Structure_HouseUnderAttack(uint8 houseID)
 
 	h = House_Get_ByIndex(houseID);
 
-	if (houseID != g_playerHouseID && h->flags.doneFullScaleAttack) return;
+	if (!House_IsHuman(houseID) && h->flags.doneFullScaleAttack) return;
 	h->flags.doneFullScaleAttack = true;
 
 	if (h->flags.human) {

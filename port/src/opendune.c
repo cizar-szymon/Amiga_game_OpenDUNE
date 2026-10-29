@@ -677,13 +677,44 @@ static void ReadProfileIni(const char *filename)
 /**
  * Intro menu.
  */
+#if defined(__amigaos__)
+#include "lan_amiga.h"
+/* the music's random numbers: not the simulation's in a LAN game */
+#define MUSIC_RANDOM(a, b) (g_lanGame ? (uint16)((a) + AmigaTimer_GetMs() % ((b) - (a) + 1)) : Tools_RandomLCG_Range(a, b))
+bool g_lanStarting = false;
+static bool s_menuRedraw;
+
+/* The LAN game ended for this player (1 lost, 2 won, 3 the server left): back to the menu. */
+static void GameLoop_LanEnd(int end)
+{
+	static const char *texts[5] = { "", "Your house is defeated.", "You have won the battle!", "The server ended the game.", "You have left the game." };
+	Lan_EndGame();
+	GUI_DisplayModalMessage(texts[(end >= 0 && end <= 4) ? end : 0], 0xFFFF);
+	GUI_ChangeSelectionType(SELECTIONTYPE_MENTAT);
+	Sprites_UnloadTiles();
+	Music_Play(28);
+	s_menuRedraw = true;
+	g_gameMode = GM_MENU;
+}
+#else
+#define MUSIC_RANDOM(a, b) Tools_RandomLCG_Range(a, b)
+#endif
+
+#if defined(__amigaos__)
+/* "Play on LAN" in the main menu instead of "Replay Introduction" (lan_amiga.c) */
+#define STR_PLAY_ON_LAN 0xFFF0
+#define STR_MENU_SECOND STR_PLAY_ON_LAN
+#else
+#define STR_MENU_SECOND STR_REPLAY_INTRODUCTION
+#endif
+
 static void GameLoop_GameIntroAnimationMenu(void)
 {
 	static const uint16 mainMenuStrings[][6] = {
-		{STR_PLAY_A_GAME, STR_REPLAY_INTRODUCTION, STR_EXIT_GAME, STR_NULL,         STR_NULL,         STR_NULL}, /* Neither HOF nor save. */
-		{STR_PLAY_A_GAME, STR_REPLAY_INTRODUCTION, STR_LOAD_GAME, STR_EXIT_GAME,    STR_NULL,         STR_NULL}, /* Has a save game. */
-		{STR_PLAY_A_GAME, STR_REPLAY_INTRODUCTION, STR_EXIT_GAME, STR_HALL_OF_FAME, STR_NULL,         STR_NULL}, /* Has a HOF. */
-		{STR_PLAY_A_GAME, STR_REPLAY_INTRODUCTION, STR_LOAD_GAME, STR_EXIT_GAME,    STR_HALL_OF_FAME, STR_NULL}  /* Has a HOF and a save game. */
+		{STR_PLAY_A_GAME, STR_MENU_SECOND, STR_EXIT_GAME, STR_NULL,         STR_NULL,         STR_NULL}, /* Neither HOF nor save. */
+		{STR_PLAY_A_GAME, STR_MENU_SECOND, STR_LOAD_GAME, STR_EXIT_GAME,    STR_NULL,         STR_NULL}, /* Has a save game. */
+		{STR_PLAY_A_GAME, STR_MENU_SECOND, STR_EXIT_GAME, STR_HALL_OF_FAME, STR_NULL,         STR_NULL}, /* Has a HOF. */
+		{STR_PLAY_A_GAME, STR_MENU_SECOND, STR_LOAD_GAME, STR_EXIT_GAME,    STR_HALL_OF_FAME, STR_NULL}  /* Has a HOF and a save game. */
 	};
 
 	bool loadGame = false;
@@ -754,6 +785,19 @@ static void GameLoop_GameIntroAnimationMenu(void)
 			g_running = false;
 			return;
 
+#if defined(__amigaos__)
+		case STR_PLAY_ON_LAN:
+			if (Lan_Menu()) {
+				/* the game starts (GM_RESTART: Lan_StartGame instead of a scenario) */
+				g_lanStarting = true;
+				g_gameMode = GM_RESTART;
+				drawMenu = true;
+				return;
+			}
+			drawMenu = true;
+			break;
+#endif
+
 		case STR_HALL_OF_FAME:
 			GUI_HallOfFame_Show(0xFFFF);
 
@@ -785,6 +829,18 @@ static void GameLoop_GameIntroAnimationMenu(void)
 		default: break;
 	}
 
+#if defined(__amigaos__)
+	if (s_menuRedraw) {
+		drawMenu = true;
+		s_menuRedraw = false;
+		index = 0xFFFF;
+	}
+	if (index == 0xFFFF) {
+		hasSave = File_Exists_Personal("_save000.dat");
+		hasFame = File_Exists_Personal("SAVEFAME.DAT");
+		index = (hasFame ? 2 : 0) + (hasSave ? 1 : 0);
+	}
+#endif
 	if (drawMenu) {
 		uint16 i;
 
@@ -798,6 +854,12 @@ static void GameLoop_GameIntroAnimationMenu(void)
 				continue;
 			}
 
+#if defined(__amigaos__)
+			if (mainMenuStrings[index][i] == STR_PLAY_ON_LAN) {
+				strings[i] = "Play on LAN";
+				continue;
+			}
+#endif
 			strings[i] = String_Get_ByIndex(mainMenuStrings[index][i]);
 		}
 
@@ -1081,18 +1143,26 @@ static void GameLoop_Main(void)
 		if (g_gameMode == GM_RESTART) {
 			GUI_ChangeSelectionType(SELECTIONTYPE_MENTAT);
 
+#if defined(__amigaos__)
+			if (g_lanStarting) {
+				g_lanStarting = false;
+				Lan_StartGame();
+			} else
+#endif
+			{
 			Game_LoadScenario(g_playerHouseID, g_scenarioID);
 			if (!g_debugScenario && !g_debugSkipDialogs) {
 				GUI_Mentat_ShowBriefing();
 			} else {
 				Debug("Skipping GUI_Mentat_ShowBriefing()\n");
 			}
+			}
 
 			g_gameMode = GM_NORMAL;
 
 			GUI_ChangeSelectionType(g_debugScenario ? SELECTIONTYPE_DEBUG : SELECTIONTYPE_STRUCTURE);
 
-			Music_Play(Tools_RandomLCG_Range(0, 8) + 8);
+			Music_Play(MUSIC_RANDOM(0, 8) + 8);
 			l_timerNext = g_timerGUI + 300;
 		}
 
@@ -1108,14 +1178,14 @@ static void GameLoop_Main(void)
 
 				g_musicInBattle = 0;
 			} else if (g_musicInBattle > 0) {
-				Music_Play(Tools_RandomLCG_Range(0, 5) + 17);
+				Music_Play(MUSIC_RANDOM(0, 5) + 17);
 				l_timerNext = g_timerGUI + 300;
 				g_musicInBattle = -1;
 			} else {
 				g_musicInBattle = 0;
 				if (g_enableSoundMusic != 0 && g_timerGUI > l_timerNext) {
 					if (!Driver_Music_IsPlaying()) {
-						Music_Play(Tools_RandomLCG_Range(0, 8) + 8);
+						Music_Play(MUSIC_RANDOM(0, 8) + 8);
 						l_timerNext = g_timerGUI + 300;
 					}
 				}
@@ -1145,14 +1215,21 @@ static void GameLoop_Main(void)
 
 			InGame_Numpad_Move(key);
 
-			GUI_DrawCredits(g_playerHouseID, 0);
+			GUI_DrawCredits(LOCAL_HOUSE_ID, 0);
 			PROF_END(PROF_UI)
 
 			PROF_BEGIN(PROF_LOGIC)
+#if defined(__amigaos__)
+			if (g_lanGame) {
+				Lan_Run();	/* the steps due, in lockstep with the others */
+			} else
+#endif
+			{
 			GameLoop_Team();
 			GameLoop_Unit();
 			GameLoop_Structure();
 			GameLoop_House();
+			}
 			PROF_END(PROF_LOGIC)
 
 			PROF_BEGIN(PROF_DRAW)
@@ -1162,6 +1239,12 @@ static void GameLoop_Main(void)
 
 		GUI_DisplayText(NULL, 0);
 
+#if defined(__amigaos__)
+		if (g_lanGame) {
+			int end = Lan_CheckEnd();
+			if (end != 0) GameLoop_LanEnd(end);
+		} else
+#endif
 		if (g_running && !g_debugScenario) {
 			GameLoop_LevelEnd();
 		}

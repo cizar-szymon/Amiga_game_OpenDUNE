@@ -548,7 +548,21 @@ static uint16 GUI_Widget_ActionPanel_GetActionType(bool forceDraw)
  *
  * @param forceDraw Wether to draw the panel even if nothing changed.
  */
+#if defined(__amigaos__)
+static void GUI_Widget_ActionPanel_Draw_Inner(bool forceDraw);
+
+/* (a LAN game: always the interface, also when the simulation calls it) */
 void GUI_Widget_ActionPanel_Draw(bool forceDraw)
+{
+	g_lanUI++;
+	GUI_Widget_ActionPanel_Draw_Inner(forceDraw);
+	g_lanUI--;
+}
+
+static void GUI_Widget_ActionPanel_Draw_Inner(bool forceDraw)
+#else
+void GUI_Widget_ActionPanel_Draw(bool forceDraw)
+#endif
 {
 	const StructureInfo *si;
 	const ObjectInfo *oi;
@@ -584,7 +598,7 @@ void GUI_Widget_ActionPanel_Draw(bool forceDraw)
 			o  = &u->o;
 			oi = &ui->o;
 
-			isNotPlayerOwned = (g_playerHouseID == Unit_GetHouseID(u)) ? false : true;
+			isNotPlayerOwned = (LOCAL_HOUSE_ID == Unit_GetHouseID(u)) ? false : true;
 
 			h = House_Get_ByIndex(u->o.houseID);
 		} break;
@@ -596,7 +610,7 @@ void GUI_Widget_ActionPanel_Draw(bool forceDraw)
 			o  = &s->o;
 			oi = &si->o;
 
-			isNotPlayerOwned = (g_playerHouseID == s->o.houseID) ? false : true;
+			isNotPlayerOwned = (LOCAL_HOUSE_ID == s->o.houseID) ? false : true;
 
 			h = House_Get_ByIndex(s->o.houseID);
 
@@ -612,7 +626,7 @@ void GUI_Widget_ActionPanel_Draw(bool forceDraw)
 
 			isNotPlayerOwned = false;
 
-			h = House_Get_ByIndex(g_playerHouseID);
+			h = House_Get_ByIndex(LOCAL_HOUSE_ID);
 		} break;
 
 		case 8: { /* House Missile */
@@ -622,9 +636,9 @@ void GUI_Widget_ActionPanel_Draw(bool forceDraw)
 			o  = &u->o;
 			oi = &ui->o;
 
-			isNotPlayerOwned = (g_playerHouseID == Unit_GetHouseID(u)) ? false : true;
+			isNotPlayerOwned = (LOCAL_HOUSE_ID == Unit_GetHouseID(u)) ? false : true;
 
-			h = House_Get_ByIndex(g_playerHouseID);
+			h = House_Get_ByIndex(LOCAL_HOUSE_ID);
 		} break;
 
 		case 4: /* Attack */

@@ -19,10 +19,22 @@
 #include "os/error.h"
 #include "os/sleep.h"
 #include "video/video.h"
+#include "house.h"
+
+/* LAN game: the game's time (the same steps on every Amiga), else the GUI's */
+#define EFFECT_TIMER (LAN_GAME ? g_timerGame : g_timerGUI)
 
 
 static Explosion g_explosions[EXPLOSION_MAX];               /*!< Explosions. */
 static uint32 s_explosionTimer = 0;                         /*!< Timeout value for next explosion activity. */
+
+#if defined(__amigaos__)
+/** LAN game: the next times from 0 (the same on every Amiga at the start). */
+void Explosion_ResetTicks(void)
+{
+	s_explosionTimer = 0;
+}
+#endif
 
 
 /**
@@ -220,7 +232,7 @@ static void Explosion_Func_Stop(Explosion *e, uint16 parameter)
  */
 static void Explosion_Func_SetTimeout(Explosion *e, uint16 value)
 {
-	e->timeOut = g_timerGUI + value;
+	e->timeOut = EFFECT_TIMER + value;
 }
 
 /**
@@ -230,7 +242,7 @@ static void Explosion_Func_SetTimeout(Explosion *e, uint16 value)
  */
 static void Explosion_Func_SetRandomTimeout(Explosion *e, uint16 value)
 {
-	e->timeOut = g_timerGUI + Tools_RandomLCG_Range(0, value);
+	e->timeOut = EFFECT_TIMER + Tools_RandomLCG_Range(0, value);
 }
 
 /**
@@ -284,6 +296,13 @@ void Explosion_Start(uint16 explosionType, tile32 position)
 	const ExplosionCommandStruct *commands;
 	uint16 packed;
 	uint8 i;
+#if defined(__amigaos__)
+	if (LAN_UI) {	/* a LAN game: only the simulation (the same on every Amiga) */
+		extern void Lan_TraceTag(const char *tag, uint32 value, void *caller);
+		Lan_TraceTag("expl-ui", 0, __builtin_return_address(0));
+		return;
+	}
+#endif
 
 	if (explosionType > EXPLOSION_SPICE_BLOOM_TREMOR) return;
 	commands = g_table_explosion[explosionType];
@@ -304,7 +323,7 @@ void Explosion_Start(uint16 explosionType, tile32 position)
 		e->spriteID = 0;
 		e->position = position;
 		e->isDirty  = false;
-		e->timeOut  = g_timerGUI;
+		e->timeOut  = EFFECT_TIMER;
 		s_explosionTimer = 0;
 		g_map[packed].hasExplosion = true;
 
@@ -319,7 +338,7 @@ void Explosion_Tick(void)
 {
 	uint8 i;
 
-	if (s_explosionTimer > g_timerGUI) return;
+	if (s_explosionTimer > EFFECT_TIMER) return;
 	s_explosionTimer += 10000;
 
 	for (i = 0; i < EXPLOSION_MAX; i++) {
@@ -329,7 +348,7 @@ void Explosion_Tick(void)
 
 		if (e->commands == NULL) continue;
 
-		if (e->timeOut <= g_timerGUI) {
+		if (e->timeOut <= EFFECT_TIMER) {
 			uint16 parameter = e->commands[e->current].parameter;
 			uint16 command   = e->commands[e->current].command;
 

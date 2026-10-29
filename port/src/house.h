@@ -183,6 +183,26 @@ extern uint32 g_tickHousePowerMaintenance;
 extern void GameLoop_House(void);
 extern uint8 House_StringToType(const char *name);
 extern bool House_AreAllied(uint8 houseID1, uint8 houseID2);
+extern bool House_IsHuman(uint8 houseID);
+
+#if defined(__amigaos__)
+/* A LAN game (lan_amiga.c): the simulation is the same on every Amiga, its
+ * g_playerHouseID the server's house; each Amiga plays (sees, controls) its own. */
+extern bool g_lanGame;
+extern uint8 g_lanLocalHouse;
+extern uint16 g_lanSimViewPos;	/* the scenario's view, for "visible" places */
+/* the simulation runs (a step, the turn's orders, loading): the same on every
+ * Amiga; outside it the interface must not change the game */
+extern bool g_lanSim;
+extern int g_lanUI;	/* > 0: in the interface's code (also called by the simulation) */
+#define LAN_UI (g_lanGame && (!g_lanSim || g_lanUI > 0))
+#define LAN_GAME g_lanGame
+#define LOCAL_HOUSE_ID ((HouseType)(g_lanGame ? g_lanLocalHouse : g_playerHouseID))
+#else
+#define LAN_GAME false
+#define LAN_UI false
+#define LOCAL_HOUSE_ID g_playerHouseID
+#endif
 extern bool House_UpdateRadarState(House *h);
 extern void House_UpdateCreditsStorage(uint8 houseID);
 extern void House_CalculatePowerAndCredit(struct House *h);

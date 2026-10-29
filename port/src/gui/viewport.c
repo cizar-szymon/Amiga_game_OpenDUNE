@@ -34,6 +34,15 @@
 #include "rts_amiga.h"
 #if defined(__amigaos__)
 #include "smooth_amiga.h"
+#include "../lan_amiga.h"
+
+#if defined(__amigaos__)
+/* a LAN game: the interface draws its own random numbers, never the simulation's */
+#define Tools_Random_256() (g_lanGame ? Tools_RandomUI_256() : (Tools_Random_256)())
+#define Tools_RandomLCG_Range(a, b) (g_lanGame ? Tools_RandomUI_Range(a, b) : (Tools_RandomLCG_Range)(a, b))
+#define Tools_RandomLCG_Seed(a) do { if (!g_lanGame) (Tools_RandomLCG_Seed)(a); } while (0)
+#endif
+extern uint32 AmigaTimer_GetMs(void);
 #endif
 
 #if defined(__amigaos__)
@@ -170,28 +179,17 @@ bool GUI_Widget_Viewport_Click(Widget *w)
 
 		action = g_activeAction;
 
-		Object_Script_Variable4_Clear(&u->o);
-		u->targetAttack   = 0;
-		u->targetMove     = 0;
-		u->route[0] = 0xFF;
-
 		if (action != ACTION_MOVE && action != ACTION_HARVEST) {
 			encoded = Tools_Index_Encode(Unit_FindTargetAround(packed), IT_TILE);
 		} else {
 			encoded = Tools_Index_Encode(packed, IT_TILE);
 		}
 
-		Unit_SetAction(u, action);
+		/* (a LAN game: to every Amiga, done in its turn) */
+		Lan_UnitOrder(u, action, action == ACTION_MOVE ? LAN_ORDER_DESTINATION : action == ACTION_HARVEST ? LAN_ORDER_MOVE_TARGET : LAN_ORDER_TARGET, encoded);
 
-		if (action == ACTION_MOVE) {
-			Unit_SetDestination(u, encoded);
-		} else if (action == ACTION_HARVEST) {
-			u->targetMove = encoded;
-		} else {
-			Unit *target;
-
-			Unit_SetTarget(u, encoded);
-			target = Tools_Index_GetUnit(u->targetAttack);
+		if (action != ACTION_MOVE && action != ACTION_HARVEST) {
+			Unit *target = LAN_GAME ? Unit_Get_ByPackedTile(Tools_Index_Decode(encoded)) : Tools_Index_GetUnit(u->targetAttack);
 			if (target != NULL) target->blinkCounter = 8;
 		}
 #if defined(__amigaos__)
@@ -203,7 +201,7 @@ bool GUI_Widget_Viewport_Click(Widget *w)
 		} else if (g_table_unitInfo[u->o.type].movementType == MOVEMENT_FOOT) {
 			Sound_StartSound(g_table_actionInfo[action].soundID);
 		} else {
-			Sound_StartSound(((Tools_Random_256() & 0x1) == 0) ? 20 : 17);
+			Sound_StartSound((((LAN_GAME ? (uint8)AmigaTimer_GetMs() : Tools_Random_256()) & 0x1) == 0) ? 20 : 17);
 		}
 
 		g_unitActive   = NULL;
@@ -217,6 +215,25 @@ bool GUI_Widget_Viewport_Click(Widget *w)
 		const StructureInfo *si;
 		Structure *s;
 		House *h;
+
+#if defined(__amigaos__)
+		if (g_lanGame) {
+			/* a LAN game: placed in its turn on every Amiga (lan_amiga.c) */
+			si = &g_table_structureInfo[g_structureActiveType];
+			if (g_selectionState == 0) {
+				Voice_Play(47);
+				GUI_DisplayText(String_Get_ByIndex(STR_CAN_NOT_PLACE_S_HERE), 2, String_Get_ByIndex(si->o.stringID_abbrev));
+				return true;
+			}
+			s = Structure_Get_ByPackedTile(g_structureActivePosition);
+			if (s != NULL) Lan_StructureCommand(LAN_STRUCTURE_PLACE, s, g_selectionPosition);
+			GUI_ChangeSelectionType(SELECTIONTYPE_STRUCTURE);
+			g_structureActiveType = 0xFFFF;
+			g_structureActive     = NULL;
+			g_selectionState      = 0;
+			return true;
+		}
+#endif
 
 		s = g_structureActive;
 		si = &g_table_structureInfo[g_structureActiveType];
@@ -916,7 +933,7 @@ bool GUI_Widget_Viewport_DrawTile(uint16 packed)
 
 	if (mapScale == 0 || BitArray_Test(g_displayedMinimap, packed)) return false;
 
-	if ((g_map[packed].isUnveiled && g_playerHouse->flags.radarActivated) || g_debugScenario) {
+	if ((g_map[packed].isUnveiled && House_Get_ByIndex(LOCAL_HOUSE_ID)->flags.radarActivated) || g_debugScenario) {
 		uint16 type = Map_GetLandscapeType(packed);
 		Unit *u;
 
@@ -956,7 +973,7 @@ bool GUI_Widget_Viewport_DrawTile(uint16 packed)
 
 		s = Structure_Get_ByPackedTile(packed);
 
-		if (s != NULL && s->o.houseID == g_playerHouseID) {
+		if (s != NULL && s->o.houseID == LOCAL_HOUSE_ID) {
 			if (mapScale > 1) {
 				spriteID = mapScale + s->o.houseID * 2 + 29;
 			} else {
