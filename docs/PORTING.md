@@ -317,3 +317,101 @@ Pomiar, misja 5 (62×62, Harkonnen, `misja5`), przewijanie przy krawędzi + ruch
   1280×720, 1280×1024, 1360×768). Ekran był 960×540 w lewym górnym rogu trybu 1024×768; teraz
   ekran ma rozmiar trybu, a obraz jest wyśrodkowany (`s_reqW/H` = rozmiar gry, `s_width/height` =
   ekran). Licznik FPS w lewym dolnym rogu obrazu, nie ekranu.
+
+## Gra LAN (gałąź `lan-game`, 29.10.2026)
+
+Prośba użytkownika (29.10, w nocy): gra do 3 graczy w sieci, łączenie jak w Settlers; w menu
+głównym „Play on LAN” zamiast „Replay Introduction”, okna logicznie jak w Settlers. Serwer
+wybiera ród pierwszy (Atreides, Harkonnen, Ordos), pozostali z tego, co zostało, ostatni dostaje
+ostatni. Gra może ruszyć już przy 2 graczach. Bez gracza komputerowego. Drugi gracz w WinUAE.
+
+| Krok | Stan |
+|---|---|
+| Proces sieciowy (`os/net_amiga.c`): serwer + 2 graczy, UDP 6820 ogłoszenie / szukanie, TCP ramki, HELLO/BYE/PING | ✅ |
+| Okna LAN w menu (`gui/lan_menu_amiga.c`): START SERVER / JOIN SERVER, gracze, rody, mapa, START GAME | ✅ |
+| Lockstep (`lan_amiga.c`): rozkazy przez sieć, tury, suma kontrolna | ✅ 2 Amigi (Amiga 1 + WinUAE) + 3. gracz z PC (`tools/lan_peer.py`) – sumy równe do 75 s gry z rozkazami, budową, oknami |
+| Mapy z bazami trzech rodów (`tools/lan_maps.py` → `lan_maps.h`) | ✅ 3 mapy (SCENA020, SCENA022, SCENH021) |
+| Koniec gry: przegrana / wygrana / wyjście (Options → Quit) / serwer zamknięty | ✅ |
+| Gra toczy się pod oknami (fabryka, Options, Mentat) | ✅ |
+| Test z trzema Amigami (Amiga 2 niedostępna 29.10) | ⏳ |
+
+### Jak to działa
+
+- **Lockstep jak w Settlers:** każda Amiga liczy tę samą symulację, przez sieć idą tylko rozkazy
+  graczy. Tura = 6 kroków gry (100 ms); rozkaz wydany w turze T wykonuje się na początku tury
+  T + opóźnienie na każdej Amidze; opóźnienie (2..8 tur) z pingu przy START GAME.
+- **Gwiazda:** gracze wysyłają swoje tury serwerowi (`MT_TURN`), serwer, gdy ma turę T od
+  wszystkich, wysyła ją wszystkim razem w tej samej kolejności (`MT_TURNALL`, najpierw swoje)
+  i wykonuje. Brak tury: gra stoi („LAN: WAITING for …”), obraz i mysz działają.
+- **Czas gry:** w grze LAN `g_timerGame` rośnie tylko w `Lan_Step()` (przerwanie zegara go nie
+  rusza), 60 kroków/s; liczniki „następnych razów” pętli gry zerowane na starcie (`*_ResetTicks`).
+  Eksplozje i animacje (zmieniają mapę i losują) idą w krokach na czasie gry, nie w rysowaniu.
+- **Jedna symulacja:** `g_playerHouseID` = ród serwera na każdej Amidze (oryginalny „gracz” w
+  symulacji); każda Amiga gra i widzi swój ród (`g_lanLocalHouse`, `LOCAL_HOUSE_ID`); zachowania
+  „gracz / komputer” z flagi `House_IsHuman()` (poza grą LAN = `g_playerHouseID`, bez zmian).
+  Sojusze: ludzie walczą ze wszystkimi. Komunikaty, dźwięki, kredyty na pasku – dla lokalnego rodu.
+- **Bez mgły wojny** w grze LAN (mgła jest jedna, z punktu widzenia „gracza” symulacji).
+- **Interfejs nie zmienia gry:** `g_lanSim` = symulacja (krok, rozkazy tury, wczytanie);
+  `LAN_UI` = kod interfejsu (także gdy symulacja woła `Unit_Select`, `Map_SetSelection`,
+  `GUI_ChangeSelectionType`, `GUI_Widget_ActionPanel_Draw` – opakowane licznikiem `g_lanUI`). Poza
+  symulacją: własny generator losowy (`Tools_RandomUI_*`; w `gui/*.c` makra zawsze), bez restartu
+  animacji budynków (`Structure_UpdateMap`), bez `Animation_Start` / eksplozji, bez
+  `Unit_UpdateMap` z przerysowania interfejsu.
+- **Rozkazy** (`Lan_UnitOrder`, `Lan_StructureCommand`, 10 bajtów: typ, ród, 4 × 16 bit):
+  rozkaz jednostki (przycisk akcji, klik celu, grupa RTS, prawy przycisk), dewiacja, buduj,
+  ulepsz, naprawa/ulepszanie, wstrzymaj/wznów, postaw budynek (Construction Yard). Okno fabryki
+  tylko wybiera (`Structure_LanFactoryWindow`). Poza grą LAN rozkaz wykonuje się od razu.
+  `Structure_Place` sprawdza sąsiedztwo względem rodu budującego (`g_validateHouseID`).
+- **Pod oknami gra idzie dalej:** okna fabryki, Options i Mentata zwiększają `g_lanModal`,
+  `sleepIdle()` woła wtedy `Lan_Run()`; z symulacji nic się wtedy nie rysuje
+  (`LAN_UNDER_WINDOW`). Skrypt jednostek `UNIT.EMC` jest na Amidze we własnej pamięci (był w
+  `SCREEN_2`, który okna nadpisują – pod oknem jednostki traciły skrypty).
+- **Suma kontrolna** co 5 s (300 kroków): jednostki, budynki, rody, oba generatory losowe;
+  różna: „LAN: OUT OF STEP with …” na pasku. Log `RAM:OpenDUNE-lan.txt` (sumy + stan przy każdej
+  sumie). Testy: `debug_lan_trace=1` (stan generatora co krok), `debug_lan_trace_from/_to`
+  (kto losuje, adresy – `nm` z `build/amiga/OpenDUNE`).
+- **Scenariusz** budowany w pamięci (`Lan_ScenarioText`): teren mapy (Seed, Field, Bloom),
+  każdy gracz: Construction Yard, 2 Tank, Quad, Trike, 1500 kredytów; kampania 8 (pełna technika).
+  W grze LAN nie ma Pałacu (jeden pocisk rodu na grę) ani Starportu (jego okno losuje z generatora
+  symulacji), zapisu/wczytania (LOAD/SAVE ukryte), pauzy, Restart / Pick another house;
+  szybkość gry stała (normalna).
+- **Koniec:** ród bez budynków i jednostek przegrywa; ostatni ród z graczy wygrywa; wyjście przez
+  Options → Quit playing („You have left the game.”); serwer zamknięty – koniec u wszystkich.
+  Potem menu główne.
+
+### Okna (320×200, `gui/lan_menu_amiga.c`)
+
+- „Play on LAN”: START SERVER / JOIN SERVER / BACK (bez bsdsocket.library: komunikat).
+- Serwer: Server name (MASTER), Server address, Map (`< Arrakis 1 (A020) >` – klik zmienia),
+  Players 1..3 (nazwa, ród, ping), Your house (3 przyciski, zajęte wygaszone), RUN SERVER /
+  STOP SERVER, START GAME (≥ 2 graczy i ród serwera wybrany), CANCEL.
+- Dołącz: Servers found (SEARCH, 3 s nasłuchu UDP; klik wpisuje adres), Your name (SLAVE), Server
+  address (cyfry i kropki), CONNECT, BACK; potem „joined”: gracze, rody, DISCONNECT.
+- Wyszukiwanie nie przechodzi przez VPN – tam wpisuje się adres (Amiga 1 192.168.5.115).
+
+### Testy (bez klikania)
+
+- `tools/lan_test.sh [menu-y serwera] [menu-y WinUAE]`: Amiga 1 serwer (Harkonnen), WinUAE
+  (`C:\amiga-dev\winuae\OpenDUNE_A1200_OS32_net.uae`, `ODUNE:` = `build/amiga`, `DDATA:` = `data/`,
+  ini `tools/opendune-winuae.ini`) dołącza (Atreides), START GAME. `PEER=1`: trzeci gracz z PC
+  (`tools/lan_peer.py` – dołącza, wybiera wolny ród, odpowiada pustymi turami).
+- `tools/lan_build.sh`: gracz WinUAE wysyła czołgi, buduje płytę i ją stawia.
+- Dane gry do WinUAE: `data/` (z `WorkSD:Games/OpenDUNE/data` Amigi 1, nie w repo).
+
+### Co było nie tak po drodze (sumy różne)
+
+1. `g_timerGame` przy starcie różny → ustawiany na 1000, liczniki pętli zerowane.
+2. Animacje budynków restartowane przez zaznaczenie i przerysowanie (różnie na każdej Amidze).
+3. `GUI_Screen_FadeIn` (radar lokalnego rodu, wołany z symulacji) losował z LCG symulacji.
+4. Płyty betonu: sąsiedztwo sprawdzane względem lokalnego rodu (`Structure_Place`).
+5. Pod oknem Options: skrypty jednostek w `SCREEN_2` nadpisane → jednostki bez skryptów.
+6. Brak `g_lanSim = false` na końcu kroku → interfejs liczony jako symulacja.
+
+### Znane ograniczenia / dalej
+
+- Test z trzema Amigami (Amiga 2) – gdy będzie dostępna.
+- Okno LAN w palecie menu (oliwkowe tło); po grze LAN brak ekranu statystyk.
+- Zapora Windows: gdy serwerem ma być WinUAE, potrzebna reguła przychodząca TCP/UDP 6820 (jak
+  „Settlers LAN 6810” – tylko za zgodą użytkownika).
+- Ślad kursora na zakrytym mgłą (czarnym) polu w grze jednoosobowej przy ruchach z `od.py` –
+  jest też na `main`, nie od LAN.
