@@ -466,7 +466,11 @@ static void RTS_Pause(void)
 
 	if (s_pauseRequest) {
 		s_pauseRequest = false;
-		if (g_lanGame) return;	/* not in a LAN game */
+		if (g_lanGame) {
+			/* a LAN game: for all, through the server (lan_amiga.c) */
+			if (onMap) Lan_PauseRequest();
+			return;
+		}
 		if (onMap || s_paused) {
 			s_paused = !s_paused;
 			Timer_SetTimer(TIMER_GAME, !s_paused);

@@ -18,7 +18,7 @@ PROTOCOL = 1
 VERSION = b'0.02'
 GAME = 16			# the first type of a frame of the game
 F_HELLO, F_BYE, F_PING, F_PONG = 1, 2, 3, 4
-MT_LOBBY, MT_PICK, MT_START, MT_TURN, MT_TURNALL, MT_SUM, MT_QUIT, MT_GONE, MT_MAP, MT_CHAT = 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
+MT_LOBBY, MT_PICK, MT_START, MT_TURN, MT_TURNALL, MT_SUM, MT_QUIT, MT_GONE, MT_MAP, MT_CHAT, MT_PAUSE = 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11
 HOUSES = {0: 'Harkonnen', 1: 'Atreides', 2: 'Ordos', 0xFF: '-'}
 
 
@@ -103,10 +103,16 @@ def main():
                     return
                 elif mt == MT_GONE:
                     print('player gone', data[0])
+                elif mt == MT_PAUSE:
+                    print('pause by %d: %s' % (data[0], 'on' if data[1] else 'off'))
                 elif mt == MT_CHAT:
                     # a chat line [slot][text]: printed and answered (tests of the chat)
                     text = data[1:].decode('latin-1')
                     print('chat from %d: %s' % (data[0], text))
+                    if text.strip().lower() == 'pause':
+                        # as P of a joiner: ask the server to (un)pause
+                        s.sendall(frame(GAME + MT_PAUSE, bytes([me or 0])))
+                        print('pause asked')
                     if not text.startswith('got '):
                         replies.append((time.time() + 3, ('got ' + text)[:32]))
     s.sendall(frame(GAME + MT_QUIT, b'q'))

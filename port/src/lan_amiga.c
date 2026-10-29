@@ -162,7 +162,7 @@ static bool s_ended;
 static bool s_leave;		/* the player quit (Options) */
 static bool s_trace;		/* opendune.ini debug_lan_trace=1: the random state of each first step */
 
-enum { MT_LOBBY = 1, MT_PICK, MT_START, MT_TURN, MT_TURNALL, MT_SUM, MT_QUIT, MT_GONE, MT_MAP, MT_CHAT };
+enum { MT_LOBBY = 1, MT_PICK, MT_START, MT_TURN, MT_TURNALL, MT_SUM, MT_QUIT, MT_GONE, MT_MAP, MT_CHAT, MT_PAUSE };
 
 static bool s_logNew = true;
 
@@ -673,6 +673,10 @@ static void Lan_PlayerGone(int slot, const char *why)
 }
 
 /* Network events during the game. */
+static void Lan_SetPause(bool on, int slot);
+static void Lan_ShowPause(bool on, int slot);
+static bool s_paused;
+
 static void Lan_Receive(void)
 {
 	NetEvent ev;
@@ -711,6 +715,14 @@ static void Lan_Receive(void)
 						break;
 					case MT_GONE:
 						if (!g_lanServer && ev.length >= 1 && ev.data[0] < LAN_MAX_PLAYERS) Lan_PlayerGone(ev.data[0], "gone");
+						break;
+					case MT_PAUSE:
+						/* a joiner asks the server to (un)pause; the server tells all [slot][on] */
+						if (g_lanServer) {
+							if (slot < LAN_MAX_PLAYERS) Lan_SetPause(!s_paused, slot);
+						} else if (ev.length >= 2 && ev.data[0] < LAN_MAX_PLAYERS) {
+							Lan_ShowPause(ev.data[1] != 0, ev.data[0]);
+						}
 						break;
 					case MT_CHAT:
 						/* [slot][text]: the server sets the sender and passes it on */
@@ -853,6 +865,46 @@ static bool Lan_HouseAlive(uint8 houseID)
 /** The game's steps that are due (in the main loop instead of GameLoop_Team..House). */
 static bool s_waitShown;	/* "LAN: WAITING for ..." is on the message line */
 
+/* ---- the pause: the server stops beginning turns, the others then wait for
+ * its turns; all stop at the same turn, the game is not changed by it
+ * (s_paused above). */
+
+static void Lan_ShowPause(bool on, int slot)
+{
+	if (on == s_paused) return;
+	s_paused = on;
+	if (on) {
+		GUI_DisplayText("Game paused by %s - press P to continue.", 3, slot < LAN_MAX_PLAYERS ? g_lanPlayers[slot].name : "?");
+	} else {
+		/* the time of the pause is not caught up */
+		s_stepBase = AmigaTimer_GetMs() - (s_steps * 1000) / 60;
+		s_waiting = false;
+		GUI_DisplayText("Game continues.", 3);
+	}
+}
+
+/* The server: the pause on or off, all are told. */
+static void Lan_SetPause(bool on, int slot)
+{
+	uint8 b[2];
+	b[0] = (uint8)slot;
+	b[1] = on ? 1 : 0;
+	Net_Send(NET_ALL, MT_PAUSE, b, 2);
+	Lan_ShowPause(on, slot);
+}
+
+/** P on the map screen of a LAN game (RTS_Pause): pause or go on, for all. */
+void Lan_PauseRequest(void)
+{
+	uint8 b = (uint8)g_lanMe;
+	if (!g_lanGame) return;
+	if (g_lanServer) {
+		Lan_SetPause(!s_paused, g_lanMe);
+	} else {
+		Net_Send(0, MT_PAUSE, &b, 1);
+	}
+}
+
 void Lan_Run(void)
 {
 	uint32 now, due;
@@ -870,8 +922,13 @@ void Lan_Run(void)
 		s_stepBase = now - (s_steps * 1000) / 60;
 		due = s_steps + 1;
 	}
+	if (s_paused) {
+		/* no time runs on; the server begins no turn (below) */
+		s_stepBase = now - (s_steps * 1000) / 60;
+	}
 	while (s_steps < due && n < 8) {
 		if (s_steps % LAN_TURN_STEPS == 0) {
+			if (g_lanServer && s_paused) break;
 			if (!Lan_BeginTurn((int32)(s_steps / LAN_TURN_STEPS))) {
 				if (!s_waiting) {
 					s_waiting = true;
@@ -892,7 +949,7 @@ void Lan_Run(void)
 		GUI_ClearTextLine();
 		s_waitShown = false;
 	}
-	if (s_waiting && now - s_waitSince > 300) {
+	if (s_waiting && now - s_waitSince > 300 && !s_paused) {
 		static uint32 shown;
 		if (now - shown > 1000) {
 			int slot;
@@ -942,6 +999,7 @@ static void Lan_ResetTurns(void)
 	s_outOfStep = false;
 	s_ended = false;
 	s_leave = false;
+	s_paused = false;
 	memset(s_sumSteps, 0, sizeof(s_sumSteps));
 	memset(s_otherSteps, 0, sizeof(s_otherSteps));
 }

@@ -379,6 +379,10 @@ static void Layout_MakeButtonWidgets(void)
 		w->width = BUTTON_W;
 		w->height = 16;
 		w->flags = mentat->flags;
+		/* not greyed when hidden (as MENTAT is): their picture is in the bar,
+		 * not redrawn by the widget, so the grey stayed on them; in a LAN game
+		 * two grey boxes at its end (29.10.2026) */
+		w->flags.greyWhenInvisible = false;
 		g_widgetLinkedListHead = GUI_Widget_Insert(g_widgetLinkedListHead, w);
 	}
 }

@@ -445,6 +445,19 @@ ostatni. Gra może ruszyć już przy 2 graczach. Bez gracza komputerowego. Drugi
   zniknięciu widok rysuje się od nowa. Sprawdzone w WinUAE z `tools/lan_peer.py` (odpowiada „got
   …” po 3 s): wysłanie, odebranie, pokazanie na 10 s, zamknięcie.
 
+### Pauza w grze LAN (29.10.2026, życzenie użytkownika)
+
+**P** u dowolnego gracza: pauza dla wszystkich („Game paused by NAZWA - press P to continue.”),
+drugie P (też u innego gracza) – dalej („Game continues.”). Pauzą rządzi serwer: gracz prosi
+(`MT_PAUSE` [slot]), serwer przełącza i mówi wszystkim (`MT_PAUSE` [slot][0/1]); w pauzie serwer
+nie zaczyna nowych tur, pozostali dochodzą do tej samej tury i czekają na jego turę – gra się nie
+zmienia (sumy zgodne), zamiast „WAITING” napis pauzy. Po pauzie czas nie jest nadrabiany
+(`s_stepBase`). Sprawdzone: Amiga 2 serwer + `lan_peer.py` (czat „pause” → prośba gracza).
+
+LOAD/SAVE przyciemnione (29.10): widżety przycisków kopiowały flagi MENTAT z `greyWhenInvisible`
+– szachownica przy ukryciu zostawała na nich (ich obraz jest w tle paska), w grze LAN po jej
+końcu dwa szare prostokąty. Teraz bez wyszarzania.
+
 ### Okna (320×200, `gui/lan_menu_amiga.c`)
 
 - „Play on LAN”: START SERVER / JOIN SERVER / BACK (bez bsdsocket.library: komunikat).

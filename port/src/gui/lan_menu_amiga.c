@@ -76,7 +76,7 @@ static void Lan_DrawButton(const Button *b)
 {
 	bool hover = b->enabled && Lan_Over(b->x, b->y, b->w, 13);
 	GUI_DrawBorder(b->x, b->y, b->w, 13, 2, true);
-	GUI_DrawText_Wrapper(b->text, b->x + b->w / 2, b->y + 3, b->enabled ? (hover ? COL_HOVER : COL_TEXT) : COL_DIM, 0, 0x122);
+	GUI_DrawText_Wrapper(b->text, b->x + b->w / 2, b->y + 2, b->enabled ? (hover ? COL_HOVER : COL_TEXT) : COL_DIM, 0, 0x122);
 }
 
 static void Lan_DrawField(int x, int y, int w, const char *text, bool focus)
@@ -141,7 +141,7 @@ static void Lan_DrawHouses(int y)
 		b->enabled = Lan_CanChoose(house);
 		if (g_lanPlayers[g_lanMe].house == house) {
 			GUI_DrawBorder(b->x, b->y, b->w, 13, 0, true);
-			GUI_DrawText_Wrapper(b->text, b->x + b->w / 2, b->y + 3, COL_HOVER, 0, 0x122);
+			GUI_DrawText_Wrapper(b->text, b->x + b->w / 2, b->y + 2, COL_HOVER, 0, 0x122);
 		} else {
 			Lan_DrawButton(b);
 		}
