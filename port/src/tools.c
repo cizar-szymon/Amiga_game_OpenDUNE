@@ -312,6 +312,22 @@ uint32 Tools_Random_State(void)
 /**
  * Set the seed for the LCG randomizer.
  */
+#if defined(__amigaos__)
+/** Both generators' state, 8 bytes (a LAN game's save: lan_amiga.c). */
+void Tools_Random_GetFull(uint8 *b)
+{
+	b[0] = s_randomSeed[0]; b[1] = s_randomSeed[1]; b[2] = s_randomSeed[2]; b[3] = s_randomSeed[3];
+	b[4] = (uint8)(s_randomLCG >> 24); b[5] = (uint8)(s_randomLCG >> 16);
+	b[6] = (uint8)(s_randomLCG >> 8); b[7] = (uint8)s_randomLCG;
+}
+
+void Tools_Random_SetFull(const uint8 *b)
+{
+	s_randomSeed[0] = b[0]; s_randomSeed[1] = b[1]; s_randomSeed[2] = b[2]; s_randomSeed[3] = b[3];
+	s_randomLCG = ((uint32)b[4] << 24) | ((uint32)b[5] << 16) | ((uint32)b[6] << 8) | b[7];
+}
+#endif
+
 void Tools_RandomLCG_Seed(uint16 seed)
 {
 	s_randomLCG = seed;

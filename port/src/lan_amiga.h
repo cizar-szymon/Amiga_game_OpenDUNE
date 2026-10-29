@@ -67,6 +67,26 @@ extern int Lan_DelayForPing(int ms);
 extern const uint8 *Lan_Houses(void);
 extern int Lan_MsgType(int which);
 
+/* a saved LAN game */
+#include <stdio.h>
+typedef struct LanSaveInfo {
+	bool valid;
+	char desc[24];
+	uint8 map, level, simHouse, mask;
+	uint32 steps, timer;
+	uint8 rng[8];
+	uint16 noSilo[8];
+	uint8 used[LAN_MAX_PLAYERS], house[LAN_MAX_PLAYERS];
+	char name[LAN_MAX_PLAYERS][16];
+} LanSaveInfo;
+extern uint8 g_lanSaveMask;
+extern char g_lanSaveDesc[24];
+extern bool g_lanFromSave;
+extern char g_lanSaveFile[16];
+extern bool Lan_SaveChunk(FILE *fp);
+extern bool Lan_ReadSaveInfo(const char *file, LanSaveInfo *info, uint8 *seen, uint8 seenHouse);
+extern void Lan_CollectSeen(void);
+
 /* the chat (gui/lan_chat_amiga.c) */
 extern bool Lan_SendChat(const uint8 *data, int length);
 extern void Lan_PauseRequest(void);

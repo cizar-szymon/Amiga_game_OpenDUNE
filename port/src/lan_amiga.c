@@ -46,6 +46,10 @@
 #include "pool/structure.h"
 #include "pool/unit.h"
 #include "scenario.h"
+#include "save.h"
+#include "load.h"
+#include "file.h"
+#include "opendune.h"
 #include "sprites.h"
 #include "string.h"
 #include "structure.h"
@@ -151,6 +155,8 @@ static TurnBuf s_ownTurns[LAN_RING];
 static uint32 s_steps;		/* steps done */
 static uint32 s_stepBase;	/* ms of step 0 */
 static int s_delay = 3;		/* turns */
+static int32 s_turnBase;	/* the first turn of this game (a loaded game: not 0) */
+static uint8 s_seen[4096 / 8];	/* this player's fog (below) */
 static bool s_waiting;
 static uint32 s_waitSince;
 static bool s_inStep;
@@ -162,7 +168,8 @@ static bool s_ended;
 static bool s_leave;		/* the player quit (Options) */
 static bool s_trace;		/* opendune.ini debug_lan_trace=1: the random state of each first step */
 
-enum { MT_LOBBY = 1, MT_PICK, MT_START, MT_TURN, MT_TURNALL, MT_SUM, MT_QUIT, MT_GONE, MT_MAP, MT_CHAT, MT_PAUSE };
+enum { MT_LOBBY = 1, MT_PICK, MT_START, MT_TURN, MT_TURNALL, MT_SUM, MT_QUIT, MT_GONE, MT_MAP, MT_CHAT, MT_PAUSE,
+       MT_SEENREQ, MT_SEEN, MT_FILE, MT_FILEEND, MT_FILEOK };
 
 static bool s_logNew = true;
 
@@ -674,6 +681,9 @@ static void Lan_PlayerGone(int slot, const char *why)
 
 /* Network events during the game. */
 static void Lan_SetPause(bool on, int slot);
+static void Lan_SendSeen(void);
+static bool Lan_StartSaved(void);
+static void Lan_TakeSeen(int slot, const uint8 *d, int len);
 static void Lan_ShowPause(bool on, int slot);
 static bool s_paused;
 
@@ -724,6 +734,13 @@ static void Lan_Receive(void)
 							Lan_ShowPause(ev.data[1] != 0, ev.data[0]);
 						}
 						break;
+					case MT_SEENREQ:
+						/* the server saves: my fog to it, in three parts */
+						if (!g_lanServer) Lan_SendSeen();
+						break;
+					case MT_SEEN:
+						if (g_lanServer && slot < LAN_MAX_PLAYERS && ev.length >= 2) Lan_TakeSeen(slot, ev.data, ev.length);
+						break;
 					case MT_CHAT:
 						/* [slot][text]: the server sets the sender and passes it on */
 						if (ev.length >= 2 && slot < LAN_MAX_PLAYERS) {
@@ -757,7 +774,7 @@ static bool Lan_BeginTurn(int32 turn)
 		int count = 0;
 		TurnBuf *own = &s_ownTurns[turn % LAN_RING];
 
-		if (turn >= s_delay) {
+		if (turn >= s_turnBase + s_delay) {
 			for (slot = 1; slot < LAN_MAX_PLAYERS; slot++) {
 				TurnBuf *t = &s_turns[slot][turn % LAN_RING];
 				if (!g_lanPlayers[slot].used || g_lanPlayers[slot].gone) continue;
@@ -788,7 +805,7 @@ static bool Lan_BeginTurn(int32 turn)
 		memcpy(own->data, s_pending, s_pendingCount * CMD_SIZE);
 	} else {
 		TurnBuf *t = &s_turns[0][turn % LAN_RING];
-		if (turn >= s_delay) {
+		if (turn >= s_turnBase + s_delay) {
 			if (t->turn != turn || !t->complete) return false;
 			g_lanSim = true;
 			for (slot = 0; slot < t->count; slot++) Lan_Apply(t->data + slot * CMD_SIZE);
@@ -995,6 +1012,7 @@ static void Lan_ResetTurns(void)
 	for (j = 0; j < LAN_RING; j++) s_ownTurns[j].turn = -1;
 	s_pendingCount = 0;
 	s_steps = 0;
+	s_turnBase = 0;
 	s_waiting = false;
 	s_outOfStep = false;
 	s_ended = false;
@@ -1040,6 +1058,7 @@ void Lan_StartGame(void)
 	if (g_lanLevel < LAN_LEVEL_MIN || g_lanLevel > LAN_LEVELS) g_lanLevel = LAN_LEVEL_MIN;
 	g_campaignID = (uint16)(g_lanLevel - 1);	/* what the houses know: as in mission <level> */
 	g_strategicRegionBits = 0;
+	if (g_lanFromSave && Lan_StartSaved()) return;
 	Tools_RandomLCG_Seed((uint16)seed);
 	Tools_Random_Seed(seed);
 	/* the game's time and its loops' next times: the same on every Amiga */
@@ -1087,6 +1106,223 @@ void Lan_StartGame(void)
 	s_stepBase = AmigaTimer_GetMs();
 }
 
+/* ---- a saved LAN game (the server saves; the lobby sends the file to all)
+ *
+ * The usual save and the chunk 'LAN ': what the save has not and every Amiga
+ * needs to go on the same: the step, the game's time, both random
+ * generators, the credits without silos, the players and each one's fog. */
+
+#define LAN_SAVE_VERSION 1
+#define LAN_SAVE_SIZE (36 + LAN_MAX_PLAYERS * 18 + LAN_MAX_PLAYERS * 512)
+
+static uint8 s_otherSeen[LAN_MAX_PLAYERS][4096 / 8];
+static uint8 s_seenParts[LAN_MAX_PLAYERS];	/* bits: the three parts came */
+
+/* a joiner: its fog to the server (MT_SEEN [part][data]) */
+static void Lan_SendSeen(void)
+{
+	int part;
+	for (part = 0; part < 3; part++) {
+		uint8 b[1 + 200];
+		int off = part * 200, n = min(200, (int)sizeof(s_seen) - off);
+		b[0] = (uint8)part;
+		memcpy(b + 1, s_seen + off, n);
+		Net_Send(0, MT_SEEN, b, 1 + n);
+	}
+}
+
+static void Lan_TakeSeen(int slot, const uint8 *d, int len)
+{
+	int part = d[0], off = part * 200, n = len - 1;
+	if (part > 2 || off + n > (int)sizeof(s_seen)) return;
+	memcpy(s_otherSeen[slot] + off, d + 1, n);
+	s_seenParts[slot] |= 1 << part;
+}
+
+/** The server, before writing a save: the others' fog (up to 3 s). */
+void Lan_CollectSeen(void)
+{
+	uint32 end;
+	int slot;
+	if (!g_lanGame || !g_lanServer) return;
+	memset(s_seenParts, 0, sizeof(s_seenParts));
+	memset(s_otherSeen, 0, sizeof(s_otherSeen));
+	memcpy(s_otherSeen[g_lanMe], s_seen, sizeof(s_seen));
+	s_seenParts[g_lanMe] = 7;
+	Net_Send(NET_ALL, MT_SEENREQ, "s", 1);
+	end = AmigaTimer_GetMs() + 3000;
+	while ((int32)(end - AmigaTimer_GetMs()) > 0) {
+		bool all = true;
+		for (slot = 0; slot < LAN_MAX_PLAYERS; slot++) {
+			if (g_lanPlayers[slot].used && !g_lanPlayers[slot].gone && s_seenParts[slot] != 7) all = false;
+		}
+		if (all) break;
+		Lan_Receive();
+		AmigaTimer_WaitMs(20);
+	}
+}
+
+static void Lan_Put16(uint8 *b, uint16 v) { b[0] = (uint8)(v >> 8); b[1] = (uint8)v; }
+
+/** The chunk 'LAN ' of a save (save.c). */
+bool Lan_SaveChunk(FILE *fp)
+{
+	static uint8 b[LAN_SAVE_SIZE];
+	int i, n = 0;
+	memset(b, 0, sizeof(b));
+	b[n++] = LAN_SAVE_VERSION;
+	b[n++] = (uint8)g_lanMap;
+	b[n++] = (uint8)g_lanLevel;
+	b[n++] = (uint8)g_playerHouseID;
+	Put32(b + n, s_steps); n += 4;
+	Put32(b + n, g_timerGame); n += 4;
+	Tools_Random_GetFull(b + n); n += 8;
+	for (i = 0; i < 8; i++) { Lan_Put16(b + n, i < HOUSE_MAX ? s_noSilo[i] : 0); n += 2; }
+	for (i = 0; i < LAN_MAX_PLAYERS; i++) {
+		b[n++] = (uint8)(g_lanPlayers[i].used && !g_lanPlayers[i].gone);
+		b[n++] = g_lanPlayers[i].house;
+		memcpy(b + n, g_lanPlayers[i].name, 16); n += 16;
+	}
+	for (i = 0; i < LAN_MAX_PLAYERS; i++) {
+		memcpy(b + n, s_otherSeen[i], 512); n += 512;
+	}
+	return fwrite(b, n, 1, fp) == 1;
+}
+
+/**
+ * What a LAN save is (the lobby's list, the start): its name (NAME), the
+ * chunk 'LAN '; seen: the fog of the player of that house (512 bytes), if
+ * not NULL. False when it is no LAN save.
+ */
+bool Lan_ReadSaveInfo(const char *file, LanSaveInfo *info, uint8 *seen, uint8 seenHouse)
+{
+	FILE *fp = fopendatadir(SEARCHDIR_PERSONAL_DATA_DIR, file, "rb");
+	uint8 h[8];
+	bool found = false;
+	memset(info, 0, sizeof(*info));
+	if (fp == NULL) return false;
+	if (fread(h, 4, 1, fp) != 1 || memcmp(h, "FORM", 4) != 0 || fread(h, 8, 1, fp) != 1 || memcmp(h + 4, "SCEN", 4) != 0) {
+		fclose(fp);
+		return false;
+	}
+	while (fread(h, 8, 1, fp) == 1) {
+		uint32 len = Get32(h + 4);
+		if (memcmp(h, "NAME", 4) == 0) {
+			char name[64];
+			uint32 n = min(len, (uint32)sizeof(name) - 1);
+			if (fread(name, n, 1, fp) != 1) break;
+			name[n] = 0;
+			strncpy(info->desc, name, sizeof(info->desc) - 1);
+			fseek(fp, (long)(len - n + (len & 1)), SEEK_CUR);
+			continue;
+		}
+		if (memcmp(h, "LAN ", 4) == 0 && len >= LAN_SAVE_SIZE) {
+			static uint8 b[LAN_SAVE_SIZE];
+			int i, n = 0;
+			if (fread(b, LAN_SAVE_SIZE, 1, fp) != 1 || b[0] != LAN_SAVE_VERSION) break;
+			n = 1;
+			info->map = b[n++];
+			info->level = b[n++];
+			info->simHouse = b[n++];
+			info->steps = Get32(b + n); n += 4;
+			info->timer = Get32(b + n); n += 4;
+			memcpy(info->rng, b + n, 8); n += 8;
+			for (i = 0; i < 8; i++) { info->noSilo[i] = (uint16)((b[n] << 8) | b[n + 1]); n += 2; }
+			for (i = 0; i < LAN_MAX_PLAYERS; i++) {
+				info->used[i] = b[n++];
+				info->house[i] = b[n++];
+				memcpy(info->name[i], b + n, 16); n += 16;
+				info->name[i][15] = 0;
+				if (info->used[i] && info->house[i] < 8) info->mask |= 1 << info->house[i];
+			}
+			for (i = 0; i < LAN_MAX_PLAYERS; i++) {
+				if (seen != NULL && info->used[i] && info->house[i] == seenHouse) memcpy(seen, b + n, 512);
+				n += 512;
+			}
+			found = true;
+			break;
+		}
+		fseek(fp, (long)(len + (len & 1)), SEEK_CUR);
+	}
+	fclose(fp);
+	info->valid = found;
+	return found;
+}
+
+/* Lan_StartGame of a saved game: the same on every Amiga from the same file. */
+static bool Lan_StartSaved(void)
+{
+	static uint8 seen[512];
+	LanSaveInfo info;
+	PoolFindStruct find;
+	uint16 view = 0xFFFF;
+	int i;
+
+	memset(seen, 0, sizeof(seen));
+	if (!Lan_ReadSaveInfo(g_lanSaveFile, &info, seen, g_lanLocalHouse)) {
+		Lan_Log("saved game %s: no LAN save\n", g_lanSaveFile);
+		return false;
+	}
+	Lan_Log("saved game %s: step %lu\n", g_lanSaveFile, (unsigned long)info.steps);
+	g_lanMap = info.map;
+	g_lanLevel = info.level;
+	g_timerGame = info.timer;
+	Unit_ResetTicks();
+	Structure_ResetTicks();
+	House_ResetTicks();
+	Team_ResetTicks();
+	Explosion_ResetTicks();
+	Animation_ResetTicks();
+
+	g_lanSim = true;
+	if (!SaveGame_LoadFile(g_lanSaveFile)) {
+		g_lanSim = false;
+		return false;
+	}
+	g_lanSim = false;
+	g_timerGame = info.timer;
+	Tools_Random_SetFull(info.rng);
+	s_steps = info.steps;
+	s_turnBase = (int32)((s_steps + LAN_TURN_STEPS - 1) / LAN_TURN_STEPS);
+	Lan_Log("loaded %08lx\n", (unsigned long)Tools_Random_State());
+
+	g_playerHouseID = (HouseType)info.simHouse;
+	g_playerHouse = House_Get_ByIndex(g_playerHouseID);
+	g_lanSimViewPos = Tile_PackXY(Tile_GetPackedX(s_lanMaps[g_lanMap].cy[0]) - 7, Tile_GetPackedY(s_lanMaps[g_lanMap].cy[0]) - 5);
+	for (i = 0; i < HOUSE_MAX; i++) s_noSilo[i] = info.noSilo[i];
+
+	/* my view: my Construction Yard, else any of mine */
+	find.houseID = g_lanLocalHouse;
+	find.index = 0xFFFF;
+	find.type = STRUCTURE_CONSTRUCTION_YARD;
+	{
+		Structure *st = Structure_Find(&find);
+		if (st != NULL) view = Tile_PackTile(st->o.position);
+	}
+	if (view == 0xFFFF) {
+		Unit *u;
+		find.houseID = g_lanLocalHouse;
+		find.index = 0xFFFF;
+		find.type = 0xFFFF;
+		u = Unit_Find(&find);
+		if (u != NULL) view = Tile_PackTile(u->o.position);
+	}
+	GUI_Palette_CreateRemap(g_lanLocalHouse);
+	Voice_LoadVoices(g_lanLocalHouse);
+	Unit_Select(NULL);
+	if (view != 0xFFFF) {
+		Map_SetViewportPosition(view);
+		g_selectionRectanglePosition = view;
+		g_selectionPosition = view;
+		Map_SetSelection(view);
+	}
+	Lan_ResetSeen();
+	for (i = 0; i < (int)sizeof(s_seen); i++) s_seen[i] |= seen[i];
+	g_viewport_forceRedraw = true;
+	s_stepBase = AmigaTimer_GetMs() - (s_steps * 1000) / 60;
+	return true;
+}
+
 /* ---- fog of war, for each player its own
  *
  * The simulation sees the whole map (g_map[].isUnveiled everywhere, the same
@@ -1095,7 +1331,6 @@ void Lan_StartGame(void)
  * structures, never hidden again (as in Dune II). Only the drawing uses it
  * (viewport, radar, selection); the game is not changed by it. */
 
-static uint8 s_seen[4096 / 8];
 static uint16 s_unitTile[UNIT_INDEX_MAX];
 static uint16 s_structureTile[STRUCTURE_INDEX_MAX_SOFT];
 
@@ -1243,6 +1478,12 @@ void Lan_SendLobby(void)
 			memcpy(b + n, g_lanPlayers[slot].name, len + 1);
 			n += len + 1;
 		}
+		{
+			int len = (int)strlen(g_lanSaveDesc);
+			b[n++] = g_lanSaveMask;
+			memcpy(b + n, g_lanSaveDesc, len + 1);
+			n += len + 1;
+		}
 		Net_Send(peer, MT_LOBBY, b, n);
 	}
 }
@@ -1268,11 +1509,25 @@ void Lan_TakeLobby(const uint8 *d, int len)
 		g_lanPlayers[slot].name[k] = 0;
 		n++;
 	}
+	g_lanSaveMask = 0;
+	g_lanSaveDesc[0] = 0;
+	if (n < len) {
+		int k = 0;
+		g_lanSaveMask = d[n++];
+		while (n < len && d[n] != 0 && k < (int)sizeof(g_lanSaveDesc) - 1) g_lanSaveDesc[k++] = (char)d[n++];
+		g_lanSaveDesc[k] = 0;
+	}
 }
+
+uint8 g_lanSaveMask;	/* a saved game: its houses (bits); 0 a new game */
+char g_lanSaveDesc[24];	/* its name, for the lobby */
+bool g_lanFromSave;
+char g_lanSaveFile[16];
 
 bool Lan_HouseFree(uint8 house)
 {
 	int slot;
+	if (g_lanSaveMask != 0 && (g_lanSaveMask & (1 << house)) == 0) return false;
 	for (slot = 0; slot < LAN_MAX_PLAYERS; slot++) {
 		if (g_lanPlayers[slot].used && g_lanPlayers[slot].house == house) return false;
 	}
@@ -1305,7 +1560,8 @@ void Lan_SendStart(uint32 seed, int delay)
 		b[4] = (uint8)delay;
 		b[5] = (uint8)g_lanMap;
 		b[6] = (uint8)g_lanLevel;
-		Net_Send(peer, MT_START, b, 7);
+		b[7] = g_lanFromSave ? 1 : 0;
+		Net_Send(peer, MT_START, b, 8);
 	}
 }
 
@@ -1325,6 +1581,9 @@ int Lan_MsgType(int which)
 		case 0: return MT_LOBBY;
 		case 1: return MT_PICK;
 		case 2: return MT_START;
+		case 3: return MT_FILE;
+		case 4: return MT_FILEEND;
+		case 5: return MT_FILEOK;
 		default: return MT_QUIT;
 	}
 }

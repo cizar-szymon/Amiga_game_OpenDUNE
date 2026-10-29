@@ -4,6 +4,9 @@
 #include <string.h>
 #include "types.h"
 
+#if defined(__amigaos__)
+#include "lan_amiga.h"
+#endif
 #include "save.h"
 
 #include "house.h"
@@ -104,6 +107,10 @@ static bool Save_Main(FILE *fp, char *description)
 	if (!Save_Chunk(fp, "MAP ", &Map_Save)) return false;
 	if (!Save_Chunk(fp, "TEAM", &Team_Save)) return false;
 	if (!Save_Chunk(fp, "ODUN", &UnitNew_Save)) return false;
+#if defined(__amigaos__)
+	/* a LAN game: what all Amigas need to go on from here (lan_amiga.c) */
+	if (g_lanGame && !Save_Chunk(fp, "LAN ", &Lan_SaveChunk)) return false;
+#endif
 
 	/* Write the total length of all data in the FORM chunk */
 	length = ftell(fp) - 8;
@@ -125,6 +132,10 @@ bool SaveGame_SaveFile(char *filename, char *description)
 {
 	FILE *fp;
 	bool res;
+
+#if defined(__amigaos__)
+	if (g_lanGame) Lan_CollectSeen();	/* the other players' fog into the save */
+#endif
 
 	/* In debug-scenario mode, the whole map is uncovered. Cover it now in
 	 *  the savegame based on the current position of the units and

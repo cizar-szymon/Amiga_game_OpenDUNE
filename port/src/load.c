@@ -114,6 +114,7 @@ static bool Load_Main(FILE *fp)
 			case CC_BLDG: if (!Structure_Load(fp, length)) return false; break;
 			case CC_TEAM: if (!Team_Load     (fp, length)) return false; break;
 			case CC_ODUN: if (!UnitNew_Load  (fp, length)) return false; break;
+			case 0x4C414E20: break;	/* 'LAN ': a LAN game's, read by Lan_ReadSaveInfo */
 
 			default:
 				Error("Unknown chunk in savegame: %c%c%c%c (length: %d). Skipped.\n", header, header >> 8, header >> 16, header >> 24, length);

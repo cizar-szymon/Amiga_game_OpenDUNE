@@ -52,6 +52,13 @@ static char *GenerateSavegameFilename(uint16 number)
 		Warning("Savegame #%hu not supported\n", number);
 		return NULL;
 	}
+#if defined(__amigaos__)
+	/* a LAN game's saves apart (the server's; lan_menu_amiga.c loads them) */
+	if (g_lanGame) {
+		sprintf(filename, "_lan%03hu.dat", number);
+		return filename;
+	}
+#endif
 	sprintf(filename, "_save%03hu.dat", number);
 	return filename;
 }
@@ -753,6 +760,8 @@ static WindowDesc s_loadSaveDesc = {
 static const int s_optionsMap[6] = { 2, 7, 3, 4, 5, 6 };
 /* a LAN game: no Restart scenario, no Pick another house */
 static const int s_optionsMapLan[4] = { 2, 7, 5, 6 };
+/* the server of a LAN game: Save this game too (variant B: the server saves) */
+static const int s_optionsMapLanServer[5] = { 2, 7, 1, 5, 6 };
 static const int *s_options = s_optionsMap;
 static int s_optionsCount = 6;
 
@@ -760,15 +769,17 @@ static WindowDesc *Amiga_OptionsDesc(void)
 {
 	static const int16 y[6] = { 23, 40, 57, 74, 93, 93 };
 	static const int16 yLan[4] = { 23, 40, 93, 93 };
+	static const int16 yLanServer[5] = { 23, 40, 57, 93, 93 };
+	bool server = LAN_GAME && g_lanServer;
 	int i;
-	s_options = LAN_GAME ? s_optionsMapLan : s_optionsMap;
-	s_optionsCount = LAN_GAME ? 4 : 6;
+	s_options = server ? s_optionsMapLanServer : LAN_GAME ? s_optionsMapLan : s_optionsMap;
+	s_optionsCount = server ? 5 : LAN_GAME ? 4 : 6;
 	s_optionsDesc = g_optionsWindowDesc;
 	s_optionsDesc.index = 10;
 	s_optionsDesc.widgetCount = s_optionsCount;
 	for (i = 0; i < s_optionsCount; i++) {
 		s_optionsDesc.widgets[i] = (s_options[i] == 7) ? g_optionsWindowDesc.widgets[2] : g_optionsWindowDesc.widgets[s_options[i]];
-		s_optionsDesc.widgets[i].offsetY = LAN_GAME ? yLan[i] : y[i];
+		s_optionsDesc.widgets[i].offsetY = server ? yLanServer[i] : LAN_GAME ? yLan[i] : y[i];
 	}
 	s_optionsDesc.widgets[1].stringID = (uint16)-20;
 	return &s_optionsDesc;

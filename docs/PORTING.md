@@ -458,6 +458,27 @@ LOAD/SAVE przyciemnione (29.10): widżety przycisków kopiowały flagi MENTAT z 
 – szachownica przy ukryciu zostawała na nich (ich obraz jest w tle paska), w grze LAN po jej
 końcu dwa szare prostokąty. Teraz bez wyszarzania.
 
+### Zapis i wczytanie gry LAN (29.10.2026, wariant B – decyzja użytkownika)
+
+- **Zapis – tylko serwer:** Options → „Save this game” (u graczy go nie ma); pliki LAN osobno:
+  `_lanNNN.dat`. Przed zapisem serwer pobiera mgłę graczy (`MT_SEENREQ` → `MT_SEEN`, 3 części,
+  do 3 s). Do zwykłego zapisu dochodzi chunk **`LAN `** (`Lan_SaveChunk`): mapa, poziom, ród
+  „gracza” symulacji, krok, `g_timerGame`, oba generatory losowe (`Tools_Random_GetFull`), kredyty
+  bez silosów, gracze (ród, nazwa) i mgła każdego. Zwykły zapis tego nie ma; wczytanie go pomija.
+  Zapis w dowolnym momencie (między krokami): stan serwera w kroku S = stan każdej Amigi w S.
+- **Wczytanie:** okno serwera, wiersz **Game** `< New game > / < Saved: NAZWA >` (lista
+  `_lan*.dat`); mapa i poziom z zapisu; gracze wybierają tylko rody z zapisu (`g_lanSaveMask` w
+  lobby, po graczach – starsze odczyty go pomijają), START GAME gdy graczy tylu, ile rodów w
+  zapisie. Po START serwer wysyła plik każdemu (`MT_FILE` [rozmiar][offset][≤200 B],
+  `MT_FILEEND` [rozmiar][suma FNV]) z postępem „Sending the saved game: NN%” / „Receiving …”;
+  gracz zapisuje go jako `_lanrecv.dat` i potwierdza (`MT_FILEOK`); po wszystkich – START
+  (bajt „z zapisu”). Wszyscy: `Lan_StartSaved` – wczytanie (`SaveGame_LoadFile` w symulacji),
+  potem generatory, czas, krok, `s_turnBase` (pierwsza tura gry po wczytaniu), kredyty, mgła
+  swojego rodu, widok na swój Construction Yard.
+- Sprawdzone: Amiga 2 serwer + WinUAE – zapis w kroku 3624, wczytanie u obu (ten sam stan
+  generatora `2a7f2639`), sumy zgodne w krokach 3900, 4200; mgła i pozycje jednostek wróciły.
+  Nie sprawdzone: 3 graczy, zerwanie połączenia w trakcie przesyłania.
+
 ### Okna (320×200, `gui/lan_menu_amiga.c`)
 
 - „Play on LAN”: START SERVER / JOIN SERVER / BACK (bez bsdsocket.library: komunikat).

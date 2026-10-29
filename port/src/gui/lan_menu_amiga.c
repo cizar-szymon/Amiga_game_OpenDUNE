@@ -16,6 +16,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include "types.h"
+#include "../file.h"
+#include "../os/math.h"
 #include "../os/net_amiga.h"
 #include "../os/sleep.h"
 
@@ -51,6 +53,22 @@ static Found s_found[4];
 static int s_foundCount;
 static bool s_searching, s_serving, s_connecting;
 static bool s_netOk;
+/* the server's LAN saves (_lanNNN.dat), the one chosen (-1: a new game) */
+#define LAN_SAVES 10
+static int s_saveCount, s_saveSel = -1;
+static char s_saveFiles[LAN_SAVES][16];
+static LanSaveInfo s_saveInfo[LAN_SAVES];
+
+/* sending the chosen save to the joiners (MT_FILE [size][offset][data]) */
+static uint8 *s_xferBuf;
+static uint32 s_xferSize, s_xferSum;
+static uint32 s_xferOff[LAN_MAX_PLAYERS];
+static bool s_xferEnd[LAN_MAX_PLAYERS], s_xferOk[LAN_MAX_PLAYERS];
+static bool s_xferring;
+/* receiving it */
+static uint8 *s_rxBuf;
+static uint32 s_rxSize, s_rxGot;
+
 static uint32 s_startSeed;
 static int s_startDelay;
 static bool s_dirty;
@@ -176,6 +194,71 @@ static int Lan_PlayerCount(void)
 	return n;
 }
 
+static uint32 Lan_FileSum(const uint8 *d, uint32 n)
+{
+	uint32 h = 2166136261UL, i;
+	for (i = 0; i < n; i++) { h ^= d[i]; h *= 16777619UL; }
+	return h;
+}
+
+static void Lan_PutBE(uint8 *b, uint32 v)
+{
+	b[0] = (uint8)(v >> 24); b[1] = (uint8)(v >> 16); b[2] = (uint8)(v >> 8); b[3] = (uint8)v;
+}
+
+static uint32 Lan_GetBE(const uint8 *b)
+{
+	return ((uint32)b[0] << 24) | ((uint32)b[1] << 16) | ((uint32)b[2] << 8) | b[3];
+}
+
+static void Lan_ScanSaves(void)
+{
+	int i;
+	s_saveCount = 0;
+	for (i = 0; i < 100 && s_saveCount < LAN_SAVES; i++) {
+		char name[16];
+		snprintf(name, sizeof(name), "_lan%03d.dat", i);
+		if (!File_Exists_Personal(name)) continue;
+		if (!Lan_ReadSaveInfo(name, &s_saveInfo[s_saveCount], NULL, 0)) continue;
+		strcpy(s_saveFiles[s_saveCount], name);
+		s_saveCount++;
+	}
+	s_saveSel = -1;
+}
+
+/* the server: a new game or one of the saves */
+static void Lan_ChooseSave(int sel)
+{
+	int slot;
+	s_saveSel = sel;
+	if (sel < 0) {
+		g_lanFromSave = false;
+		g_lanSaveMask = 0;
+		g_lanSaveDesc[0] = 0;
+	} else {
+		const LanSaveInfo *in = &s_saveInfo[sel];
+		g_lanFromSave = true;
+		strcpy(g_lanSaveFile, s_saveFiles[sel]);
+		g_lanSaveMask = in->mask;
+		strncpy(g_lanSaveDesc, in->desc, sizeof(g_lanSaveDesc) - 1);
+		g_lanSaveDesc[sizeof(g_lanSaveDesc) - 1] = 0;
+		g_lanMap = in->map;
+		g_lanLevel = in->level;
+		for (slot = 0; slot < LAN_MAX_PLAYERS; slot++) {
+			uint8 h = g_lanPlayers[slot].house;
+			if (h != HOUSE_INVALID && (g_lanSaveMask & (1 << h)) == 0) g_lanPlayers[slot].house = HOUSE_INVALID;
+		}
+	}
+	if (s_serving) Lan_SendLobby();
+}
+
+static int Lan_SaveHouses(void)
+{
+	int i, n = 0;
+	for (i = 0; i < 8; i++) if (g_lanSaveMask & (1 << i)) n++;
+	return n;
+}
+
 static void Lan_Draw(void)
 {
 	char line[48];
@@ -204,21 +287,34 @@ static void Lan_Draw(void)
 			Lan_DrawField(110, 28, 100, s_serverName, s_field == FIELD_NAME);
 			Lan_Text("Server address", 26, 44, COL_TEXT);
 			Lan_Text(s_myAddress, 112, 44, COL_TEXT);
-			Lan_Text("Map", 26, 56, COL_TEXT);
-			snprintf(line, sizeof(line), "< %s >", Lan_MapName(g_lanMap));
-			Lan_Text(line, 112, 56, Lan_Over(110, 54, 170, 10) ? COL_HOVER : COL_TEXT);
-			Lan_Text("Level", 26, 66, COL_TEXT);
-			snprintf(line, sizeof(line), "< %d >  (as mission %d)", g_lanLevel, g_lanLevel);
-			Lan_Text(line, 112, 66, Lan_Over(110, 64, 170, 10) ? COL_HOVER : COL_TEXT);
-			Lan_DrawPlayers(78);
-			Lan_DrawHouses(118);
-			if (s_serving && Lan_PlayerCount() > Lan_MapPlayers(g_lanMap)) {
+			Lan_Text("Game", 26, 54, COL_TEXT);
+			if (s_saveSel < 0) {
+				snprintf(line, sizeof(line), "< New game >%s", s_saveCount > 0 ? "" : "  (no saves)");
+			} else {
+				snprintf(line, sizeof(line), "< Saved: %.20s >", s_saveInfo[s_saveSel].desc);
+			}
+			Lan_Text(line, 112, 54, Lan_Over(110, 52, 170, 10) && s_saveCount > 0 ? COL_HOVER : COL_TEXT);
+			Lan_Text("Map", 26, 64, COL_TEXT);
+			snprintf(line, sizeof(line), s_saveSel < 0 ? "< %s >" : "%s", Lan_MapName(g_lanMap));
+			Lan_Text(line, 112, 64, Lan_Over(110, 62, 170, 10) && s_saveSel < 0 ? COL_HOVER : COL_TEXT);
+			Lan_Text("Level", 26, 74, COL_TEXT);
+			snprintf(line, sizeof(line), s_saveSel < 0 ? "< %d >  (as mission %d)" : "%d  (as mission %d)", g_lanLevel, g_lanLevel);
+			Lan_Text(line, 112, 74, Lan_Over(110, 72, 170, 10) && s_saveSel < 0 ? COL_HOVER : COL_TEXT);
+			Lan_DrawPlayers(86);
+			Lan_DrawHouses(124);
+			if (s_xferring) {
+				Lan_TextCentre(s_status, 152, COL_HOVER);
+			} else if (s_saveSel >= 0 && s_serving && Lan_PlayerCount() != Lan_SaveHouses()) {
+				snprintf(line, sizeof(line), "The saved game is for %d players.", Lan_SaveHouses());
+				Lan_TextCentre(line, 152, COL_HOVER);
+			} else if (s_saveSel < 0 && s_serving && Lan_PlayerCount() > Lan_MapPlayers(g_lanMap)) {
 				Lan_TextCentre("This map is for 2 players.", 152, COL_HOVER);
 			} else {
 				Lan_TextCentre(s_status, 152, COL_HOVER);
 			}
 			Lan_SetButtons(3, s_serving ? "STOP SERVER" : "RUN SERVER", true,
-			               "START GAME", s_serving && Lan_PlayerCount() >= 2 && Lan_PlayerCount() <= Lan_MapPlayers(g_lanMap)
+			               "START GAME", s_serving && !s_xferring && Lan_PlayerCount() >= 2
+			               && (s_saveSel < 0 ? Lan_PlayerCount() <= Lan_MapPlayers(g_lanMap) : Lan_PlayerCount() == Lan_SaveHouses())
 			               && g_lanPlayers[0].house != HOUSE_INVALID, "CANCEL", true);
 			break;
 
@@ -251,6 +347,10 @@ static void Lan_Draw(void)
 			Lan_Text(line, 26, 44, COL_TEXT);
 			snprintf(line, sizeof(line), "Level  %d  (as mission %d)", g_lanLevel, g_lanLevel);
 			Lan_Text(line, 26, 54, COL_TEXT);
+			if (g_lanSaveMask != 0) {
+				snprintf(line, sizeof(line), "Saved game: %.20s", g_lanSaveDesc);
+				Lan_Text(line, 26, 64, COL_TITLE);
+			}
 			Lan_DrawPlayers(74);
 			Lan_DrawHouses(118);
 			Lan_TextCentre(g_lanPlayers[0].house == HOUSE_INVALID ? "The server chooses its house first." : "Waiting for the server to start the game.", 140, COL_TEXT);
@@ -322,9 +422,77 @@ static bool Lan_StartServerGame(void)
 	s_startDelay = Lan_DelayForPing(ping);
 	s_startSeed = AmigaTimer_GetMs() * 2654435761UL;
 	Lan_SendLobby();
+	if (g_lanFromSave) {
+		/* the saved game to every joiner first (Lan_SendFile), then START */
+		FILE *fp = fopendatadir(SEARCHDIR_PERSONAL_DATA_DIR, g_lanSaveFile, "rb");
+		long size;
+		if (fp == NULL) { Lan_Status("The saved game cannot be read."); return false; }
+		fseek(fp, 0, SEEK_END);
+		size = ftell(fp);
+		fseek(fp, 0, SEEK_SET);
+		free(s_xferBuf);
+		s_xferBuf = (size > 0) ? malloc(size) : NULL;
+		if (s_xferBuf == NULL || fread(s_xferBuf, size, 1, fp) != 1) {
+			fclose(fp);
+			Lan_Status("The saved game cannot be read.");
+			return false;
+		}
+		fclose(fp);
+		s_xferSize = (uint32)size;
+		s_xferSum = Lan_FileSum(s_xferBuf, s_xferSize);
+		for (slot = 0; slot < LAN_MAX_PLAYERS; slot++) {
+			s_xferOff[slot] = 0;
+			s_xferEnd[slot] = false;
+			s_xferOk[slot] = !g_lanPlayers[slot].used || slot == 0;
+		}
+		s_xferring = true;
+		Net_Close();
+		Lan_Status("Sending the saved game: 0%");
+		return false;
+	}
 	Lan_SendStart(s_startSeed, s_startDelay);
 	Net_Close();
 	return true;
+}
+
+/* The server: the saved game to the joiners, as much as the network takes
+ * now; true when every one has it (then START). */
+static bool Lan_SendFile(void)
+{
+	int slot;
+	uint32 sent = 0, total = 0;
+	bool allOk = true;
+	char text[48];
+
+	for (slot = 1; slot < LAN_MAX_PLAYERS; slot++) {
+		if (!g_lanPlayers[slot].used) continue;
+		while (s_xferOff[slot] < s_xferSize) {
+			uint8 b[8 + 200];
+			uint32 n = min(200, s_xferSize - s_xferOff[slot]);
+			Lan_PutBE(b, s_xferSize);
+			Lan_PutBE(b + 4, s_xferOff[slot]);
+			memcpy(b + 8, s_xferBuf + s_xferOff[slot], n);
+			if (!Net_Send(slot - 1, Lan_MsgType(3), b, 8 + (int)n)) break;
+			s_xferOff[slot] += n;
+		}
+		if (s_xferOff[slot] == s_xferSize && !s_xferEnd[slot]) {
+			uint8 b[8];
+			Lan_PutBE(b, s_xferSize);
+			Lan_PutBE(b + 4, s_xferSum);
+			if (Net_Send(slot - 1, Lan_MsgType(4), b, 8)) s_xferEnd[slot] = true;
+		}
+		sent += s_xferOff[slot];
+		total += s_xferSize;
+		if (!s_xferOk[slot]) allOk = false;
+	}
+	if (allOk) return true;
+	if (sent < total) {
+		snprintf(text, sizeof(text), "Sending the saved game: %lu%%", (unsigned long)(sent * 100 / max(total, 1)));
+	} else {
+		snprintf(text, sizeof(text), "Sent: waiting for the players...");
+	}
+	if (strcmp(text, s_status) != 0) Lan_Status(text);
+	return false;
 }
 
 /* network events in the lobby; true: the game starts */
@@ -385,6 +553,10 @@ static bool Lan_Events(void)
 				}
 				break;
 			case NEV_LOST:
+				if (g_lanServer && s_xferring) {
+					s_xferring = false;
+					Lan_Status("A player left: the saved game is not sent.");
+				}
 				if (g_lanServer) {
 					if (slot < LAN_MAX_PLAYERS) {
 						g_lanPlayers[slot].used = false;
@@ -410,11 +582,51 @@ static bool Lan_Events(void)
 					Lan_SendLobby();
 				} else if (!g_lanServer && ev.value == Lan_MsgType(0)) {
 					Lan_TakeLobby(ev.data, ev.length);
+				} else if (g_lanServer && ev.value == Lan_MsgType(5) && ev.length >= 1 && slot < LAN_MAX_PLAYERS) {
+					/* a joiner has the saved game (1) or not (0) */
+					if (ev.data[0]) {
+						s_xferOk[slot] = true;
+					} else if (s_xferring) {
+						s_xferring = false;
+						Lan_Status("A player did not get the saved game.");
+					}
+				} else if (!g_lanServer && ev.value == Lan_MsgType(3) && ev.length > 8) {
+					/* a part of the saved game */
+					uint32 size = Lan_GetBE(ev.data), off = Lan_GetBE(ev.data + 4), n = ev.length - 8;
+					char text[48];
+					if (s_rxBuf == NULL || s_rxSize != size) {
+						free(s_rxBuf);
+						s_rxBuf = malloc(size);
+						s_rxSize = size;
+						s_rxGot = 0;
+					}
+					if (s_rxBuf != NULL && off + n <= size) {
+						memcpy(s_rxBuf + off, ev.data + 8, n);
+						s_rxGot = max(s_rxGot, off + n);
+					}
+					snprintf(text, sizeof(text), "Receiving the saved game: %lu%%", (unsigned long)(s_rxGot * 100 / max(size, 1)));
+					Lan_Status(text);
+				} else if (!g_lanServer && ev.value == Lan_MsgType(4) && ev.length >= 8) {
+					/* all of it: checked, kept as _lanrecv.dat */
+					uint8 ok = 0;
+					if (s_rxBuf != NULL && s_rxGot == Lan_GetBE(ev.data) && Lan_FileSum(s_rxBuf, s_rxGot) == Lan_GetBE(ev.data + 4)) {
+						uint8 fd = File_Open_Personal("_lanrecv.dat", FILE_MODE_WRITE);
+						if (fd != 0xFF) {
+							ok = File_Write(fd, s_rxBuf, s_rxGot) == s_rxGot;
+							File_Close(fd);
+						}
+					}
+					Lan_Status(ok ? "The saved game is here: starting..." : "The saved game came broken.");
+					Net_Send(0, Lan_MsgType(5), &ok, 1);
 				} else if (!g_lanServer && ev.value == Lan_MsgType(2) && ev.length >= 7) {
 					s_startSeed = ((uint32)ev.data[0] << 24) | ((uint32)ev.data[1] << 16) | ((uint32)ev.data[2] << 8) | ev.data[3];
 					s_startDelay = ev.data[4];
 					g_lanMap = ev.data[5];
 					g_lanLevel = ev.data[6];
+					g_lanFromSave = ev.length >= 8 && ev.data[7] != 0;
+					if (g_lanFromSave) strcpy(g_lanSaveFile, "_lanrecv.dat");
+					free(s_rxBuf);
+					s_rxBuf = NULL;
 					return true;
 				}
 				break;
@@ -472,6 +684,8 @@ static bool Lan_Click(int x, int y, bool *leave)
 				s_view = VIEW_SERVER;
 				s_field = FIELD_NONE;
 				Lan_ClearPlayers();
+				Lan_ScanSaves();
+				Lan_ChooseSave(-1);
 				g_lanServer = true;
 				g_lanMe = 0;
 				Lan_Status("RUN SERVER to be found.");
@@ -492,13 +706,22 @@ static bool Lan_Click(int x, int y, bool *leave)
 				return false;
 			}
 			s_field = FIELD_NONE;
-			/* map and level: the left half back, the right half on */
-			if (Lan_Over(110, 54, 170, 10)) {
+			if (s_xferring) return false;
+			/* game (new / a save), map and level: the left half back, the right half on */
+			if (Lan_Over(110, 52, 170, 10)) {
+				if (s_saveCount > 0) {
+					int n = s_saveCount + 1;	/* -1 .. count-1 */
+					Lan_ChooseSave((s_saveSel + 1 + (g_mouseX < 195 ? n - 1 : 1)) % n - 1);
+				}
+				return false;
+			}
+			if (s_saveSel >= 0 && (Lan_Over(110, 62, 170, 10) || Lan_Over(110, 72, 170, 10))) return false;
+			if (Lan_Over(110, 62, 170, 10)) {
 				g_lanMap = (g_lanMap + (g_mouseX < 195 ? Lan_MapCount() - 1 : 1)) % Lan_MapCount();
 				if (s_serving) Lan_SendLobby();
 				return false;
 			}
-			if (Lan_Over(110, 64, 170, 10)) {
+			if (Lan_Over(110, 72, 170, 10)) {
 				{
 					int n = Lan_LevelCount() - Lan_LevelMin() + 1;
 					g_lanLevel = (g_lanLevel - Lan_LevelMin() + (g_mouseX < 195 ? n - 1 : 1)) % n + Lan_LevelMin();
@@ -591,6 +814,11 @@ bool Lan_Menu(void)
 	s_serving = s_searching = s_connecting = false;
 	s_status[0] = 0;
 	Lan_ClearPlayers();
+	g_lanFromSave = false;
+	g_lanSaveMask = 0;
+	g_lanSaveDesc[0] = 0;
+	s_xferring = false;
+	s_saveSel = -1;
 
 	GUI_Mouse_Hide_Safe();
 	GUI_ClearScreen(SCREEN_0);
@@ -602,6 +830,13 @@ bool Lan_Menu(void)
 		uint16 key = 0;
 
 		if (s_netOk && Lan_Events()) start = true;
+		if (s_xferring && Lan_SendFile()) {
+			s_xferring = false;
+			free(s_xferBuf);
+			s_xferBuf = NULL;
+			Lan_SendStart(s_startSeed, s_startDelay);
+			start = true;
+		}
 		if (Input_IsInputAvailable() != 0) key = Input_Wait() & 0x8FF;
 		if (key == 0x41 || key == 0x42) {
 			if (Lan_Click(g_mouseClickX, g_mouseClickY, &leave)) start = true;
