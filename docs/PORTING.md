@@ -322,6 +322,13 @@ Pomiar, misja 5 (62×62, Harkonnen, `misja5`), przewijanie przy krawędzi + ruch
   ekran ma rozmiar trybu, a obraz jest wyśrodkowany (`s_reqW/H` = rozmiar gry, `s_width/height` =
   ekran). Licznik FPS w lewym dolnym rogu obrazu, nie ekranu.
 
+### Options → „Main menu” zamiast „Quit playing” (29.10.2026, życzenie użytkownika)
+
+Przycisk wraca do menu głównego (po pytaniu „Are you sure you want to quit playing?”) zamiast
+kończyć program – z menu można zagrać przez LAN; z programu wychodzi Exit Game w menu.
+`g_quitToMenu` z `widget_click.c`, `GameLoop_QuitToMenu` w pętli głównej (jak po grze LAN);
+podpis z `String_Get_ByIndex(STR_QUIT_PLAYING)`. Sprawdzone w WinUAE (misja 5 → menu → Play on LAN).
+
 ### Zoom widoku mapy (29.10.2026, jak w Settlers, decyzja użytkownika)
 
 - **Z** – po kolei ×1 → ×2 → ×3 → ×1; **kółko myszy** – stopień bliżej / dalej (RAWKEY 0x7A/0x7B,

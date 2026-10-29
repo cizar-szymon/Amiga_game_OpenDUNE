@@ -104,6 +104,11 @@ const char *String_GenerateFilename(const char *name)
  */
 char *String_Get_ByIndex(uint16 stringID)
 {
+#if defined(__amigaos__)
+	/* Options: the button goes back to the main menu (widget_click.c) */
+	static char mainMenu[] = "Main menu";
+	if (stringID == STR_QUIT_PLAYING) return mainMenu;
+#endif
 	return s_stringsBuffer + s_strings[stringID];
 }
 

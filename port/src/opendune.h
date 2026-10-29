@@ -34,6 +34,7 @@ extern bool   g_debugSkipDialogs;
 
 extern uint16 g_validateStrictIfZero;
 extern bool g_running;
+extern bool g_quitToMenu;	/* Amiga: Options -> Main menu (opendune.c) */
 extern uint16 g_selectionType;
 extern uint16 g_selectionTypeNew;
 extern bool g_viewport_forceRedraw;

@@ -914,7 +914,13 @@ bool GUI_Widget_Options_Click(Widget *w)
 						break;
 					}
 #endif
+#if defined(__amigaos__)
+					/* back to the main menu, not out of the program (from there a LAN
+					 * game can be played; Exit Game leaves): GameLoop_QuitToMenu */
+					if (!loop) g_quitToMenu = true;
+#else
 					g_running = loop;
+#endif
 
 					Sound_Output_Feedback(0xFFFE);
 

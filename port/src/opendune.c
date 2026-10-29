@@ -110,6 +110,7 @@ static uint8 s_enableLog = 0; /*!< 0 = off, 1 = record game, 2 = playback game (
 
 uint16 g_validateStrictIfZero = 0; /*!< 0 = strict validation, basically: no-cheat-mode. */
 bool g_running = true; /*!< true if game needs to keep running; false to stop the game. */
+bool g_quitToMenu = false;
 uint16 g_selectionType = 0;
 uint16 g_selectionTypeNew = 0;
 bool g_viewport_forceRedraw = false; /*!< Force a full redraw of the screen. */
@@ -696,6 +697,18 @@ static void GameLoop_LanEnd(int end)
 	s_menuRedraw = true;
 	g_gameMode = GM_MENU;
 }
+
+/* Options -> Main menu in a game of one player: the mission is left, the main
+ * menu comes (as after a LAN game) instead of the end of the program. */
+static void GameLoop_QuitToMenu(void)
+{
+	g_quitToMenu = false;
+	GUI_ChangeSelectionType(SELECTIONTYPE_MENTAT);
+	Sprites_UnloadTiles();
+	Music_Play(28);
+	s_menuRedraw = true;
+	g_gameMode = GM_MENU;
+}
 #else
 #define MUSIC_RANDOM(a, b) Tools_RandomLCG_Range(a, b)
 #endif
@@ -1244,7 +1257,9 @@ static void GameLoop_Main(void)
 		GUI_DisplayText(NULL, 0);
 
 #if defined(__amigaos__)
-		if (g_lanGame) {
+		if (g_quitToMenu) {
+			GameLoop_QuitToMenu();
+		} else if (g_lanGame) {
 			int end = Lan_CheckEnd();
 			if (end != 0) GameLoop_LanEnd(end);
 		} else
