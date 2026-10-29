@@ -15,7 +15,7 @@ import sys
 import time
 
 PROTOCOL = 1
-VERSION = b'0.01'
+VERSION = b'0.02'
 GAME = 16			# the first type of a frame of the game
 F_HELLO, F_BYE, F_PING, F_PONG = 1, 2, 3, 4
 MT_LOBBY, MT_PICK, MT_START, MT_TURN, MT_TURNALL, MT_SUM, MT_QUIT, MT_GONE = 1, 2, 3, 4, 5, 6, 7, 8
@@ -68,14 +68,14 @@ def main():
                 mt = t - GAME
                 if mt == MT_LOBBY:
                     me = data[0]
-                    pos = 2
+                    pos = 3	# me, map, level
                     players = []
                     for slot in range(3):
                         used, house = data[pos], data[pos + 1]
                         name = data[pos + 2:data.index(b'\0', pos + 2)]
                         pos = data.index(b'\0', pos + 2) + 1
                         players.append((used, house, name.decode('latin-1')))
-                    print('lobby: me %d map %d' % (me, data[1]), [(p[2], HOUSES.get(p[1], p[1])) for p in players if p[0]])
+                    print('lobby: me %d map %d level %d' % (me, data[1], data[2]), [(p[2], HOUSES.get(p[1], p[1])) for p in players if p[0]])
                     if not picked and players[0][1] != 0xFF:
                         taken = {p[1] for p in players if p[0]}
                         for h in (2, 1, 0):

@@ -1034,7 +1034,7 @@ uint16 Lan_FogOverlay(uint16 packed)
 
 static void Lan_SeeAround(tile32 position, uint16 radius)
 {
-	int x, y, i, j;
+	int x, y, i, j, k;
 	uint16 packed = Tile_PackTile(position);
 	tile32 centre;
 
@@ -1052,8 +1052,13 @@ static void Lan_SeeAround(tile32 position, uint16 radius)
 			Tile_MakeXY(t, x + i, y + j);
 			if (Tile_GetDistanceRoundedUp(centre, t) > radius) continue;
 			s_seen[p >> 3] |= 1 << (p & 7);
-			/* redraw it and its neighbours (fog borders), on the radar too */
+			/* redraw it and its four neighbours (their fog borders change;
+			 * Map_Update redraws only the tile itself), on the radar too */
 			Map_Update(p, 0, true);
+			for (k = 0; k < 4; k++) {
+				uint16 q = p + g_table_mapDiff[k];
+				if (!Tile_IsOutOfMap(q)) Map_Update(q, 0, true);
+			}
 			Map_MarkTileDirty(p);
 		}
 	}
