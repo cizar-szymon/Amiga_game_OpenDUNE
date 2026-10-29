@@ -331,7 +331,7 @@ ostatni. Gra może ruszyć już przy 2 graczach. Bez gracza komputerowego. Drugi
 | Okna LAN w menu (`gui/lan_menu_amiga.c`): START SERVER / JOIN SERVER, gracze, rody, mapa, START GAME | ✅ |
 | Lockstep (`lan_amiga.c`): rozkazy przez sieć, tury, suma kontrolna | ✅ 2 Amigi (Amiga 1 + WinUAE) + 3. gracz z PC (`tools/lan_peer.py`) – sumy równe do 75 s gry z rozkazami, budową, oknami |
 | Mapy (`tools/lan_maps.py` → `lan_maps.h`) | ✅ 36 map 64×64 z misji: 7 dla 3 graczy, 29 dla 2 |
-| Poziom 1–9 (start i technika jak w misji N) | ✅ sprawdzone poziomy 1 i 5 (Amiga 1 + WinUAE) |
+| Poziom 2–9 (start i technika jak w misji N) | ✅ sprawdzone poziomy 1, 2, 5 (Amiga 1/2 + WinUAE); poziomu 1 nie ma od 29.10: misja 1 nie ma koszar ani fabryki, nikt nie wygra (decyzja użytkownika) |
 | Koniec gry: przegrana / wygrana / wyjście (Options → Quit) / serwer zamknięty | ✅ |
 | Gra toczy się pod oknami (fabryka, Options, Mentat) | ✅ |
 | Walka: czołgi Atreidów niszczą Construction Yard Harkonnenów (wybuchy, piechota z budynku) | ✅ sumy równe do kroku 16800 (4,5 min) |
@@ -384,7 +384,7 @@ ostatni. Gra może ruszyć już przy 2 graczach. Bez gracza komputerowego. Drugi
   każdy gracz Construction Yard i kredyty poziomu. **Mapy:** każda z 36 map 64×64 misji; miejsca
   baz z wszystkich misji na tej mapie (różne misje stawiają bazy gdzie indziej), wybrane jak
   najdalej od siebie (≥ 16 pól): 7 map ma 3 miejsca, reszta 2 (START GAME tylko, gdy graczy nie
-  więcej niż miejsc). **Poziom N (1–9):** jak początek misji N rodu gracza (pierwszy scenariusz
+  więcej niż miejsc). **Poziom N (2–9; 1 usunięty – w misji 1 nie ma budynków wojskowych):** jak początek misji N rodu gracza (pierwszy scenariusz
   poziomu: 001, 002, 005, 008, 011, 014, 017, 020, 022): jego kredyty i jednostki, technika
   `g_campaignID = N − 1`. Jednostki stawia `Lan_PlaceStartUnits()` po wczytaniu (teren już jest):
   pierścienie wokół Construction Yard od drugiego (pierwszy wolny do budowy), najpierw skała,
