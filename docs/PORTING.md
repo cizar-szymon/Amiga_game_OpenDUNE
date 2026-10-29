@@ -284,8 +284,9 @@ Pomiar, misja 5 (62×62, Harkonnen, `misja5`), przewijanie przy krawędzi + ruch
   Workbencha, ICONS.LEAVEOUT). Start sprawdzony (intro).
 - `WorkSD:Games/OpenDUNE` na obu Amigach to instalacja użytkownika (NovaCoder) – nie zmieniać.
 - Ikona od 29.10 (życzenie użytkownika): ekran tytułowy z raportu F10 (BUG002-GAME.BMP, Amiga 2),
-  bez FPS, ramki menu i „V1.07”, pomniejszony do 160×100, 127 kolorów:
-  `python tools/make_icon.py build/amiga/OpenDUNE.info --frame tools/icon/title160.png --crop 0 0 160 100`.
+  bez FPS, ramki menu i „V1.07”, pomniejszony do 112×70 (o 30% mniej niż pierwsze 160×100),
+  119 kolorów; zaznaczona ma złotą, „podświetloną” ramkę (drugi obraz ikony, klasyczny i ColorIcon):
+  `python tools/make_icon.py build/amiga/OpenDUNE.info --frame tools/icon/title112.png --crop 0 0 112 70 --lit-frame`.
   Przy pierwszej instalacji nadpisano tam przez pomyłkę `opendune.ini`; przywrócone domyślnym
   z paczki NovaCodera (własne ustawienia użytkownika utracone).
 

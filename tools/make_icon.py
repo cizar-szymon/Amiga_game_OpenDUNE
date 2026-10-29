@@ -57,14 +57,17 @@ def chunk(name, data):
     return name + struct.pack(">I", len(data)) + data + pad
 
 
-def color_icon(idx, w, h, colors):
+def color_icon(images, w, h, colors):
+    """FORM ICON: FACE and one IMAG per image (normal, selected), one palette"""
     depth = max(1, (len(colors) - 1).bit_length())
-    pixels = rle_pack(idx, depth)
     palette = b"".join(struct.pack(">BBB", *c) for c in colors)
     face = struct.pack(">BBBBH", w - 1, h - 1, 0, 0x11, len(palette) - 1)
-    imag = struct.pack(">BBBBBBHH", 0, len(colors) - 1, 0x02, 1, 0, depth, len(pixels) - 1,
-                       len(palette) - 1) + pixels + palette
-    body = b"ICON" + chunk(b"FACE", face) + chunk(b"IMAG", imag)
+    body = b"ICON" + chunk(b"FACE", face)
+    for idx in images:
+        pixels = rle_pack(idx, depth)
+        imag = struct.pack(">BBBBBBHH", 0, len(colors) - 1, 0x02, 1, 0, depth, len(pixels) - 1,
+                           len(palette) - 1) + pixels + palette
+        body += chunk(b"IMAG", imag)
     return b"FORM" + struct.pack(">I", len(body)) + body
 
 
@@ -100,18 +103,34 @@ def tool_types(types):
     return out
 
 
-def disk_object(rgb, w, h, types):
-    gadget = struct.pack(">IhhhhHHHIIIIIHI", 0, 0, 0, w, h + 1, 0x0004, 0x0003, 0x0001,
-                         1, 0, 0, 0, 0, 0, 1)
+def disk_object(rgb, w, h, types, selected=None):
+    """selected: the image shown when the icon is selected (else the colours inverted)"""
+    flags = 0x0006 if selected else 0x0004	# GADGIMAGE | GADGHIMAGE (two images)
+    gadget = struct.pack(">IhhhhHHHIIIIIHI", 0, 0, 0, w, h + 1, flags, 0x0003, 0x0001,
+                         1, 1 if selected else 0, 0, 0, 0, 0, 1)
     head = struct.pack(">HH", 0xE310, 1) + gadget + struct.pack(
         ">BBIIiiIII", 3, 0, 0, 1 if types else 0, -0x80000000, -0x80000000, 0, 0, 16384)
     image = struct.pack(">hhhhhIBBI", 0, 0, w, h, 2, 1, 3, 0, 0) + planar(rgb, w, h)
-    colors = sorted(set(rgb))
+    if selected:
+        image += struct.pack(">hhhhhIBBI", 0, 0, w, h, 2, 1, 3, 0, 0) + planar(selected, w, h)
+    colors = sorted(set(rgb) | set(selected or []))
     if len(colors) > 256:
         raise SystemExit("more than 256 colours")
     remap = {c: i for i, c in enumerate(colors)}
-    return head + image + (tool_types(types) if types else b"") + \
-        color_icon([remap[c] for c in rgb], w, h, colors)
+    images = [[remap[c] for c in rgb]] + ([[remap[c] for c in selected]] if selected else [])
+    return head + image + (tool_types(types) if types else b"") + color_icon(images, w, h, colors)
+
+
+def lit_frame(rgb, w, h, width=3):
+    """the selected image: the picture with a lit (gold) frame round it"""
+    out = list(rgb)
+    shades = [(255, 230, 120), (255, 200, 60), (200, 140, 20)]	# outside -> inside
+    for y in range(h):
+        for x in range(w):
+            d = min(x, y, w - 1 - x, h - 1 - y)
+            if d < width:
+                out[y * w + x] = shades[min(d, len(shades) - 1)]
+    return out
 
 
 def main():
@@ -121,13 +140,19 @@ def main():
     ap.add_argument("--crop", nargs=4, type=int, required=True, metavar=("X", "Y", "W", "H"))
     ap.add_argument("--preview")
     ap.add_argument("--tooltypes", nargs="*", default=[])
+    ap.add_argument("--lit-frame", action="store_true", help="selected image: a lit frame round the picture")
     args = ap.parse_args()
     x, y, w, h = args.crop
     img = Image.open(args.frame).convert("RGB").crop((x, y, x + w, y + h))
     rgb = list(img.getdata())
-    open(args.out, "wb").write(disk_object(rgb, w, h, args.tooltypes))
+    selected = lit_frame(rgb, w, h) if args.lit_frame else None
+    open(args.out, "wb").write(disk_object(rgb, w, h, args.tooltypes, selected))
     if args.preview:
         img.resize((w * 6, h * 6), Image.NEAREST).save(args.preview)
+        if selected:
+            sel = Image.new("RGB", (w, h))
+            sel.putdata(selected)
+            sel.resize((w * 6, h * 6), Image.NEAREST).save(args.preview.replace(".png", "-selected.png"))
     print(f"{args.out}: {w}x{h}, {len(set(rgb))} colours, tool types {args.tooltypes}")
 
 
