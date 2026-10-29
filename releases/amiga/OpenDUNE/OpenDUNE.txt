@@ -49,21 +49,32 @@ Dane moga lezec gdzie indziej - wtedy w opendune.ini: datadir=Work:Dune2/
 (katalog z plikami .PAK).
 
 
-MUZYKA (nie ma jej w paczce)
-----------------------------
+MUZYKA (nagrywa ja program MakeMusic)
+-------------------------------------
 
 Muzyka to nagrania oryginalnej muzyki AdLib z gry (tez chronionej), wiec
-kazdy robi je sam z wlasnych danych, raz, na PC:
+nie ma jej w paczce - kazdy nagrywa ja sam z wlasnych danych gry, raz,
+na samej Amidze:
 
-1. Na PC: Python 3 z numpy, ffmpeg i Docker.
-2. Ze zrodel (github.com/cizar-szymon/Amiga_game_OpenDUNE):
-     python tools/music/make_music.py --data KATALOG_Z_PLIKAMI_PAK
-   Nagrania (33 pliki .RAW, ok. 75 MB) trafia do build/music.
-3. Skopiuj pliki .RAW na Amige do katalogu OpenDUNE/MUSIC.
+1. Dane gry (SOUND.PAK) musza juz byc w OpenDUNE/data (albo tam, gdzie
+   wskazuje datadir= w opendune.ini).
+2. Dwuklik na ikonie MakeMusic (albo w Shellu, w katalogu OpenDUNE:
+   MakeMusic). Program gra muzyke na emulatorze ukladu AdLib i zapisuje
+   nagrania (34 pliki .RAW, ok. 75 MB) do OpenDUNE/MUSIC.
+3. Trwa to ok. 35 minut na 68060 @ 100 MHz (dluzej na wolniejszym
+   procesorze) - w oknie widac postep, utwor po utworze. Na koncu
+   Return zamyka okno.
+
+W Shellu mozna podac inne katalogi: MakeMusic KATALOG_DANYCH KATALOG_MUZYKI
 
 Bez katalogu MUSIC gra dziala normalnie, tylko bez muzyki. Muzyke
 wlacza/wylacza Options -> Game controls -> Music; glosnosc:
 music_volume=0..64 w opendune.ini (domyslnie 40).
+
+To samo da sie zrobic na PC (szybciej): ze zrodel
+(github.com/cizar-szymon/Amiga_game_OpenDUNE) python
+tools/music/make_music.py --data KATALOG_Z_PLIKAMI_PAK (Python 3, numpy,
+ffmpeg, Docker), pliki .RAW z build/music do OpenDUNE/MUSIC.
 
 
 INSTALACJA

@@ -24,6 +24,9 @@ mkdir -p "$R/OpenDUNE/data" "$R/OpenDUNE/MUSIC"
 cp build/amiga/OpenDUNE.s "$R/OpenDUNE/OpenDUNE"
 python tools/make_icon.py "$R/OpenDUNE/OpenDUNE.info" --frame tools/icon/title112.png --crop 0 0 112 70 --lit-frame >/dev/null 2>&1
 python tools/make_icon.py "$R/OpenDUNE.info" --frame tools/icon/title112.png --crop 0 0 112 70 --lit-frame --drawer >/dev/null 2>&1
+[ -f build/amiga/MakeMusic ] || { echo "build/amiga/MakeMusic missing: tools/music/amiga/build.sh first" >&2; exit 1; }
+cp build/amiga/MakeMusic "$R/OpenDUNE/MakeMusic"	# records the music on the Amiga
+python tools/make_icon.py "$R/OpenDUNE/MakeMusic.info" --frame tools/icon/makemusic64.png --crop 0 0 64 40 --lit-frame >/dev/null 2>&1
 cp "$D/opendune.ini" "$D/OpenDUNE.txt" "$D/OpenDUNE_en.txt" "$D/OpenDUNE_release.txt" "$D/OpenDUNE_release_en.txt" "$R/OpenDUNE/"
 cp COPYING "$R/OpenDUNE/COPYING"			# GPL-2.0, goes with the program
 cp "$D/data_ReadMe.txt" "$R/OpenDUNE/data/ReadMe.txt"

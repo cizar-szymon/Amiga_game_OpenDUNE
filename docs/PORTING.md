@@ -510,6 +510,28 @@ Serwer Amiga 1 (Harkonnen, Warp1260X @ 100 MHz, 640×360, `lan_info=1`, `debug_s
   Amidze 1 przejście menu → Workbench → Amiga+M daje czyste górne wiersze. Do potwierdzenia przez
   użytkownika na ekranie końca misji.
 
+### MakeMusic – nagrywanie muzyki na samej Amidze (30.10.2026, życzenie użytkownika)
+- `tools/music/amiga/`: `makemusic.cpp` + z AdPlug 2.3.3 `adl.cpp/adl.h` (odtwarzacz Westwood ADL),
+  `emuopl.*`, `fmopl.*` (emulator OPL2 z MAME, liczby całkowite; tablice raz przez double), własne
+  zastępcze `player.h`, `fprovide.h` (plik ADL z pamięci), `debug.h`. LGPL-2.1 (zgodna z GPL).
+  `build.sh` → `build/amiga/MakeMusic` (bebbo g++ 6.5, -O1, -mtune=68060, bez FPU), 182 KB.
+- Ten sam algorytm co `make_music.py`: 37 utworów `g_table_musics`, wprost 22030 Hz, jedno
+  wzmocnienie dla wszystkich (szczyt emulatora 16331 → 127 przy stałej 16384), pętla po nutach
+  uderzanych w takcie (najkrótszy okres w granicach 1 punktu od najlepszego, start od 3 punktów),
+  utwory zapętlone nagrywane do 400 s (pętle do 183 s). Ten sam format `ODMU`.
+- Ścieżki: z ikony `datadir=` i `music_dir=` z `PROGDIR:opendune.ini` gry, domyślnie
+  `PROGDIR:data` → `PROGDIR:MUSIC`; w Shellu `MakeMusic KATALOG_DANYCH KATALOG_MUZYKI`
+  (bez „/” po nazwie woluminu); z ikony okno czeka na Return. Ikona 64×40 z ekranu tytułowego.
+- Wynik wobec PC (Nuked OPL3): te same długości i pętle co 33 nagrania z `make_music.py`, obwiednie
+  0,94–0,99 (0,67–0,75 tam, gdzie efekty losowe sterownika poszły inaczej), ta sama głośność;
+  jeden utwór więcej – `DUNE17_4` (dźwięk 162, muzyka gry nr 5), na którym AdPlug z Nuked się
+  wysypywał. Razem 34 nagrania, 3 ciche.
+- Amiga 1 (Warp1260X 68060 @ 100 MHz): całość **2034 s (34 min)**, ok. 3× szybciej niż czas
+  odtwarzania (utwór zapętlony, 400 s dźwięku: 115–149 s). Pliki z Amigi identyczne bajt w bajt
+  z wersją PC tego samego programu; gra odtwarza je (`music_dir=RAM:mm`, menu: `DUNE7_6`).
+- W paczce wydania (`tools/make_release.sh`) razem z ikoną; opisy dla graczy: „dwuklik na
+  MakeMusic”, droga przez PC jako alternatywa.
+
 ### Platforma testowa Pi400 + Amiberry (29.10.2026)
 - Raspberry Pi 400 (Debian 13, labwc), Amiberry 8.5.0, konfiguracja jak WinUAE:
   `~/Amiberry/Configurations/OpenDUNE_A1200_OS32_net.uae` (68060 + JIT, Z3 256 MB, RTG 32 MB,

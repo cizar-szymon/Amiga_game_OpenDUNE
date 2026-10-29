@@ -49,21 +49,32 @@ The data can be elsewhere - then in opendune.ini: datadir=Work:Dune2/
 (the directory with the .PAK files).
 
 
-MUSIC (not in the archive)
---------------------------
+MUSIC (recorded by MakeMusic)
+-----------------------------
 
 The music is a recording of the game's original AdLib music (copyrighted
-too), so everyone makes it from their own data, once, on a PC:
+too), so it is not in the archive - everyone records it from their own
+game data, once, on the Amiga itself:
 
-1. On the PC: Python 3 with numpy, ffmpeg and Docker.
-2. From the sources (github.com/cizar-szymon/Amiga_game_OpenDUNE):
-     python tools/music/make_music.py --data DIRECTORY_WITH_THE_PAK_FILES
-   The recordings (33 .RAW files, about 75 MB) go to build/music.
-3. Copy the .RAW files to the Amiga into OpenDUNE/MUSIC.
+1. The game data (SOUND.PAK) must be in OpenDUNE/data already (or where
+   datadir= in opendune.ini points).
+2. Double-click the MakeMusic icon (or in the Shell, in the OpenDUNE
+   directory: MakeMusic). It plays the music on an emulated AdLib chip and
+   writes the recordings (34 .RAW files, about 75 MB) into OpenDUNE/MUSIC.
+3. It takes about 35 minutes on a 68060 at 100 MHz (longer on a slower
+   CPU) - the window shows the progress, piece by piece. At the end
+   Return closes the window.
+
+In the Shell other directories can be given: MakeMusic DATA_DIR MUSIC_DIR
 
 Without the MUSIC directory the game runs as well, only without music.
 Music on/off: Options -> Game controls -> Music; volume: music_volume=0..64
 in opendune.ini (default 40).
+
+The same can be done on a PC (quicker): from the sources
+(github.com/cizar-szymon/Amiga_game_OpenDUNE) python
+tools/music/make_music.py --data DIRECTORY_WITH_THE_PAK_FILES (Python 3,
+numpy, ffmpeg, Docker), the .RAW files from build/music to OpenDUNE/MUSIC.
 
 
 INSTALLATION

@@ -7,6 +7,15 @@ z OpenDUNE/saves - F10 zapisuje bugNNN.txt, bugNNN.dat i bugNNN-*.bmp.
 Zgloszenia: github.com/cizar-szymon/Amiga_game_OpenDUNE (Issues).
 
 
+0.49 (30.10.2026)
+-----------------
+
+- MakeMusic: program na Amige, ktory sam nagrywa muzyke gry z wlasnych
+  danych gracza (SOUND.PAK) do katalogu MUSIC - bez PC. Dwuklik na ikonie
+  MakeMusic, ok. 35 minut na 68060 @ 100 MHz. Nagrywa tez utwor, ktorego
+  nie bylo w nagraniach z PC (muzyka nr 5).
+
+
 0.48 (29.10.2026)
 -----------------
 

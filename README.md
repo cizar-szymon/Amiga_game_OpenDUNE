@@ -34,15 +34,17 @@ not link to downloads: copy them from **your own original copy** (version 1.07 i
 
 ### Music
 
-Recordings of the game's AdLib music, made once on a PC from your own data (they are not
-distributed either): `python tools/music/make_music.py --data <directory with the .PAK files>`
-(Python 3 + numpy, ffmpeg, Docker) → `build/music/*.RAW` → copy to `OpenDUNE/MUSIC` on the Amiga.
-Without them the game runs without music.
+Recordings of the game's AdLib music, made once from your own data (they are not distributed
+either): on the Amiga double-click **MakeMusic** (in the release; about 35 minutes on a 68060 at
+100 MHz, writes `OpenDUNE/MUSIC`), or on a PC `python tools/music/make_music.py --data <directory
+with the .PAK files>` (Python 3 + numpy, ffmpeg, Docker) and copy `build/music/*.RAW` to
+`OpenDUNE/MUSIC`. Without them the game runs without music.
 
 ## Build
 
 - `tools/build.sh` – the program, in Docker (bebbo m68k-amigaos-gcc 6.5): `build/amiga/OpenDUNE`
 - `tools/make_release.sh` – `releases/amiga` and the ZIP archive (`tools/make_zip.py`, Amiga protection bits kept)
+- `tools/music/amiga/build.sh` – MakeMusic (AdPlug's ADL player + MAME's OPL2 emulator, LGPL-2.1)
 - `tools/make_doc_pdf.py` – the documentation as a PDF
 - the release number: `port/VERSION`
 
