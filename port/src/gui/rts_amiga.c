@@ -52,6 +52,7 @@
 #include "../table/strings.h"
 #include "rts_amiga.h"
 #include "../lan_amiga.h"
+#include "../lang_amiga.h"
 
 #if defined(__amigaos__)
 /* a LAN game: the interface draws its own random numbers, never the simulation's */
@@ -255,7 +256,7 @@ static void RTS_SelectRect(int x0, int y0, int x1, int y1)
 		if (u != NULL) Unit_UpdateMap(2, u);	/* redraw with the mark */
 	}
 	if (s_groupCount > 1) {
-		GUI_DisplayText("Squad of %d units.", 2, s_groupCount);
+		GUI_DisplayText(Lang_T("Squad of %d units."), 2, s_groupCount);
 		GUI_Widget_ActionPanel_Draw(true);	/* SQUAD in the sidebar */
 	}
 }
@@ -475,9 +476,9 @@ static void RTS_Pause(void)
 			s_paused = !s_paused;
 			Timer_SetTimer(TIMER_GAME, !s_paused);
 			if (s_paused) {
-				GUI_DisplayText("Game paused - press P to continue.", 3);
+				GUI_DisplayText(Lang_T("Game paused - press P to continue."), 3);
 			} else {
-				GUI_DisplayText("Game continues.", 3);
+				GUI_DisplayText(Lang_T("Game continues."), 3);
 			}
 		}
 	}

@@ -14,6 +14,7 @@
 | 2c. Sterowanie: zaznaczanie prostokątem, rozkaz prawym przyciskiem (`gui/rts_amiga.c`, `rts_controls=1`) | ✅ 28.10 (ruch grupy sprawdzony) |
 | 3. Muzyka: nagrania muzyki AdLib zrobione raz na PC (`tools/music/make_music.py`), odtwarzane z dysku przez Paulę (`music_amiga.c`), niżej „Muzyka” | ✅ |
 | 4. Ikona, Tool Types, numer wydania, opisy | ⏳ |
+| 5. Języki: niemiecki (pliki `.GER` gracza), polski (własny przekład, `lang/POLISH.PAK`, litery w czcionkach), wybór w Game controls – niżej „Języki” | ✅ kod i PC 30.10, ⏳ test na Amidze |
 
 ## Źródła
 
@@ -802,3 +803,127 @@ Gra bierze teraz, gdy 1. da 0.0.0.0, pierwszy interfejs nie-127 z `SIOCGIFCONF`.
   „Settlers LAN 6810” – tylko za zgodą użytkownika).
 - Ślad kursora na zakrytym mgłą (czarnym) polu w grze jednoosobowej przy ruchach z `od.py` –
   jest też na `main`, nie od LAN.
+
+## Języki: polski i niemiecki (gałąź `lang-pl-de`, 30.10.2026, życzenie użytkownika)
+
+Wszystkie teksty gry po angielsku, niemiecku albo polsku; wybór w Options → Game controls →
+**Language** (nowy wiersz pod Show FPS, każde kliknięcie: następny język, którego pliki są).
+
+### Decyzje (użytkownik)
+
+- **Niemiecki** = oryginalne teksty Westwood z danych gracza (nie ma ich w repozytorium).
+  Pliki `.GER` w katalogu danych (luzem obok `.PAK` albo w `GERMAN.PAK`). Przetłumaczone
+  (w programie) są tylko własne teksty portu.
+- **Polski** = własny przekład wszystkich tekstów: gra (odprawy, komunikaty, nazwy i opisy,
+  pomoc mentata, napisy intro i zakończeń, teksty mapy między misjami, napisy końcowe) i port.
+  Polskie litery dorysowane do czcionek gry.
+
+### Pliki `.GER` z Amigi (sprawdzone `tools/lang/check_lang.py`)
+
+| Plik | Format wobec PC | Co robi gra |
+|---|---|---|
+| DUNE, MESSAGE, INTRO, TEXTA/H/O, PROTECT | jak PC (kodowanie CP437, ten sam skrót par liter), tylko **tabela przesunięć big endian** | `String_Load` rozpoznaje kolejność bajtów (`String_IsBigEndian`: pierwsze przesunięcie = rozmiar tabeli, parzyste, w pliku) |
+| MENTATA/H/O | IFF FORM MENT – jak PC | bez zmian |
+| CREDITS | tekst jak PC (lista ekipy wersji Amiga) | bez zmian |
+| BTTN, CHOAM, MENTAT (SHP), AND, HERALD, MISC, TITLE (CPS) | **inny format**: obrazy planarne 5 bitplanów (40000 bajtów, paleta 32 kolory), kształty big endian | `String_GenerateGfxFilename` bierze `.GER` tylko w formacie PC (CPS: 64000 bajtów obrazu; SHP: liczba kształtów LE < 256), inaczej `.ENG` |
+| SCREENA/H/O, NEW6P, DUNEGAME, INTRO1A | tylko Amiga (ekrany, czcionka Amigi, muzyka) | nieużywane; czcionka niemiecka: `NEW6PG.FNT` z `DUNE.PAK` (PC) |
+
+Liczby: angielski 941 identyfikatorów tekstów (939 z treścią), niemiecki 899 (PROTECT ma 374
+napisy zamiast 416 – mniej pytań zabezpieczenia; identyfikatory 0–524 te same), MENTATA/O po
+niemiecku 49 tematów (angielskie 47, kolejność alfabetyczna niemiecka – plik czytany sam w sobie).
+
+Głosy: `Sound_VoiceLanguage()` – francuskie/niemieckie tylko, gdy są ich pliki (`FAFFIRM.VOC`,
+`GAFFIRM.VOC`, `GERMAN.PAK` PC); inaczej angielskie (Amiga `.GER` ich nie ma, polski też).
+Wcześniej przy `language=german` gra szukała głosów `G*.VOC`, których w danych Amigi nie ma.
+
+### Polski: gdzie co jest
+
+| Co | Gdzie |
+|---|---|
+| Przekład (źródło, UTF-8) | `tools/lang/polish/*.txt` – DUNE, MESSAGE, INTRO, TEXTA/H/O (numer = numer napisu w pliku `.ENG`), MENTATA/H/O (tematy pomocy), REGIONA/H/O (teksty mapy), CREDITS |
+| Plik dla gry | `tools/lang/make_polish.py` → `build/lang/POLISH.PAK` (DUNE.POL … w układzie plików `.ENG`, REGION?.POL – ini z kluczami `POLTXTn`); na Amidze `PROGDIR:lang/POLISH.PAK` |
+| Ładowanie | `file.c`: PAK-i z `PROGDIR:lang` rejestrowane pełną ścieżką (`_File_Init_LangCallback`, `File_MakeCompleteFilename` z `:` w nazwie bierze ją wprost); `String_GenerateFilename` – plik języka albo `.ENG`, gdy go nie ma |
+| Litery | `port/src/gui/font_polish.c` – rysunki w kodzie, kodowanie **ISO-8859-2** |
+| Teksty portu (DE i PL) | `tools/lang/port_strings.txt` → `make_port_strings.py` → `port/src/lang_strings.h`; w kodzie `Lang_T("...")` (`lang_amiga.c`) |
+
+Nie przetłumaczone (świadomie): pytania zabezpieczenia przed kopiowaniem (`PROTECT`, tylko z
+`copy_protection=1`; odpowiedzi są w angielskiej instrukcji) – gra bierze `PROTECT.ENG`.
+Obrazki z napisami (przyciski MENTAT/OPTIONS, ekran tytułowy) zostają angielskie.
+
+Kolejność słów: po polsku nazwa przed rodem, jak po francusku („Czołg Atreides”, trzy miejsca:
+`script/structure.c`, `script/unit.c`, `unit.c`); komunikaty bez rodzaju gramatycznego
+(„Zniszczono: %s %s.”, „Rafineria Atreides – zniszczono.”, „ – ładunek %d%%”). Podpowiedź o
+czerwiach (oryginał: tylko po angielsku) także po polsku.
+
+### Litery (czcionki 8-bitowe, ISO-8859-2)
+
+| | ą | ć | ę | ł | ń | ó | ś | ź | ż | Ą | Ć | Ę | Ł | Ń | Ó | Ś | Ź | Ż |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| kod | B1 | E6 | EA | B3 | F1 | F3 | B6 | BC | BF | A1 | C6 | CA | A3 | D1 | D3 | A6 | AC | AF |
+
+Kody poza CP437 niemieckim/francuskim (0x80–0x9A, 0xE1), więc nie kolidują z umlautami.
+Czcionki mają po 226 znaków (NEW6P, NEW6PG, NEW8P) – `Font_LoadFile` robi zawsze 256 (reszta
+pusta, `Font.count` uint16), więc każdy bajt tekstu da się narysować. Polskie litery dokłada
+`Font_AddPolish` (tylko przy języku polskim):
+
+- rysunek to sama „twarz” litery (`#`, kolor 1); jasna krawędź (3) i cień (2) dokładane
+  regułą `Font_Emboss`, którą sprawdziłem na oryginale: daje dokładnie 47 z 52 liter A–Z a–z
+  NEW6P i NEW8P (reszta różni się pojedynczym pikselem cienia);
+- NEW6P (8 wierszy, same wielkie litery): akcent w wierszu 0, litera wiersz niżej i o wiersz
+  niższa – jak Ä Ö Ü w niemieckiej NEW6PG Westwood; ogonek w wierszach 6–7; małe = wielkie;
+- NEW8P (11 wierszy): akcent małych liter w wierszach 0–1 jak w „é”, wielkie z akcentem jak
+  „É” (litera o wiersz niższa), ogonek pod linią jak w „ç”;
+- inne czcionki (INTRO.FNT z INTRO.PAK, gdy jest): litera bez znaku.
+
+Obrazy: `tools/lang/render_fonts.py DATA build/lang` → `build/lang/polish_glyphs.png`
+(litery powiększone obok zwykłych), `build/lang/polish_text.png` (zdania jak w grze, styl 0x22).
+
+### Wybór języka, zapamiętanie
+
+- Options → Game controls: okno o dwa wiersze wyższe (Show FPS, Language; 168 wierszy,
+  y 31–199), widżety -33 (nazwa języka w nim samym: English / Deutsch / Polski) i -34 („Language”).
+  `Lang_Next` pomija języki bez plików (`String_LanguageAvailable`: `DUNE.GER`, `DUNE.POL`).
+- Zapis: `saves/LANGUAGE.CFG` (`POLISH` / `GERMAN` / `ENGLISH`); kolejność przy starcie:
+  `dune.cfg` → `language=` z ini → `LANGUAGE.CFG` (`Lang_Init` po `SetLanguage_From_IniFile`);
+  język bez plików → angielski.
+- **Zmiana w menu głównym**, nie od razu: `Lang_ApplyChosen()` w `GameLoop_GameIntroAnimationMenu`
+  wczytuje teksty i czcionki od nowa (`String_Uninit/Init`, `Font_Uninit/Init`), menu rysowane
+  od nowa. W trakcie misji wiele miejsc trzyma wskaźniki do tekstów (pomoc mentata, przyciski,
+  komunikat), więc zmiana w locie byłaby ryzykowna; po wyborze w grze komunikat „The language
+  changes in the main menu.” Obrazki z napisami i głosy (tylko z danymi PC w innym języku)
+  zmieniają się dopiero po ponownym uruchomieniu.
+- Górny pasek LOAD/SAVE: duże litery składane z liter przycisków MENTAT/OPTIONS znają tylko
+  L O A D S V E – w innych językach napis czcionką 8 px (styl 1 lub 0).
+
+### Sprawdzenie bez Amigi
+
+`python tools/lang/check_lang.py data build/data_ger` (dane gracza tylko do odczytu):
+niemieckie pliki tą samą logiką co `String_Load` (kolejność bajtów, pomijanie pustych,
+numeracja), polski PAK ładowany jak w grze (brak PROTECT → ENG): 941 identyfikatorów jak po
+angielsku, 0 braków, te same `%d %s` w każdym napisie, te same znaki `\r`, tematy mentata z
+tymi samymi flagami i animacjami, wszystkie klucze mapy; szerokości w pikselach napisów z
+miejsc o stałym rozmiarze (przyciski, panel boczny – nie szersze niż angielski/niemiecki albo
+znane miejsce: 64 px panelu, 80 px przycisków) i tekstów portu (`px:` w `port_strings.txt`).
+Na koniec ten sam kod gry na PC: `tools/lang/host_check.c` (kompiluje `string.c`, `gui/font.c`,
+`gui/font_polish.c` gcc z MSYS2, `HOST_GCC=` inny) czyta te same pliki – ENG 941, GER 899,
+POL 941 napisów identycznych z modelem w Pythonie, nazwy obrazków (`.GER` z Amigi → `.ENG`),
+36 z 36 polskich liter w NEW6P/NEW8P zgodnych z rysunkami.
+Wynik 30.10: 0 błędów, 8 ostrzeżeń o szerokości (wszystkie sprawdzone: czcionka 8 px tam, gdzie
+gra rysuje 6 px, albo miejsce szersze). Obok siebie EN | PL: `build/lang/polish_review.txt`.
+Bufor tekstów: polski 36 865 bajtów (`MAX_CHARACTER_COUNT` podniesiony z 48 do 60 KB,
+`String_Load` sprawdza teraz miejsce).
+
+### Czy przekład może być publiczny – decyzja użytkownika
+
+Przekład to tłumaczenie tekstów Westwood (utwór zależny). **Decyzja użytkownika (30.10.2026):
+polski tylko lokalnie** – `tools/lang/polish/` jest w `.gitignore` (nie ma go w publicznym
+repozytorium ani w historii `main`, gałąź `lang-pl-de` tylko na tym PC), `make_release.sh` dokłada
+`lang/POLISH.PAK` wyłącznie do pełnej paczki w `private/`. Publiczne są litery (`font_polish.c`),
+teksty portu (`port_strings.txt`) i narzędzia.
+
+### Do sprawdzenia na Amidze
+
+- Wybór języka w Game controls, zmiana w menu głównym, start z `LANGUAGE.CFG`.
+- Niemieckie `.GER` z Amigi w `data`: menu, mentat, misja, napisy końcowe.
+- Polski: napisy w panelu bocznym (nazwy 6 px), okno LAN, Amiga info, pomoc mentata,
+  mapa między misjami, intro (napisy czcionką 8 px, gdy nie ma INTRO.FNT).

@@ -46,6 +46,9 @@
 #include "../timer.h"
 #include "../lan_amiga.h"
 #include "../os/amiga_prof.h"
+#include "../config.h"
+#include "../string.h"
+#include "../lang_amiga.h"
 
 extern bool Video_ScrollView(int16 dx, int16 dy, int16 x, int16 y, int16 w, int16 h);
 
@@ -683,10 +686,12 @@ void Layout_DrawLoadSaveButton(Screen screenID)
 		GUI_DrawText_Wrapper(NULL, 0, 0, 0, 0, 0x22);
 		for (i = 0; i < 2; i++) {
 			tw[i] = Layout_MakeWord(scratch, s_buttons[i].word, fg);
-			ws[i] = Font_GetStringWidth(s_buttons[i].word) + 8;
+			ws[i] = Font_GetStringWidth(Lang_T(s_buttons[i].word)) + 8;
 		}
 		s_buttonStyle = -1;
-		for (k = 0; k < lengthof(s_barLayouts); k++) {
+		/* the large lettering knows the letters of LOAD and SAVE only: the
+		 * words of the other languages in the font */
+		for (k = 0; k < lengthof(s_barLayouts) && g_config.language == LANGUAGE_ENGLISH; k++) {
 			const BarLayout *b = &s_barLayouts[k];
 			if (b->loadX + tw[0] + tw[1] + 4 * b->margin + b->gap <= room) {
 				s_bar = b;
@@ -733,7 +738,7 @@ void Layout_DrawLoadSaveButton(Screen screenID)
 				} else {
 					/* as the OPTIONS lettering: its colour, a dark gold edge
 					 * (not the font's black outline), at the top of the button */
-					const char *word = s_buttonStyle == 1 ? s_buttons[i].word : "LOAD/SAVE";
+					const char *word = Lang_T(s_buttonStyle == 1 ? s_buttons[i].word : "LOAD/SAVE");
 					GUI_DrawText_Wrapper(word, bx + w / 2 + 1, 4, shade, 0, 0x112);
 					GUI_DrawText_Wrapper(word, bx + w / 2, 3, fg, 0, 0x112);
 				}

@@ -209,7 +209,7 @@ static void GameLoop_PlaySubtitle(uint8 animation)
 
 	GUI_DrawFilledRectangle(0, subtitle->top == 85 ? 0 : subtitle->top, SCREEN_WIDTH - 1, SCREEN_HEIGHT - 1, 0);
 
-	if (g_enableVoices != 0 && s_feedback_base_index != 0xFFFF && s_houseAnimation_currentSubtitle != 0 && g_config.language == LANGUAGE_ENGLISH) {
+	if (g_enableVoices != 0 && s_feedback_base_index != 0xFFFF && s_houseAnimation_currentSubtitle != 0 && Sound_VoiceLanguage() == LANGUAGE_ENGLISH) {
 		/* specific code for Intro
 		 * @see GameLoop_GameIntroAnimation() */
 		uint16 feedback_index = s_feedback_base_index + s_houseAnimation_currentSubtitle;
@@ -995,7 +995,7 @@ static void Gameloop_Logos(void)
 	GFX_ClearScreen(SCREEN_ACTIVE);
 
 	if (File_Exists("AND.CPS")) Sprites_LoadImage("AND.CPS", SCREEN_1, g_palette_998A);
-	else Sprites_LoadImage(String_GenerateFilename("AND"), SCREEN_1, g_palette_998A);
+	else Sprites_LoadImage(String_GenerateGfxFilename("AND", true), SCREEN_1, g_palette_998A);
 
 	GUI_Screen_Copy(0, 0, 0, 0, SCREEN_WIDTH / 8, SCREEN_HEIGHT, SCREEN_1, SCREEN_0);
 

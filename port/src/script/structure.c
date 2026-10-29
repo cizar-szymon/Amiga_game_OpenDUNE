@@ -629,7 +629,7 @@ uint16 Script_Structure_Destroy(ScriptEngine *script)
 	if (g_debugScenario) return 0;
 	if (s->o.houseID != LOCAL_HOUSE_ID) return 0;
 
-	if (g_config.language == LANGUAGE_FRENCH) {
+	if (g_config.language == LANGUAGE_FRENCH || g_config.language == LANGUAGE_POLISH) {	/* the building first */
 		GUI_DisplayText("%s %s %s", 0, String_Get_ByIndex(g_table_structureInfo[s->o.type].o.stringID_full), g_table_houseInfo[s->o.houseID].name, String_Get_ByIndex(STR_IS_DESTROYED));
 	} else {
 		GUI_DisplayText("%s %s %s", 0, g_table_houseInfo[s->o.houseID].name, String_Get_ByIndex(g_table_structureInfo[s->o.type].o.stringID_full), String_Get_ByIndex(STR_IS_DESTROYED));

@@ -82,7 +82,7 @@ WindowDesc g_gameControlWindowDesc = {
 	/* stringID    */ STR_GAME_CONTROLS,
 	/* addArrows   */ false,
 #if defined(__amigaos__)
-	/* widgetCount */ 7,
+	/* widgetCount */ 8,
 #else
 	/* widgetCount */ 6,
 #endif
@@ -143,9 +143,18 @@ WindowDesc g_gameControlWindowDesc = {
 		/* shortcut2     */ 0,
 		},
 		{ /* 6 */
+		/* stringID      */ -33, /* the language (Amiga, gui.c, lang_amiga.c) */
+		/* offsetX       */ 152,
+		/* offsetY       */ 124,
+		/* width         */ 80,
+		/* height        */ 15,
+		/* labelStringID */ (uint16)-34,
+		/* shortcut2     */ 0,
+		},
+		{ /* 7 */
 		/* stringID      */ STR_PREVIOUS,
 		/* offsetX       */ 96,
-		/* offsetY       */ 127,
+		/* offsetY       */ 144,
 		/* width         */ 136,
 		/* height        */ 15,
 		/* labelStringID */ STR_NULL,

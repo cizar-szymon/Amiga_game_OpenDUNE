@@ -13,7 +13,7 @@ typedef struct FontChar {
 typedef struct Font {
 	uint8 height;
 	uint8 maxWidth;
-	uint8 count;
+	uint16 count; /*!< 256: the chars the file does not have are empty. */
 	FontChar *chars;
 } Font;
 
@@ -30,5 +30,6 @@ extern void Font_Uninit(void);
 extern uint16 Font_GetCharWidth(unsigned char c);
 extern uint16 Font_GetStringWidth(const char *string);
 extern void Font_Select(Font *f);
+extern void Font_AddPolish(Font *f);
 
 #endif /* GUI_FONT_H */

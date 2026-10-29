@@ -26,6 +26,7 @@
 #include "../lan_amiga.h"
 #include "gui.h"
 #include "layout_amiga.h"
+#include "../lang_amiga.h"
 
 #define LAN_CHAT_LENGTH 32
 #define LAN_CHAT_LINES  8
@@ -97,7 +98,7 @@ static void Chat_Send(void)
 	b[0] = (uint8)g_lanMe;
 	memcpy(b + 1, s_typed, n);
 	if (!Lan_SendChat(b, 1 + n)) {
-		const char *note = "NOT SENT - NO CONNECTION";
+		const char *note = Lang_T("NOT SENT - NO CONNECTION");
 		Chat_Add(-1, (const uint8 *)note, (int)strlen(note));
 	} else {
 		Chat_Add(g_lanMe, (const uint8 *)s_typed, n);

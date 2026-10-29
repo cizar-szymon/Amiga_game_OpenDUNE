@@ -9,12 +9,21 @@
 #                                         only on this PC (private/ is not in git)
 # The archives (tools/make_zip.py, the user's choice: ZIP) unpack on the Amiga
 # with UnZip:  UnZip OpenDUNE-<v>.zip -d Work:Games
+# The Polish translation (tools/lang/polish -> lang/POLISH.PAK, a translation
+# of Westwood's texts) goes only into the full archive: the user's decision,
+# tools/lang/polish is not in git either.
 #   tools/make_release.sh [--no-full]
 set -e
 cd "$(dirname "$0")/.."
 V=$(cat port/VERSION)
 D=docs/release/amiga
 R=releases/amiga
+FULL=1
+for a in "$@"; do
+	case "$a" in
+		--no-full) FULL=0 ;;
+	esac
+done
 
 grep -a -q "\$VER: OpenDUNE $V " build/amiga/OpenDUNE.s || { echo "build/amiga/OpenDUNE.s is not $V: tools/build.sh first" >&2; exit 1; }
 
@@ -37,9 +46,14 @@ for f in "$R"/OpenDUNE-*.zip "$R"/OpenDUNE-*.lha; do
 	[ -e "$f" ] && [ "$f" != "$R/OpenDUNE-$V.zip" ] && { git rm -q --cached "$f" 2>/dev/null || true; rm -f "$f"; }
 done
 python tools/make_zip.py "$R/OpenDUNE-$V.zip" "$R" OpenDUNE OpenDUNE.info
-if [ "$1" != "--no-full" ]; then
+if [ "$FULL" = 1 ]; then
 	mkdir -p private
+	LANG_ADD=
+	if [ -d tools/lang/polish ]; then
+		python tools/lang/make_polish.py build/lang_pak/POLISH.PAK >/dev/null
+		LANG_ADD="--add build/lang_pak OpenDUNE/lang"
+	fi
 	python tools/make_zip.py "private/OpenDUNE-$V-full.zip" "$R" OpenDUNE OpenDUNE.info \
-		--add data "OpenDUNE/data" --add build/music "OpenDUNE/MUSIC"
+		--add data "OpenDUNE/data" --add build/music "OpenDUNE/MUSIC" $LANG_ADD
 fi
 ls -l "$R/OpenDUNE-$V.zip" private/OpenDUNE-$V-full.zip 2>/dev/null

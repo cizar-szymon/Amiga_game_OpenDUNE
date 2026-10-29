@@ -10,3 +10,7 @@ novacoder/
 *.cfg
 # the full release with the game data and music (tools/make_release.sh): only on this PC
 private/
+# Python caches of the tools
+__pycache__/
+# The Polish translation of the game texts (Westwood) - only on this PC, not public
+/tools/lang/polish/

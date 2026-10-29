@@ -22,6 +22,7 @@
 #if defined(__amigaos__)
 #include "rts_amiga.h"
 #include "layout_amiga.h"
+#include "../lang_amiga.h"
 #endif
 
 
@@ -774,7 +775,7 @@ void GUI_Widget_ActionPanel_Draw(bool forceDraw)
 #if defined(__amigaos__)
 		/* a group selected with the mouse (rts_amiga.c): "SQUAD" */
 		if (actionType == 2 && squad > 1) {
-			GUI_DrawText_Wrapper("SQUAD", 288 + SIDEBAR_DX, 43 + PANEL_DY, 29, 0, 0x111);
+			GUI_DrawText_Wrapper(Lang_T("SQUAD"), 288 + SIDEBAR_DX, 43 + PANEL_DY, 29, 0, 0x111);
 		} else
 #endif
 		if (stringID != STR_NULL) GUI_DrawText_Wrapper(String_Get_ByIndex(stringID), 288 + SIDEBAR_DX, 43 + PANEL_DY, 29, 0, 0x111);

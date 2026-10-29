@@ -39,6 +39,7 @@
 #include "layout_amiga.h"
 #include "../lan_amiga.h"
 #include "../os/sysinfo_amiga.h"
+#include "../lang_amiga.h"
 #endif
 
 
@@ -619,9 +620,9 @@ static void GUI_Widget_GameControls_Click(Widget *w)
 #if defined(__amigaos__)
 	WidgetProperties props = g_widgetProperties[desc->index];
 
-	/* one row more (Show FPS): 17 rows taller */
-	g_widgetProperties[desc->index].yBase -= 8;
-	g_widgetProperties[desc->index].height += 17;
+	/* two rows more (Show FPS, Language): 34 rows taller */
+	g_widgetProperties[desc->index].yBase -= 17;
+	g_widgetProperties[desc->index].height += 34;
 #endif
 
 	GUI_Window_BackupScreen(desc);
@@ -638,11 +639,14 @@ static void GUI_Widget_GameControls_Click(Widget *w)
 			w = GUI_Widget_Get_ByIndex(w2, key & 0x7FFF);
 
 #if defined(__amigaos__)
-			/* 5: the FPS counter, 6: Previous */
+			/* 5: the FPS counter, 6: the language, 7: Previous */
 			if (choice == 5) {
 				Layout_SetShowFPS(!Video_Amiga_ShowFPS(-1));
 				choice = -1;
 			} else if (choice == 6) {
+				Lang_Choose(Lang_Next(Lang_Chosen()));
+				choice = -1;
+			} else if (choice == 7) {
 				choice = 5;
 			}
 #endif
@@ -687,6 +691,8 @@ static void GUI_Widget_GameControls_Click(Widget *w)
 	GUI_Window_RestoreScreen(desc);
 #if defined(__amigaos__)
 	g_widgetProperties[desc->index] = props;
+	/* all texts and fonts are loaded again in the main menu (lang_amiga.c) */
+	if (Lang_Chosen() != g_config.language) GUI_DisplayText(Lang_T("The language changes in the main menu."), 2);
 #endif
 }
 
@@ -904,17 +910,17 @@ static void GUI_Amiga_AmigaInfoDraw(const AmigaInfo *info, bool clock)
 	snprintf(kick, sizeof(kick), "%d.%d", info->kick_version, info->kick_revision);
 	GUI_Amiga_SizeText(chip, sizeof(chip), info->chip_kb);
 	GUI_Amiga_SizeText(fast, sizeof(fast), info->fast_kb);
-	snprintf(board, sizeof(board), "%s", info->board[0] != 0 ? info->board : "none");
+	snprintf(board, sizeof(board), "%s", info->board[0] != 0 ? info->board : Lang_T("none"));
 	GUI_Amiga_SizeText(vram, sizeof(vram), info->vram_kb);
 	snprintf(screen, sizeof(screen), "%dx%d 8 bit", SCREEN_WIDTH, SCREEN_HEIGHT);
-	rows[0][0] = "Processor";   rows[0][1] = cpu;
-	rows[1][0] = "FPU";         rows[1][1] = info->fpu ? "yes" : "no";
-	rows[2][0] = "Kickstart";   rows[2][1] = kick;
-	rows[3][0] = "Chip RAM";    rows[3][1] = chip;
-	rows[4][0] = "Fast RAM";    rows[4][1] = fast;
-	rows[5][0] = "Graphics";    rows[5][1] = board;
-	rows[6][0] = "Card memory"; rows[6][1] = vram;
-	rows[7][0] = "Screen";      rows[7][1] = screen;
+	rows[0][0] = Lang_T("Processor");   rows[0][1] = cpu;
+	rows[1][0] = "FPU";                 rows[1][1] = info->fpu ? Lang_T("yes") : Lang_T("no");
+	rows[2][0] = "Kickstart";           rows[2][1] = kick;
+	rows[3][0] = "Chip RAM";            rows[3][1] = chip;
+	rows[4][0] = "Fast RAM";            rows[4][1] = fast;
+	rows[5][0] = Lang_T("Graphics");    rows[5][1] = board;
+	rows[6][0] = Lang_T("Card memory"); rows[6][1] = vram;
+	rows[7][0] = Lang_T("Screen");      rows[7][1] = screen;
 
 	Widget_SetCurrentWidget(s_amigaInfoDesc.index);
 	x = g_curWidgetXBase << 3;
@@ -926,8 +932,8 @@ static void GUI_Amiga_AmigaInfoDraw(const AmigaInfo *info, bool clock)
 	}
 	y += 3;
 	if (!info->warp) {
-		GUI_DrawText_Wrapper("No Warp: SYS:C/WarpTool", x + AMIGAINFO_LABEL, y, 232, 0, 0x22);
-		GUI_DrawText_Wrapper("not found.", x + AMIGAINFO_LABEL, y + AMIGAINFO_ROW, 232, 0, 0x22);
+		GUI_DrawText_Wrapper(Lang_T("No Warp: SYS:C/WarpTool"), x + AMIGAINFO_LABEL, y, 232, 0, 0x22);
+		GUI_DrawText_Wrapper(Lang_T("not found."), x + AMIGAINFO_LABEL, y + AMIGAINFO_ROW, 232, 0, 0x22);
 	} else {
 		static const char *warning[4] = {
 			"Raising the clock overclocks",
@@ -935,19 +941,19 @@ static void GUI_Amiga_AmigaInfoDraw(const AmigaInfo *info, bool clock)
 			NULL,
 			"The clock changes at once."
 		};
-		GUI_DrawText_Wrapper("Accelerator", x + AMIGAINFO_LABEL, y, 232, 0, 0x22);
+		GUI_DrawText_Wrapper(Lang_T("Accelerator"), x + AMIGAINFO_LABEL, y, 232, 0, 0x22);
 		GUI_DrawText_Wrapper(info->warp_model, x + AMIGAINFO_VALUE, y, 238, 0, 0x22);
 		GUI_DrawText_Wrapper("Firmware", x + AMIGAINFO_LABEL, y + AMIGAINFO_ROW, 232, 0, 0x22);
 		GUI_DrawText_Wrapper(info->warp_firmware, x + AMIGAINFO_VALUE, y + AMIGAINFO_ROW, 238, 0, 0x22);
 		y = g_curWidgetYBase + AMIGAINFO_CLOCK + 3;
 		snprintf(mhz, sizeof(mhz), "%d MHz", info->warp_mhz);
-		GUI_DrawText_Wrapper("CPU clock", x + AMIGAINFO_LABEL, y, 232, 0, 0x22);
+		GUI_DrawText_Wrapper(Lang_T("CPU clock"), x + AMIGAINFO_LABEL, y, 232, 0, 0x22);
 		GUI_DrawText_Wrapper(mhz, x + AMIGAINFO_VALUE, y, 238, 0, 0x22);
 		y = g_curWidgetYBase + AMIGAINFO_CLOCK + 20;
 		for (i = 0; i < 4; i++, y += AMIGAINFO_ROW) {
 			const char *line = warning[i];
 			if (line == NULL) line = strcmp(info->cpu, "MC68040") == 0 ? "MC68040: 20 to 50 MHz." : "Only for a MC68060 rev. 6.";
-			GUI_DrawText_Wrapper(line, x + AMIGAINFO_LABEL, y, 232, 0, 0x22);
+			GUI_DrawText_Wrapper(Lang_T(line), x + AMIGAINFO_LABEL, y, 232, 0, 0x22);
 		}
 	}
 	GUI_Mouse_Show_Safe();

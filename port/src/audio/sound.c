@@ -200,6 +200,27 @@ static void Voice_UnloadVoice(uint16 voice)
 }
 
 /**
+ * The language of the voices: French or German only when their voice files
+ * are there (FRENCH.PAK, GERMAN.PAK of the PC Dune II); English for the
+ * others (Polish, the German texts of the Amiga Dune II without its voices).
+ *
+ * @return The language of the voices.
+ */
+uint8 Sound_VoiceLanguage(void)
+{
+	static uint8 language = 0xFF;
+	static uint8 voices = LANGUAGE_ENGLISH;
+
+	if (language != g_config.language) {
+		language = g_config.language;
+		voices = LANGUAGE_ENGLISH;
+		if (language == LANGUAGE_FRENCH && File_Exists("FAFFIRM.VOC")) voices = LANGUAGE_FRENCH;
+		if (language == LANGUAGE_GERMAN && File_Exists("GAFFIRM.VOC")) voices = LANGUAGE_GERMAN;
+	}
+	return voices;
+}
+
+/**
  * Load voices.
  * voiceSet 0xFFFE is for Game Intro.
  * voiceSet 0xFFFF is for Game End.
@@ -217,7 +238,7 @@ void Voice_LoadVoices(uint16 voiceSet)
 		/* unload if necessary */
 		switch (g_table_voices[voice].string[0]) {
 			case '%':
-				if (g_config.language != LANGUAGE_ENGLISH || currentVoiceSet == voiceSet) {
+				if (Sound_VoiceLanguage() != LANGUAGE_ENGLISH || currentVoiceSet == voiceSet) {
 					if (voiceSet != 0xFFFF && voiceSet != 0xFFFE) break;
 				}
 
@@ -265,7 +286,7 @@ void Voice_LoadVoices(uint16 voiceSet)
 				if (g_voiceData[voice] != NULL ||
 						currentVoiceSet == voiceSet || voiceSet == 0xFFFF || voiceSet == 0xFFFE) break;
 
-				switch (g_config.language) {
+				switch (Sound_VoiceLanguage()) {
 					case LANGUAGE_FRENCH: prefixChar = 'F'; break;
 					case LANGUAGE_GERMAN: prefixChar = 'G'; break;
 					default: prefixChar = g_table_houseInfo[voiceSet].prefixChar;
@@ -278,7 +299,7 @@ void Voice_LoadVoices(uint16 voiceSet)
 			case '+':
 				if (voiceSet == 0xFFFF || g_voiceData[voice] != NULL) break;
 
-				switch (g_config.language) {
+				switch (Sound_VoiceLanguage()) {
 					case LANGUAGE_FRENCH:  prefixChar = 'F'; break;
 					case LANGUAGE_GERMAN:  prefixChar = 'G'; break;
 					default: prefixChar = 'Z'; break;
@@ -417,7 +438,7 @@ void Sound_Output_Feedback(uint16 index)
 		uint8 i;
 
 		for (i = 0; i < lengthof(s_spokenWords); i++) {
-			s_spokenWords[i] = (g_config.language == LANGUAGE_ENGLISH) ? g_feedback[index].voiceId[i] : g_translatedVoice[index][i];
+			s_spokenWords[i] = (Sound_VoiceLanguage() == LANGUAGE_ENGLISH) ? g_feedback[index].voiceId[i] : g_translatedVoice[index][i];
 		}
 	}
 

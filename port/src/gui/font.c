@@ -60,7 +60,8 @@ static Font *Font_LoadFile(const char *filename)
 {
 	uint8 *buf;
 	Font *f;
-	uint8 i;
+	uint16 i;
+	uint16 count;
 	uint16 start;
 	uint16 dataStart;
 	uint16 widthList;
@@ -82,10 +83,14 @@ static Font *Font_LoadFile(const char *filename)
 	lineList = READ_LE_UINT16(buf + 12);
 	f->height = buf[start + 4];
 	f->maxWidth = buf[start + 5];
-	f->count = READ_LE_UINT16(buf + 10) - widthList;
+	count = READ_LE_UINT16(buf + 10) - widthList;
+	if (count > 256) count = 256;
+	/* 256 chars, the ones the file does not have empty: any byte of a text can
+	 * be drawn (the Polish letters are ISO-8859-2, above the file's 226) */
+	f->count = 256;
 	f->chars = (FontChar *)calloc(f->count, sizeof(FontChar));
 
-	for (i = 0; i < f->count; i++) {
+	for (i = 0; i < count; i++) {
 		FontChar *fc = &f->chars[i];
 		uint16 dataOffset;
 		uint8 x;
@@ -136,12 +141,19 @@ bool Font_Init(void)
 	}
 	g_fontNew8p = Font_LoadFile("new8p.fnt");
 
+	if (g_config.language == LANGUAGE_POLISH) {
+		Font_AddPolish(g_fontIntro);
+		Font_AddPolish(g_fontNew6p);
+		Font_AddPolish(g_fontNew8p);
+	}
+
 	return g_fontNew8p != NULL;
 }
 
 static void Font_Unload(Font *f) {
-	uint8 i;
+	uint16 i;
 
+	if (f == NULL) return;	/* INTRO.FNT is not in every set of data files */
 	for (i = 0; i < f->count; i++) free(f->chars[i].data);
 	free(f->chars);
 	free(f);

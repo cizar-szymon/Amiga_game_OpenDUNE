@@ -13,9 +13,9 @@ LDFLAGS = -noixemul -mcpu=68020 -msoft-float
 
 SRCS = animation.c audio/driver.c audio/dsp_amiga.c audio/midi_none.c audio/music_amiga.c audio/mt32mpu.c audio/sound.c \
   codec/format40.c codec/format80.c config.c crashlog/crashlog.c crashlog/crashlog_none.c \
-  cutscene.c explosion.c file.c gfx.c gui/editbox.c gui/font.c gui/gui.c gui/layout_amiga.c gui/rts_amiga.c gui/smooth_amiga.c gui/lan_menu_amiga.c gui/lan_chat_amiga.c gui/mentat.c \
+  cutscene.c explosion.c file.c gfx.c gui/editbox.c gui/font.c gui/font_polish.c gui/gui.c gui/layout_amiga.c gui/rts_amiga.c gui/smooth_amiga.c gui/lan_menu_amiga.c gui/lan_chat_amiga.c gui/mentat.c \
   gui/security.c gui/viewport.c gui/widget.c gui/widget_click.c gui/widget_draw.c house.c \
-  ini.c inifile.c input/input.c lan_amiga.c input/mouse.c load.c map.c object.c opendune.c \
+  ini.c inifile.c input/input.c lan_amiga.c lang_amiga.c input/mouse.c load.c map.c object.c opendune.c \
   os/endian.c os/error.c os/readdir_amiga.c os/amiga.c os/bugreport_amiga.c os/net_amiga.c os/sysinfo_amiga.c \
   pool/house.c pool/structure.c pool/team.c pool/unit.c save.c \
   saveload/house.c saveload/info.c saveload/map.c saveload/object.c saveload/saveload.c \

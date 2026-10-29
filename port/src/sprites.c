@@ -495,13 +495,13 @@ bool Tile_IsUnveiled(uint16 tileID)
 void Sprites_Init(void)
 {
 	Sprites_Load("MOUSE.SHP", NULL, 7);              /*   0 -   6 */
-	Sprites_Load(String_GenerateFilename("BTTN"), NULL, 5); /*   7 -  11 */
+	Sprites_Load(String_GenerateGfxFilename("BTTN", false), NULL, 5); /*   7 -  11 */
 	Sprites_Load("SHAPES.SHP", NULL, 99);            /*  12 - 110 */
 	Sprites_Load("UNITS2.SHP", NULL, 40);            /* 111 - 150 */
 	Sprites_Load("UNITS1.SHP", NULL, 87);            /* 151 - 237 */
 	Sprites_Load("UNITS.SHP", NULL, 117);            /* 238 - 354 */
-	Sprites_Load(String_GenerateFilename("CHOAM"), "CHOAMSHP.SHP", 18); /* 355 - 372 */
-	Sprites_Load(String_GenerateFilename("MENTAT"), "MENTAT.SHP", 14);  /* 373 - 386 */
+	Sprites_Load(String_GenerateGfxFilename("CHOAM", false), "CHOAMSHP.SHP", 18); /* 355 - 372 */
+	Sprites_Load(String_GenerateGfxFilename("MENTAT", false), "MENTAT.SHP", 14); /* 373 - 386 */
 	Sprites_Load("MENSHPH.SHP", NULL, 15);           /* 387 - 401 */
 	Sprites_Load("MENSHPA.SHP", NULL, 15);           /* 402 - 416 */
 	Sprites_Load("MENSHPO.SHP", NULL, 15);                    /* 417 - 431 */

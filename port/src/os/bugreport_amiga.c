@@ -35,6 +35,7 @@
 #include "../pool/unit.h"
 #include "error.h"
 #include "../input/mouse.h"
+#include "../lang_amiga.h"
 
 extern bool Video_Amiga_ReadScreen(uint8 *dst, int *w, int *h);
 extern const uint8 *Video_Amiga_Shadow(int *w, int *h);
@@ -201,5 +202,5 @@ void AmigaBug_Tick(void)
 		sprintf(desc, "Bug report %d", number);
 		SaveGame_SaveFile(name, desc);
 	}
-	GUI_DisplayText("Bug report %d saved.", 2, number);
+	GUI_DisplayText(Lang_T("Bug report %d saved."), 2, number);
 }

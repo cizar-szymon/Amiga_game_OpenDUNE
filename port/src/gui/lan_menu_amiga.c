@@ -29,6 +29,7 @@
 #include "../input/mouse.h"
 #include "../lan_amiga.h"
 #include "../timer.h"
+#include "../lang_amiga.h"
 
 enum { VIEW_CHOOSE, VIEW_SERVER, VIEW_JOIN, VIEW_JOINED };
 enum { FIELD_NONE, FIELD_NAME, FIELD_ADDRESS };
@@ -115,16 +116,16 @@ static void Lan_DrawPlayers(int y)
 {
 	int slot;
 	char line[48];
-	Lan_Text("Players", 26, y, COL_TITLE);
+	Lan_Text(Lang_T("Players"), 26, y, COL_TITLE);
 	for (slot = 0; slot < LAN_MAX_PLAYERS; slot++) {
 		LanPlayer *p = &g_lanPlayers[slot];
 		int yy = y + 10 + slot * 9;
 		if (!p->used) {
-			snprintf(line, sizeof(line), "%d. (free)", slot + 1);
+			snprintf(line, sizeof(line), Lang_T("%d. (free)"), slot + 1);
 			Lan_Text(line, 30, yy, COL_DIM);
 			continue;
 		}
-		snprintf(line, sizeof(line), "%d. %s%s", slot + 1, p->name, slot == g_lanMe ? " (you)" : "");
+		snprintf(line, sizeof(line), "%d. %s%s", slot + 1, p->name, slot == g_lanMe ? Lang_T(" (you)") : "");
 		Lan_Text(line, 30, yy, slot == g_lanMe ? COL_HOVER : COL_TEXT);
 		Lan_Text(Lan_HouseName(p->house), 150, yy, COL_TEXT);
 		if (slot != g_lanMe && p->ping >= 0 && (g_lanServer || slot == 0)) {
@@ -148,7 +149,7 @@ static bool Lan_CanChoose(uint8 house)
 static void Lan_DrawHouses(int y)
 {
 	int i;
-	Lan_Text("Your house", 26, y + 3, COL_TITLE);
+	Lan_Text(Lang_T("Your house"), 26, y + 3, COL_TITLE);
 	for (i = 0; i < 3; i++) {
 		uint8 house = Lan_Houses()[i];
 		Button *b = &s_houseButtons[i];
@@ -270,59 +271,59 @@ static void Lan_Draw(void)
 
 	switch (s_view) {
 		case VIEW_CHOOSE:
-			Lan_TextCentre("Play on LAN", 14, COL_TITLE);
-			Lan_TextCentre("Two or three players, each on an Amiga", 40, COL_TEXT);
-			Lan_TextCentre("in one network. Each plays a house:", 50, COL_TEXT);
-			Lan_TextCentre("Atreides, Harkonnen or Ordos.", 60, COL_TEXT);
-			Lan_TextCentre("START SERVER: this Amiga sets up the game.", 84, COL_TEXT);
-			Lan_TextCentre("JOIN SERVER: find the server or type its", 100, COL_TEXT);
-			Lan_TextCentre("address and connect.", 110, COL_TEXT);
-			if (!s_netOk) Lan_TextCentre("No TCP/IP stack (bsdsocket.library).", 140, COL_HOVER);
-			Lan_SetButtons(3, "START SERVER", s_netOk, "JOIN SERVER", s_netOk, "BACK", true);
+			Lan_TextCentre(Lang_T("Play on LAN"), 14, COL_TITLE);
+			Lan_TextCentre(Lang_T("Two or three players, each on an Amiga"), 40, COL_TEXT);
+			Lan_TextCentre(Lang_T("in one network. Each plays a house:"), 50, COL_TEXT);
+			Lan_TextCentre(Lang_T("Atreides, Harkonnen or Ordos."), 60, COL_TEXT);
+			Lan_TextCentre(Lang_T("START SERVER: this Amiga sets up the game."), 84, COL_TEXT);
+			Lan_TextCentre(Lang_T("JOIN SERVER: find the server or type its"), 100, COL_TEXT);
+			Lan_TextCentre(Lang_T("address and connect."), 110, COL_TEXT);
+			if (!s_netOk) Lan_TextCentre(Lang_T("No TCP/IP stack (bsdsocket.library)."), 140, COL_HOVER);
+			Lan_SetButtons(3, Lang_T("START SERVER"), s_netOk, Lang_T("JOIN SERVER"), s_netOk, Lang_T("BACK"), true);
 			break;
 
 		case VIEW_SERVER:
-			Lan_TextCentre("LAN game - server", 14, COL_TITLE);
-			Lan_Text("Server name", 26, 30, COL_TEXT);
+			Lan_TextCentre(Lang_T("LAN game - server"), 14, COL_TITLE);
+			Lan_Text(Lang_T("Server name"), 26, 30, COL_TEXT);
 			Lan_DrawField(110, 28, 100, s_serverName, s_field == FIELD_NAME);
-			Lan_Text("Server address", 26, 44, COL_TEXT);
+			Lan_Text(Lang_T("Server address"), 26, 44, COL_TEXT);
 			Lan_Text(s_myAddress, 112, 44, COL_TEXT);
-			Lan_Text("Game", 26, 54, COL_TEXT);
+			Lan_Text(Lang_T("Game"), 26, 54, COL_TEXT);
 			if (s_saveSel < 0) {
-				snprintf(line, sizeof(line), "< New game >%s", s_saveCount > 0 ? "" : "  (no saves)");
+				snprintf(line, sizeof(line), Lang_T("< New game >%s"), s_saveCount > 0 ? "" : Lang_T("  (no saves)"));
 			} else {
-				snprintf(line, sizeof(line), "< Saved: %.20s >", s_saveInfo[s_saveSel].desc);
+				snprintf(line, sizeof(line), Lang_T("< Saved: %.20s >"), s_saveInfo[s_saveSel].desc);
 			}
 			Lan_Text(line, 112, 54, Lan_Over(110, 52, 170, 10) && s_saveCount > 0 ? COL_HOVER : COL_TEXT);
-			Lan_Text("Map", 26, 64, COL_TEXT);
+			Lan_Text(Lang_T("Map"), 26, 64, COL_TEXT);
 			snprintf(line, sizeof(line), s_saveSel < 0 ? "< %s >" : "%s", Lan_MapName(g_lanMap));
 			Lan_Text(line, 112, 64, Lan_Over(110, 62, 170, 10) && s_saveSel < 0 ? COL_HOVER : COL_TEXT);
-			Lan_Text("Level", 26, 74, COL_TEXT);
-			snprintf(line, sizeof(line), s_saveSel < 0 ? "< %d >  (as mission %d)" : "%d  (as mission %d)", g_lanLevel, g_lanLevel);
+			Lan_Text(Lang_T("Level"), 26, 74, COL_TEXT);
+			snprintf(line, sizeof(line), s_saveSel < 0 ? Lang_T("< %d >  (as mission %d)") : Lang_T("%d  (as mission %d)"), g_lanLevel, g_lanLevel);
 			Lan_Text(line, 112, 74, Lan_Over(110, 72, 170, 10) && s_saveSel < 0 ? COL_HOVER : COL_TEXT);
 			Lan_DrawPlayers(86);
 			Lan_DrawHouses(124);
 			if (s_xferring) {
 				Lan_TextCentre(s_status, 152, COL_HOVER);
 			} else if (s_saveSel >= 0 && s_serving && Lan_PlayerCount() != Lan_SaveHouses()) {
-				snprintf(line, sizeof(line), "The saved game is for %d players.", Lan_SaveHouses());
+				snprintf(line, sizeof(line), Lang_T("The saved game is for %d players."), Lan_SaveHouses());
 				Lan_TextCentre(line, 152, COL_HOVER);
 			} else if (s_saveSel < 0 && s_serving && Lan_PlayerCount() > Lan_MapPlayers(g_lanMap)) {
-				Lan_TextCentre("This map is for 2 players.", 152, COL_HOVER);
+				Lan_TextCentre(Lang_T("This map is for 2 players."), 152, COL_HOVER);
 			} else {
 				Lan_TextCentre(s_status, 152, COL_HOVER);
 			}
-			Lan_SetButtons(3, s_serving ? "STOP SERVER" : "RUN SERVER", true,
-			               "START GAME", s_serving && !s_xferring && Lan_PlayerCount() >= 2
+			Lan_SetButtons(3, s_serving ? Lang_T("STOP SERVER") : Lang_T("RUN SERVER"), true,
+			               Lang_T("START GAME"), s_serving && !s_xferring && Lan_PlayerCount() >= 2
 			               && (s_saveSel < 0 ? Lan_PlayerCount() <= Lan_MapPlayers(g_lanMap) : Lan_PlayerCount() == Lan_SaveHouses())
-			               && g_lanPlayers[0].house != HOUSE_INVALID, "CANCEL", true);
+			               && g_lanPlayers[0].house != HOUSE_INVALID, Lang_T("CANCEL"), true);
 			break;
 
 		case VIEW_JOIN:
-			Lan_TextCentre("LAN game - join", 14, COL_TITLE);
-			Lan_Text(s_searching ? "Searching the network..." : "Servers found", 26, 28, COL_TITLE);
+			Lan_TextCentre(Lang_T("LAN game - join"), 14, COL_TITLE);
+			Lan_Text(s_searching ? Lang_T("Searching the network...") : Lang_T("Servers found"), 26, 28, COL_TITLE);
 			if (s_foundCount == 0 && !s_searching) {
-				Lan_Text("None - SEARCH or type the address below.", 30, 40, COL_DIM);
+				Lan_Text(Lang_T("None - SEARCH or type the address below."), 30, 40, COL_DIM);
 			}
 			for (i = 0; i < s_foundCount; i++) {
 				int y = 40 + i * 10;
@@ -331,31 +332,31 @@ static void Lan_Draw(void)
 				         same ? "" : "  v", same ? "" : s_found[i].version);
 				Lan_Text(line, 30, y, !same ? COL_DIM : Lan_Over(26, y - 1, 260, 10) ? COL_HOVER : COL_TEXT);
 			}
-			Lan_Text("Your name", 26, 100, COL_TEXT);
+			Lan_Text(Lang_T("Your name"), 26, 100, COL_TEXT);
 			Lan_DrawField(110, 98, 100, s_playerName, s_field == FIELD_NAME);
-			Lan_Text("Server address", 26, 116, COL_TEXT);
+			Lan_Text(Lang_T("Server address"), 26, 116, COL_TEXT);
 			Lan_DrawField(110, 114, 100, s_address, s_field == FIELD_ADDRESS);
 			Lan_TextCentre(s_status, 152, COL_HOVER);
-			Lan_SetButtons(3, "SEARCH", !s_searching && !s_connecting, s_connecting ? "CONNECTING" : "CONNECT", s_address[0] != 0 && !s_connecting, "BACK", true);
+			Lan_SetButtons(3, Lang_T("SEARCH"), !s_searching && !s_connecting, s_connecting ? Lang_T("CONNECTING") : Lang_T("CONNECT"), s_address[0] != 0 && !s_connecting, Lang_T("BACK"), true);
 			break;
 
 		case VIEW_JOINED:
-			Lan_TextCentre("LAN game - joined", 14, COL_TITLE);
-			snprintf(line, sizeof(line), "Server %s  %s", g_lanPlayers[0].name, s_address);
+			Lan_TextCentre(Lang_T("LAN game - joined"), 14, COL_TITLE);
+			snprintf(line, sizeof(line), Lang_T("Server %s  %s"), g_lanPlayers[0].name, s_address);
 			Lan_Text(line, 26, 30, COL_TEXT);
-			snprintf(line, sizeof(line), "Map  %s", Lan_MapName(g_lanMap));
+			snprintf(line, sizeof(line), Lang_T("Map  %s"), Lan_MapName(g_lanMap));
 			Lan_Text(line, 26, 44, COL_TEXT);
-			snprintf(line, sizeof(line), "Level  %d  (as mission %d)", g_lanLevel, g_lanLevel);
+			snprintf(line, sizeof(line), Lang_T("Level  %d  (as mission %d)"), g_lanLevel, g_lanLevel);
 			Lan_Text(line, 26, 54, COL_TEXT);
 			if (g_lanSaveMask != 0) {
-				snprintf(line, sizeof(line), "Saved game: %.20s", g_lanSaveDesc);
+				snprintf(line, sizeof(line), Lang_T("Saved game: %.20s"), g_lanSaveDesc);
 				Lan_Text(line, 26, 64, COL_TITLE);
 			}
 			Lan_DrawPlayers(74);
 			Lan_DrawHouses(118);
-			Lan_TextCentre(g_lanPlayers[0].house == HOUSE_INVALID ? "The server chooses its house first." : "Waiting for the server to start the game.", 140, COL_TEXT);
+			Lan_TextCentre(g_lanPlayers[0].house == HOUSE_INVALID ? Lang_T("The server chooses its house first.") : Lang_T("Waiting for the server to start the game."), 140, COL_TEXT);
 			Lan_TextCentre(s_status, 152, COL_HOVER);
-			Lan_SetButtons(1, "DISCONNECT", true, NULL, false, NULL, false);
+			Lan_SetButtons(1, Lang_T("DISCONNECT"), true, NULL, false, NULL, false);
 			break;
 	}
 	for (i = 0; i < s_buttonCount; i++) Lan_DrawButton(&s_buttons[i]);
@@ -397,7 +398,7 @@ static void Lan_RunServer(void)
 	g_lanPlayers[0].used = true;
 	strcpy(g_lanPlayers[0].name, s_serverName);
 	Net_Serve(s_serverName);
-	Lan_Status("Starting the server...");
+	Lan_Status(Lang_T("Starting the server..."));
 }
 
 static void Lan_PickHouse(uint8 house)
@@ -426,7 +427,7 @@ static bool Lan_StartServerGame(void)
 		/* the saved game to every joiner first (Lan_SendFile), then START */
 		FILE *fp = fopendatadir(SEARCHDIR_PERSONAL_DATA_DIR, g_lanSaveFile, "rb");
 		long size;
-		if (fp == NULL) { Lan_Status("The saved game cannot be read."); return false; }
+		if (fp == NULL) { Lan_Status(Lang_T("The saved game cannot be read.")); return false; }
 		fseek(fp, 0, SEEK_END);
 		size = ftell(fp);
 		fseek(fp, 0, SEEK_SET);
@@ -434,7 +435,7 @@ static bool Lan_StartServerGame(void)
 		s_xferBuf = (size > 0) ? malloc(size) : NULL;
 		if (s_xferBuf == NULL || fread(s_xferBuf, size, 1, fp) != 1) {
 			fclose(fp);
-			Lan_Status("The saved game cannot be read.");
+			Lan_Status(Lang_T("The saved game cannot be read."));
 			return false;
 		}
 		fclose(fp);
@@ -447,7 +448,7 @@ static bool Lan_StartServerGame(void)
 		}
 		s_xferring = true;
 		Net_Close();
-		Lan_Status("Sending the saved game: 0%");
+		Lan_Status(Lang_T("Sending the saved game: 0%"));
 		return false;
 	}
 	Lan_SendStart(s_startSeed, s_startDelay);
@@ -487,9 +488,9 @@ static bool Lan_SendFile(void)
 	}
 	if (allOk) return true;
 	if (sent < total) {
-		snprintf(text, sizeof(text), "Sending the saved game: %lu%%", (unsigned long)(sent * 100 / max(total, 1)));
+		snprintf(text, sizeof(text), Lang_T("Sending the saved game: %lu%%"), (unsigned long)(sent * 100 / max(total, 1)));
 	} else {
-		snprintf(text, sizeof(text), "Sent: waiting for the players...");
+		snprintf(text, sizeof(text), Lang_T("Sent: waiting for the players..."));
 	}
 	if (strcmp(text, s_status) != 0) Lan_Status(text);
 	return false;
@@ -514,7 +515,7 @@ static bool Lan_Events(void)
 				break;
 			case NEV_SERVING:
 				s_serving = true;
-				Lan_Status("Waiting for players...");
+				Lan_Status(Lang_T("Waiting for players..."));
 				break;
 			case NEV_SERVER: {
 				int i;
@@ -542,7 +543,7 @@ static bool Lan_Events(void)
 					strncpy(g_lanPlayers[slot].name, ev.text1, 15);
 					strncpy(g_lanPlayers[slot].address, ev.text2, 15);
 					Lan_SendLobby();
-					Lan_Status(Lan_PlayerCount() == 3 ? "Three players: START GAME." : "A player has joined.");
+					Lan_Status(Lan_PlayerCount() == 3 ? Lang_T("Three players: START GAME.") : Lang_T("A player has joined."));
 				} else {
 					s_connecting = false;
 					s_view = VIEW_JOINED;
@@ -555,7 +556,7 @@ static bool Lan_Events(void)
 			case NEV_LOST:
 				if (g_lanServer && s_xferring) {
 					s_xferring = false;
-					Lan_Status("A player left: the saved game is not sent.");
+					Lan_Status(Lang_T("A player left: the saved game is not sent."));
 				}
 				if (g_lanServer) {
 					if (slot < LAN_MAX_PLAYERS) {
@@ -563,7 +564,7 @@ static bool Lan_Events(void)
 						g_lanPlayers[slot].house = HOUSE_INVALID;
 					}
 					Lan_SendLobby();
-					Lan_Status("A player has left.");
+					Lan_Status(Lang_T("A player has left."));
 				} else {
 					s_view = VIEW_JOIN;
 					Lan_Status(ev.text1);
@@ -588,7 +589,7 @@ static bool Lan_Events(void)
 						s_xferOk[slot] = true;
 					} else if (s_xferring) {
 						s_xferring = false;
-						Lan_Status("A player did not get the saved game.");
+						Lan_Status(Lang_T("A player did not get the saved game."));
 					}
 				} else if (!g_lanServer && ev.value == Lan_MsgType(3) && ev.length > 8) {
 					/* a part of the saved game */
@@ -604,7 +605,7 @@ static bool Lan_Events(void)
 						memcpy(s_rxBuf + off, ev.data + 8, n);
 						s_rxGot = max(s_rxGot, off + n);
 					}
-					snprintf(text, sizeof(text), "Receiving the saved game: %lu%%", (unsigned long)(s_rxGot * 100 / max(size, 1)));
+					snprintf(text, sizeof(text), Lang_T("Receiving the saved game: %lu%%"), (unsigned long)(s_rxGot * 100 / max(size, 1)));
 					Lan_Status(text);
 				} else if (!g_lanServer && ev.value == Lan_MsgType(4) && ev.length >= 8) {
 					/* all of it: checked, kept as _lanrecv.dat */
@@ -616,7 +617,7 @@ static bool Lan_Events(void)
 							File_Close(fd);
 						}
 					}
-					Lan_Status(ok ? "The saved game is here: starting..." : "The saved game came broken.");
+					Lan_Status(ok ? Lang_T("The saved game is here: starting...") : Lang_T("The saved game came broken."));
 					Net_Send(0, Lan_MsgType(5), &ok, 1);
 				} else if (!g_lanServer && ev.value == Lan_MsgType(2) && ev.length >= 7) {
 					s_startSeed = ((uint32)ev.data[0] << 24) | ((uint32)ev.data[1] << 16) | ((uint32)ev.data[2] << 8) | ev.data[3];
@@ -688,7 +689,7 @@ static bool Lan_Click(int x, int y, bool *leave)
 				Lan_ChooseSave(-1);
 				g_lanServer = true;
 				g_lanMe = 0;
-				Lan_Status("RUN SERVER to be found.");
+				Lan_Status(Lang_T("RUN SERVER to be found."));
 			} else if (hit == 1) {
 				s_view = VIEW_JOIN;
 				s_field = FIELD_ADDRESS;
@@ -760,7 +761,7 @@ static bool Lan_Click(int x, int y, bool *leave)
 				s_connecting = true;
 				g_lanServer = false;
 				Net_Connect(s_address, s_playerName);
-				snprintf(text, sizeof(text), "Connecting to %s...", s_address);
+				snprintf(text, sizeof(text), Lang_T("Connecting to %s..."), s_address);
 				Lan_Status(text);
 			} else if (hit == 2) {
 				Net_Stop();
@@ -777,7 +778,7 @@ static bool Lan_Click(int x, int y, bool *leave)
 			if (hit == 0) {
 				Net_Stop();
 				s_view = VIEW_JOIN;
-				Lan_Status("Disconnected.");
+				Lan_Status(Lang_T("Disconnected."));
 			}
 			return false;
 	}

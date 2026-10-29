@@ -40,6 +40,7 @@ extern void Music_Play(uint16 musicID);
 extern void Music_InitMT32(void);
 extern void Voice_PlayAtTile(int16 voiceID, tile32 position);
 extern void Voice_Play(int16 voiceID);
+extern uint8 Sound_VoiceLanguage(void);
 extern void Voice_LoadVoices(uint16 voiceSet);
 extern void Voice_UnloadVoices(void);
 

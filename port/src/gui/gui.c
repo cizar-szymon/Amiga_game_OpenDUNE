@@ -50,6 +50,7 @@
 #if defined(__amigaos__)
 #include "layout_amiga.h"
 #include "../lan_amiga.h"
+#include "../lang_amiga.h"
 #if defined(__amigaos__)
 #include "smooth_amiga.h"
 
@@ -1841,7 +1842,7 @@ uint8 GUI_PickHouse(void)
 		}
 
 		if (File_Exists("HERALD.CPS")) Sprites_LoadImage("HERALD.CPS", SCREEN_1, NULL);
-		else Sprites_LoadImage(String_GenerateFilename("HERALD"), SCREEN_1, NULL);
+		else Sprites_LoadImage(String_GenerateGfxFilename("HERALD", true), SCREEN_1, NULL);
 
 		GUI_Mouse_Hide_Safe();
 		GUI_Screen_Copy(0, 0, 0, 0, SCREEN_WIDTH / 8, SCREEN_HEIGHT, SCREEN_1, SCREEN_0);
@@ -1899,7 +1900,7 @@ uint8 GUI_PickHouse(void)
 		GUI_Mentat_Show(g_readBuffer, House_GetWSAHouseFilename(houseID), NULL);
 
 		if (File_Exists("MISC.CPS")) Sprites_LoadImage("MISC.CPS", SCREEN_1, g_palette1);
-		else Sprites_LoadImage(String_GenerateFilename("MISC"), SCREEN_1, g_palette1);
+		else Sprites_LoadImage(String_GenerateGfxFilename("MISC", true), SCREEN_1, g_palette1);
 
 		GUI_Mouse_Hide_Safe();
 
@@ -3070,15 +3071,17 @@ char *GUI_String_Get_ByIndex(int16 stringID)
 #if defined(__amigaos__)
 		/* the Amiga windows (widget_click.c): Resolution, its choices (the
 		 * one in use marked), Load / Save */
-		case -20: return "Resolution";
-		case -27: return "Load / Save";
-		case -28: return "Amiga info";
+		case -20: return (char *)Lang_T("Resolution");
+		case -27: return (char *)Lang_T("Load / Save");
+		case -28: return (char *)Lang_T("Amiga info");
 		case -29: return "-";
 		case -30: return "+";
 		case -31:	/* Game controls: the FPS counter */
 			stringID = Video_Amiga_ShowFPS(-1) ? STR_ON : STR_OFF;
 			break;
-		case -32: return "Show FPS";
+		case -32: return (char *)Lang_T("Show FPS");
+		case -33: return (char *)Lang_Name(Lang_Chosen());	/* Game controls: the language */
+		case -34: return (char *)Lang_T("Language");
 		case -21: case -22: case -23: case -24: case -25: case -26: {
 			static char text[6][32];
 			int i = -21 - stringID;
@@ -3411,6 +3414,19 @@ static void GUI_StrategicMap_ShowProgression(uint16 campaignID)
 	char category[10];
 	char buf[100];
 	uint16 i;
+	char *textINI = g_fileRegionINI;
+#if defined(__amigaos__)
+	/* Polish: the texts of the regions from the translation (REGION?.POL of
+	 * POLISH.PAK, POLTXT keys), the rest of REGION?.INI as it is */
+	char *polishINI = NULL;
+
+	if (g_config.language == LANGUAGE_POLISH) {
+		char filename[14];
+		snprintf(filename, sizeof(filename), "REGION%c.POL", g_table_houseInfo[g_playerHouseID].name[0]);
+		if (File_Exists(filename)) polishINI = File_ReadWholeFile(filename);
+		if (polishINI != NULL) textINI = polishINI;
+	}
+#endif
 
 	snprintf(category, sizeof(category), "GROUP%hu", campaignID);
 
@@ -3431,7 +3447,7 @@ static void GUI_StrategicMap_ShowProgression(uint16 campaignID)
 
 				sprintf(key, "%sTXT%d", g_languageSuffixes[g_config.language], region);
 
-				if (Ini_GetString(category, key, NULL, buffer, sizeof(buffer), g_fileRegionINI) != NULL) {
+				if (Ini_GetString(category, key, NULL, buffer, sizeof(buffer), textINI) != NULL) {
 					GUI_StrategicMap_DrawText(buffer);
 				}
 
@@ -3444,6 +3460,9 @@ static void GUI_StrategicMap_ShowProgression(uint16 campaignID)
 		}
 	}
 
+#if defined(__amigaos__)
+	free(polishINI);
+#endif
 	GUI_StrategicMap_DrawText("");
 }
 

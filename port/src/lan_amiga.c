@@ -65,6 +65,7 @@
 #include "script/script.h"
 #include "config.h"
 #include "inifile.h"
+#include "lang_amiga.h"
 
 #include "lan_maps.h"
 #define LAN_LEVELS ((int)(sizeof(s_lanLevels) / sizeof(s_lanLevels[0])))
@@ -641,7 +642,7 @@ static void Lan_CompareSum(int slot, uint32 step, uint32 mine, uint32 sum)
 		s_outOfStep = true;
 		s_outOfStepAt = step;
 		Lan_Log("OUT OF STEP at %lu: mine %08lx, %s %08lx\n", (unsigned long)step, (unsigned long)mine, g_lanPlayers[slot].name, (unsigned long)sum);
-		GUI_DisplayText("LAN: OUT OF STEP with %s (step %lu)", 1, g_lanPlayers[slot].name, (unsigned long)step);
+		GUI_DisplayText(Lang_T("LAN: OUT OF STEP with %s (step %lu)"), 1, g_lanPlayers[slot].name, (unsigned long)step);
 	} else {
 		Lan_Log("step %lu: %s same %08lx\n", (unsigned long)step, g_lanPlayers[slot].name, (unsigned long)sum);
 		if (slot < LAN_MAX_PLAYERS) s_lastSame[slot] = step;
@@ -679,7 +680,7 @@ static void Lan_PlayerGone(int slot, const char *why)
 	if (!g_lanPlayers[slot].used || g_lanPlayers[slot].gone) return;
 	g_lanPlayers[slot].gone = true;
 	Lan_Log("%s gone: %s\n", g_lanPlayers[slot].name, why);
-	if (g_lanGame) GUI_DisplayText("%s left the game.", 1, g_lanPlayers[slot].name);
+	if (g_lanGame) GUI_DisplayText(Lang_T("%s left the game."), 1, g_lanPlayers[slot].name);
 	if (g_lanServer) {
 		uint8 b = (uint8)slot;
 		Net_Send(NET_ALL, MT_GONE, &b, 1);
@@ -898,12 +899,12 @@ static void Lan_ShowPause(bool on, int slot)
 	if (on == s_paused) return;
 	s_paused = on;
 	if (on) {
-		GUI_DisplayText("Game paused by %s - press P to continue.", 3, slot < LAN_MAX_PLAYERS ? g_lanPlayers[slot].name : "?");
+		GUI_DisplayText(Lang_T("Game paused by %s - press P to continue."), 3, slot < LAN_MAX_PLAYERS ? g_lanPlayers[slot].name : "?");
 	} else {
 		/* the time of the pause is not caught up */
 		s_stepBase = AmigaTimer_GetMs() - (s_steps * 1000) / 60;
 		s_waiting = false;
-		GUI_DisplayText("Game continues.", 3);
+		GUI_DisplayText(Lang_T("Game continues."), 3);
 	}
 }
 
@@ -981,7 +982,7 @@ void Lan_Run(void)
 			for (slot = 0; slot < LAN_MAX_PLAYERS; slot++) {
 				if (slot != g_lanMe && g_lanPlayers[slot].used && !g_lanPlayers[slot].gone) break;
 			}
-			GUI_DisplayText("LAN: WAITING for %s", 1, slot < LAN_MAX_PLAYERS ? g_lanPlayers[slot].name : "the others");
+			GUI_DisplayText(Lang_T("LAN: WAITING for %s"), 1, slot < LAN_MAX_PLAYERS ? g_lanPlayers[slot].name : Lang_T("the others"));
 			shown = now;
 		}
 	}
@@ -1487,19 +1488,19 @@ void Lan_InfoDraw(void)
 			continue;
 		}
 		if (p->gone) {
-			n += snprintf(text + n, sizeof(text) - n, " %s gone", p->name);
+			n += snprintf(text + n, sizeof(text) - n, Lang_T(" %s gone"), p->name);
 		} else {
-			n += snprintf(text + n, sizeof(text) - n, " %s %d ms", p->name, p->ping < 0 ? 0 : p->ping);
-			if (!s_outOfStep && s_lastSame[slot] != 0) n += snprintf(text + n, sizeof(text) - n, " same %lu", (unsigned long)s_lastSame[slot]);
+			n += snprintf(text + n, sizeof(text) - n, Lang_T(" %s %d ms"), p->name, p->ping < 0 ? 0 : p->ping);
+			if (!s_outOfStep && s_lastSame[slot] != 0) n += snprintf(text + n, sizeof(text) - n, Lang_T(" same %lu"), (unsigned long)s_lastSame[slot]);
 		}
 	}
-	if (s_paused) n += snprintf(text + n, sizeof(text) - n, " PAUSE");
+	if (s_paused) n += snprintf(text + n, sizeof(text) - n, Lang_T(" PAUSE"));
 	else if (s_waiting && AmigaTimer_GetMs() - s_waitSince > 300) {
 		/* a real stop, not the short wait for a turn of most steps (as the
 		 * message line) */
-		n += snprintf(text + n, sizeof(text) - n, " WAITING");
+		n += snprintf(text + n, sizeof(text) - n, Lang_T(" WAITING"));
 	}
-	if (s_outOfStep) snprintf(text + n, sizeof(text) - n, " OUT OF STEP %lu", (unsigned long)s_outOfStepAt);
+	if (s_outOfStep) snprintf(text + n, sizeof(text) - n, Lang_T(" OUT OF STEP %lu"), (unsigned long)s_outOfStepAt);
 
 	old = GFX_Screen_SetActive(SCREEN_0);
 	GUI_DrawText_Wrapper(NULL, 0, 0, 0, 0, 0x22);

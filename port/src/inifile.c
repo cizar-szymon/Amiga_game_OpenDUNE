@@ -180,6 +180,8 @@ bool SetLanguage_From_IniFile(DuneCfg *config)
 		config->language = LANGUAGE_ITALIAN;
 	else if(strcasecmp(language, "SPANISH") == 0)
 		config->language = LANGUAGE_SPANISH;
+	else if(strcasecmp(language, "POLISH") == 0)
+		config->language = LANGUAGE_POLISH;
 	return true;
 }
 

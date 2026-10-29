@@ -105,9 +105,37 @@ STEROWANIE
 Prawy gorny rog ekranu (2x2 piksele): klik przenosi na Workbench, gra
 dziala dalej; powrot: Lewa Amiga + M.
 
-Options w grze: Game controls (muzyka, dzwieki, tempo, Show FPS),
+Options w grze: Game controls (muzyka, dzwieki, tempo, Show FPS, jezyk),
 Resolution (rozdzielczosc ekranu, zapamietywana), Amiga info (komputer,
 zegar karty Warp), LOAD / SAVE na gornym pasku.
+
+
+JEZYK: ANGIELSKI, NIEMIECKI, POLSKI
+-----------------------------------
+
+Options -> Game controls -> Language: kazde klikniecie wybiera nastepny
+jezyk (English, Deutsch, Polski - tylko te, ktorych pliki sa). Jezyk
+zmienia sie po powrocie do menu glownego (Options -> Main menu) albo
+przy nastepnym uruchomieniu; wybor jest zapamietany (saves/LANGUAGE.CFG).
+Bez wyboru w grze decyduje language= w opendune.ini.
+
+Polski: przeklad wszystkich tekstow gry (odprawy mentatow, komunikaty,
+nazwy i opisy jednostek i budynkow, menu, napisy intro i zakonczen) i
+tekstow portu, z polskimi literami w czcionkach gry. Plik:
+OpenDUNE/lang/POLISH.PAK (nie ma go w publicznym wydaniu). Pytania
+zabezpieczenia przed kopiowaniem (copy_protection=1) zostaja po
+angielsku - odpowiedzi sa w angielskiej instrukcji.
+
+Niemiecki: oryginalne niemieckie teksty Westwood z wlasnego Dune II.
+Pliki .GER (DUNE.GER, MESSAGE.GER, INTRO.GER, TEXTA.GER, TEXTH.GER,
+TEXTO.GER, PROTECT.GER, MENTATA.GER, MENTATH.GER, MENTATO.GER,
+CREDITS.GER) skopiuj do OpenDUNE/data obok plikow .PAK - pasuja i z
+wersji PC (np. z GERMAN.PAK), i z wersji na Amige. Teksty portu (menu
+LAN, Amiga info ...) sa przetlumaczone w programie.
+
+Obrazki z napisami (przyciski, ekran tytulowy) i glosy zostaja
+angielskie: grafiki .GER z Amigi maja inny format niz PC, a glosy
+niemieckie sa tylko w GERMAN.PAK wersji PC (wtedy gra ich uzywa).
 
 
 GRA W SIECI LAN (do 3 graczy)
@@ -151,8 +179,9 @@ OPCJE (opendune.ini)
   music_dir=         katalog muzyki (domyslnie PROGDIR:MUSIC)
   music_volume=0..64 glosnosc muzyki (domyslnie 40)
   lan_info=1         w grze LAN linia z czasem odpowiedzi graczy
-  language=          english / french / german (jezyk danych gry;
-                     w paczce ENGLISH.PAK - domyslnie angielski)
+  language=          english / german / polish (jezyk, gdy nie wybrano
+                     go w Options; german: pliki .GER w data,
+                     polish: lang/POLISH.PAK)
 
 
 O PORCIE

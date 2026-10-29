@@ -133,6 +133,11 @@ File_MakeCompleteFilename(char *buf, size_t len, enum SearchDirectory dir, const
 		const char *d = (dir == SEARCHDIR_PERSONAL_DATA_DIR) ? g_personal_data_dir : g_dune_data_dir;
 		size_t n = strlen(d);
 		const char *sep = (n == 0 || d[n - 1] == ':' || d[n - 1] == '/') ? "" : "/";
+		if (strchr(filename, ':') != NULL) {
+			/* a full path: the PAK files of PROGDIR:lang (File_Init) */
+			d = "";
+			sep = "";
+		}
 		i = snprintf(buf, len, "%s%s%s", d, sep, filename);
 	}
 #else
@@ -476,6 +481,28 @@ static bool _File_Init_Callback(const char *name, const char *path, uint32 size)
 	return true;
 }
 
+#if defined(__amigaos__)
+/* The port's translations: PROGDIR:lang/POLISH.PAK (Polish texts made for the
+ * port), next to the program, not in the player's data directory. */
+#define LANG_DIR "PROGDIR:lang"
+
+/**
+ * Callback for the PAK files of PROGDIR:lang: kept under their full path (the
+ * files in them under their own names, as in the data directory).
+ */
+static bool _File_Init_LangCallback(const char *name, const char *path, uint32 size)
+{
+	const char *ext = strrchr(name, '.');
+	FileInfo *fileInfo;
+
+	if (ext == NULL || strcasecmp(ext, ".pak") != 0) return true;
+	fileInfo = _File_Init_AddFileInRootDir(path, size);
+	if (fileInfo == NULL) return false;
+	if (!_File_Init_ProcessPak(path, size, fileInfo)) Warning("Failed to process PAK file %s\n", path);
+	return true;
+}
+#endif
+
 static bool File_MakeDirectory(char *dir)
 {
 #ifdef _WIN32
@@ -638,6 +665,10 @@ bool File_Init(void)
 		Error("Cannot initialise files. Does %s directory exist ?\n", buf);
 		return false;
 	}
+#if defined(__amigaos__)
+	/* no lang directory: English and the languages of the player's data */
+	ReadDir_ProcessAllFiles(LANG_DIR, _File_Init_LangCallback);
+#endif
 
 	return true;
 }

@@ -1,0 +1,540 @@
+# The port's own texts (not in the Dune II data) in German and Polish.
+# tools/lang/make_port_strings.py makes port/src/lang_strings.h of it
+# (German in the code page of the game's fonts, Polish ISO-8859-2).
+#
+# en: the English text exactly as in the code (Lang_T("...")), the key
+# de: / pl: the translations (UTF-8 here); the same %d %s ... in the same order
+# max: the longest a translation may be in bytes (a buffer in the code)
+# px: the widest it may be on the screen: pixels and font (6 or 8)
+# A text without de: or pl: stays English in that language.
+
+# ---- Options, Game controls (gui/gui.c, gui/widget_click.c)
+
+en: Resolution
+de: Auflösung
+pl: Rozdzielczość
+px: 200 8
+
+en: Load / Save
+de: Laden / Sichern
+pl: Wczytaj / zapisz
+px: 200 8
+
+en: Amiga info
+de: Amiga-Info
+pl: O Amidze
+px: 200 8
+
+en: Show FPS
+de: FPS-Anzeige
+pl: Licznik FPS
+px: 130 8
+
+en: Language
+de: Sprache
+pl: Język
+px: 130 8
+
+en: The language changes in the main menu.
+de: Die Sprache wechselt im Hauptmenü.
+pl: Język zmieni się w menu głównym.
+
+en: Main menu
+de: Hauptmenü
+pl: Menu główne
+px: 200 8
+
+en: Play on LAN
+de: Spiel im Netzwerk
+pl: Gra w sieci
+px: 150 8
+
+# ---- Amiga info (gui/widget_click.c): labels left of the values
+
+en: Processor
+de: Prozessor
+pl: Procesor
+px: 94 8
+
+en: yes
+de: ja
+pl: tak
+
+en: no
+de: nein
+pl: nie
+
+en: none
+de: keine
+pl: brak
+
+en: Graphics
+de: Grafik
+pl: Grafika
+px: 94 8
+
+en: Card memory
+de: Kartenspeicher
+pl: Pamięć karty
+px: 94 8
+
+en: Screen
+de: Bildschirm
+pl: Ekran
+px: 94 8
+
+en: No Warp: SYS:C/WarpTool
+de: Keine Warp: SYS:C/WarpTool
+pl: Brak Warpa: SYS:C/WarpTool
+px: 210 8
+
+en: not found.
+de: nicht gefunden.
+pl: nie znaleziono.
+px: 210 8
+
+en: Accelerator
+de: Turbokarte
+pl: Karta turbo
+px: 94 8
+
+en: CPU clock
+de: CPU-Takt
+pl: Zegar CPU
+px: 94 8
+
+en: Raising the clock overclocks
+de: Ein höherer Takt übertaktet
+pl: Wyższy zegar podkręca
+px: 210 8
+
+en: the CPU - the system may hang.
+de: die CPU - das System kann hängen.
+pl: CPU - system może się zawiesić.
+px: 210 8
+
+en: The clock changes at once.
+de: Der Takt ändert sich sofort.
+pl: Zegar zmienia się od razu.
+px: 210 8
+
+en: MC68040: 20 to 50 MHz.
+de: MC68040: 20 bis 50 MHz.
+pl: MC68040: od 20 do 50 MHz.
+px: 210 8
+
+en: Only for a MC68060 rev. 6.
+de: Nur für MC68060 Rev. 6.
+pl: Tylko dla MC68060 rev. 6.
+px: 210 8
+
+# ---- the top bar (gui/layout_amiga.c): the word in the 8 pixel font, one
+# button LOAD/SAVE where there is room for one only
+
+en: LOAD
+de: LADEN
+pl: WCZYTAJ
+
+en: SAVE
+de: SICHERN
+pl: ZAPISZ
+
+en: LOAD/SAVE
+de: SPIELSTAND
+pl: ZAPIS GRY
+px: 70 8
+
+# ---- the battle (gui/rts_amiga.c, gui/widget_draw.c, os/bugreport_amiga.c)
+
+en: Squad of %d units.
+de: Trupp aus %d Einheiten.
+pl: Oddział: %d jednostek.
+
+en: Game paused - press P to continue.
+de: Spiel angehalten - weiter mit P.
+pl: Gra wstrzymana - P, aby kontynuować.
+
+en: Game continues.
+de: Das Spiel geht weiter.
+pl: Gra toczy się dalej.
+
+en: SQUAD
+de: TRUPP
+pl: ODDZIAŁ
+px: 60 6
+
+en: Bug report %d saved.
+de: Fehlerbericht %d gesichert.
+pl: Raport błędu %d zapisany.
+
+# ---- a LAN game (lan_amiga.c, gui/lan_chat_amiga.c)
+
+en: LAN: OUT OF STEP with %s (step %lu)
+de: LAN: NICHT SYNCHRON mit %s (Schritt %lu)
+pl: LAN: BRAK ZGODNOŚCI z %s (krok %lu)
+
+en: %s left the game.
+de: %s hat das Spiel verlassen.
+pl: %s opuścił grę.
+
+en: Game paused by %s - press P to continue.
+de: Von %s angehalten - weiter mit P.
+pl: %s wstrzymał grę - P, aby kontynuować.
+
+en: LAN: WAITING for %s
+de: LAN: WARTE auf %s
+pl: LAN: CZEKAM na %s
+
+en: the others
+de: die anderen
+pl: pozostałych
+
+en:  %s gone
+de:  %s weg
+pl:  %s wyszedł
+
+en:  %s %d ms
+de:  %s %d ms
+pl:  %s %d ms
+
+en:  same %lu
+de:  gleich %lu
+pl:  zgodne %lu
+
+en:  PAUSE
+de:  PAUSE
+pl:  PAUZA
+
+en:  WAITING
+de:  WARTE
+pl:  CZEKAM
+
+en:  OUT OF STEP %lu
+de:  NICHT SYNCHRON %lu
+pl:  BRAK ZGODNOŚCI %lu
+
+en: NOT SENT - NO CONNECTION
+de: NICHT GESENDET - KEINE VERBINDUNG
+pl: NIE WYSŁANO - BRAK POŁĄCZENIA
+
+# ---- Play on LAN (gui/lan_menu_amiga.c): the box is 288 pixels wide,
+# the buttons 82 (100 when alone), labels left of the fields up to x 110 (84),
+# the status line and the lines with %d / %s are buffers of 48 bytes
+
+en: Players
+de: Spieler
+pl: Gracze
+px: 72 8
+
+en: %d. (free)
+de: %d. (frei)
+pl: %d. (wolne)
+max: 47
+
+en:  (you)
+de:  (du)
+pl:  (ty)
+
+en: Your house
+de: Dein Haus
+pl: Twój ród
+px: 72 8
+
+en: Two or three players, each on an Amiga
+de: Zwei oder drei Spieler, jeder an einer Amiga
+pl: Dwóch lub trzech graczy, każdy na Amidze
+px: 280 8
+
+en: in one network. Each plays a house:
+de: im selben Netzwerk. Jeder spielt ein Haus:
+pl: w jednej sieci. Każdy gra jednym rodem:
+px: 280 8
+
+en: Atreides, Harkonnen or Ordos.
+de: Atreides, Harkonnen oder Ordos.
+pl: Atreides, Harkonnen lub Ordos.
+px: 280 8
+
+en: START SERVER: this Amiga sets up the game.
+de: ERÖFFNEN: diese Amiga richtet das Spiel ein.
+pl: ZAŁÓŻ GRĘ: ta Amiga przygotowuje grę.
+px: 280 8
+
+en: JOIN SERVER: find the server or type its
+de: BEITRETEN: den Server suchen oder seine
+pl: DOŁĄCZ: znajdź serwer albo wpisz jego
+px: 280 8
+
+en: address and connect.
+de: Adresse eingeben und verbinden.
+pl: adres i połącz się.
+px: 280 8
+
+en: No TCP/IP stack (bsdsocket.library).
+de: Kein TCP/IP-Stack (bsdsocket.library).
+pl: Brak stosu TCP/IP (bsdsocket.library).
+px: 280 8
+
+en: START SERVER
+de: ERÖFFNEN
+pl: ZAŁÓŻ GRĘ
+px: 78 8
+
+en: JOIN SERVER
+de: BEITRETEN
+pl: DOŁĄCZ
+px: 78 8
+
+en: BACK
+de: ZURÜCK
+pl: WSTECZ
+px: 78 8
+
+en: LAN game - server
+de: Netzwerkspiel - Server
+pl: Gra w sieci - serwer
+px: 280 8
+
+en: Server name
+de: Servername
+pl: Nazwa serwera
+px: 84 8
+
+en: Server address
+de: Serveradresse
+pl: Adres serwera
+px: 84 8
+
+en: Game
+de: Spiel
+pl: Gra
+px: 84 8
+
+en: < New game >%s
+de: < Neues Spiel >%s
+pl: < Nowa gra >%s
+max: 47
+
+en:   (no saves)
+de:   (keine Spielstände)
+pl:   (brak zapisów)
+
+en: < Saved: %.20s >
+de: < Spielstand: %.20s >
+pl: < Zapis: %.20s >
+max: 47
+
+en: Map
+de: Karte
+pl: Mapa
+px: 84 8
+
+en: Level
+de: Stufe
+pl: Poziom
+px: 84 8
+
+en: < %d >  (as mission %d)
+de: < %d >  (wie Mission %d)
+pl: < %d >  (jak misja %d)
+max: 47
+
+en: %d  (as mission %d)
+de: %d  (wie Mission %d)
+pl: %d  (jak misja %d)
+max: 47
+
+en: The saved game is for %d players.
+de: Der Spielstand ist für %d Spieler.
+pl: Zapis jest dla %d graczy.
+max: 47
+
+en: This map is for 2 players.
+de: Diese Karte ist für 2 Spieler.
+pl: Ta mapa jest dla 2 graczy.
+px: 280 8
+
+en: STOP SERVER
+de: SERVER STOP
+pl: ZATRZYMAJ
+px: 78 8
+
+en: RUN SERVER
+de: SERVER AN
+pl: URUCHOM
+px: 78 8
+
+en: START GAME
+de: SPIELSTART
+pl: START GRY
+px: 78 8
+
+en: CANCEL
+de: ABBRECHEN
+pl: ANULUJ
+px: 78 8
+
+en: LAN game - join
+de: Netzwerkspiel - beitreten
+pl: Gra w sieci - dołącz
+px: 280 8
+
+en: Searching the network...
+de: Suche im Netzwerk...
+pl: Szukam w sieci...
+px: 260 8
+
+en: Servers found
+de: Gefundene Server
+pl: Znalezione serwery
+px: 260 8
+
+en: None - SEARCH or type the address below.
+de: Keine - SUCHEN oder Adresse unten eingeben.
+pl: Brak - SZUKAJ albo wpisz adres poniżej.
+px: 270 8
+
+en: Your name
+de: Dein Name
+pl: Twoje imię
+px: 84 8
+
+en: SEARCH
+de: SUCHEN
+pl: SZUKAJ
+px: 78 8
+
+en: CONNECTING
+de: VERBINDE
+pl: ŁĄCZĘ
+px: 78 8
+
+en: CONNECT
+de: VERBINDEN
+pl: POŁĄCZ
+px: 78 8
+
+en: LAN game - joined
+de: Netzwerkspiel - beigetreten
+pl: Gra w sieci - dołączono
+px: 280 8
+
+en: Server %s  %s
+de: Server %s  %s
+pl: Serwer %s  %s
+max: 47
+
+en: Map  %s
+de: Karte  %s
+pl: Mapa  %s
+max: 47
+
+en: Level  %d  (as mission %d)
+de: Stufe  %d  (wie Mission %d)
+pl: Poziom  %d  (jak misja %d)
+max: 47
+
+en: Saved game: %.20s
+de: Spielstand: %.20s
+pl: Zapis gry: %.20s
+max: 47
+
+en: The server chooses its house first.
+de: Der Server wählt sein Haus zuerst.
+pl: Serwer pierwszy wybiera swój ród.
+px: 280 8
+
+en: Waiting for the server to start the game.
+de: Warte, bis der Server das Spiel startet.
+pl: Czekam, aż serwer rozpocznie grę.
+px: 280 8
+
+en: DISCONNECT
+de: TRENNEN
+pl: ROZŁĄCZ
+px: 96 8
+
+en: Starting the server...
+de: Server wird gestartet...
+pl: Uruchamiam serwer...
+max: 47
+
+en: The saved game cannot be read.
+de: Spielstand nicht lesbar.
+pl: Nie można odczytać zapisu.
+max: 47
+
+en: Sending the saved game: 0%
+de: Sende den Spielstand: 0%
+pl: Wysyłam zapis gry: 0%
+max: 47
+
+en: Sending the saved game: %lu%%
+de: Sende den Spielstand: %lu%%
+pl: Wysyłam zapis gry: %lu%%
+max: 47
+
+en: Sent: waiting for the players...
+de: Gesendet: warte auf die Spieler...
+pl: Wysłano: czekam na graczy...
+max: 47
+
+en: Waiting for players...
+de: Warte auf Spieler...
+pl: Czekam na graczy...
+max: 47
+
+en: Three players: START GAME.
+de: Drei Spieler: SPIELSTART.
+pl: Trzech graczy: START GRY.
+max: 47
+
+en: A player has joined.
+de: Ein Spieler ist beigetreten.
+pl: Gracz dołączył.
+max: 47
+
+en: A player left: the saved game is not sent.
+de: Spieler weg: Spielstand nicht gesendet.
+pl: Gracz wyszedł: zapis nie wysłany.
+max: 47
+
+en: A player has left.
+de: Ein Spieler ist gegangen.
+pl: Gracz wyszedł.
+max: 47
+
+en: A player did not get the saved game.
+de: Ein Spieler bekam den Spielstand nicht.
+pl: Gracz nie dostał zapisu gry.
+max: 47
+
+en: Receiving the saved game: %lu%%
+de: Empfange den Spielstand: %lu%%
+pl: Odbieram zapis gry: %lu%%
+max: 47
+
+en: The saved game is here: starting...
+de: Spielstand angekommen: Start...
+pl: Zapis odebrany: start...
+max: 47
+
+en: The saved game came broken.
+de: Der Spielstand kam beschädigt an.
+pl: Zapis dotarł uszkodzony.
+max: 47
+
+en: RUN SERVER to be found.
+de: SERVER AN, um gefunden zu werden.
+pl: URUCHOM, aby inni cię znaleźli.
+max: 47
+
+en: Connecting to %s...
+de: Verbinde mit %s...
+pl: Łączę z %s...
+max: 47
+
+en: Disconnected.
+de: Getrennt.
+pl: Rozłączono.
+max: 47

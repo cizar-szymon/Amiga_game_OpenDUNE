@@ -78,6 +78,7 @@
 #include "rev.h"
 #include "gui/rts_amiga.h"
 #include "gui/layout_amiga.h"
+#include "lang_amiga.h"
 #include "os/amiga_prof.h"
 #endif
 
@@ -863,6 +864,8 @@ static void GameLoop_GameIntroAnimationMenu(void)
 	}
 
 #if defined(__amigaos__)
+	/* the language chosen in Game controls: from here on (the menu drawn again) */
+	if (Lang_ApplyChosen()) s_menuRedraw = true;
 	if (s_menuRedraw) {
 		drawMenu = true;
 		s_menuRedraw = false;
@@ -889,7 +892,7 @@ static void GameLoop_GameIntroAnimationMenu(void)
 
 #if defined(__amigaos__)
 			if (mainMenuStrings[index][i] == STR_PLAY_ON_LAN) {
-				strings[i] = "Play on LAN";
+				strings[i] = Lang_T("Play on LAN");
 				continue;
 			}
 #endif
@@ -914,7 +917,7 @@ static void GameLoop_GameIntroAnimationMenu(void)
 		g_widgetProperties[13].height = (g_widgetProperties[21].height * g_fontCurrent->height) + 11;
 
 		if (File_Exists("TITLE.CPS")) Sprites_LoadImage("TITLE.CPS", SCREEN_1, NULL);
-		else Sprites_LoadImage(String_GenerateFilename("TITLE"), SCREEN_1, NULL);
+		else Sprites_LoadImage(String_GenerateGfxFilename("TITLE", true), SCREEN_1, NULL);
 
 		GUI_Mouse_Hide_Safe();
 
@@ -1523,6 +1526,10 @@ int main(int argc, char **argv)
 		Error("Error writing to dune.cfg file.\n");
 		return 1;
 	}
+#if defined(__amigaos__)
+	/* the language chosen in Game controls (LANGUAGE.CFG) over the ini's */
+	Lang_Init();
+#endif
 
 	Input_Init();
 	/* if no mouse is detected, we should Input_Flags_SetBits(INPUT_FLAG_MOUSE_EMUL) */

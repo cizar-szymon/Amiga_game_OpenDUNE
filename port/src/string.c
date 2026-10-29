@@ -15,17 +15,21 @@
 #include "config.h"
 #include "file.h"
 #include "table/strings.h"
+#if defined(__amigaos__)
+#include "lang_amiga.h"
+#endif
 
 /* 941 strings and 38356 chars in English,
    833 and 39582 in French,
-   899 and 42868 in German */
+   899 and 42868 in German,
+   941 and about 50000 in Polish (the questions of the copy protection in English) */
 #define MAX_STRING_COUNT 950U
-#define MAX_CHARACTER_COUNT 48*1024U
+#define MAX_CHARACTER_COUNT 60*1024U
 static uint16 * s_strings = NULL;
 static char * s_stringsBuffer = NULL;
 static uint16 s_stringsCount = 0;
 
-const char * const g_languageSuffixes[LANGUAGE_MAX] = { "ENG", "FRE", "GER", "ITA", "SPA" };
+const char * const g_languageSuffixes[LANGUAGE_MAX] = { "ENG", "FRE", "GER", "ITA", "SPA", "POL" };
 
 /**
  * Decompress a string and
@@ -93,7 +97,63 @@ const char *String_GenerateFilename(const char *name)
 	assert(g_config.language < lengthof(g_languageSuffixes));
 
 	snprintf(filename, sizeof(filename), "%s.%s", name, g_languageSuffixes[g_config.language]);
+	/* a file the language does not have (the Polish translation keeps the
+	 * copy protection's questions in English, an incomplete set of German
+	 * files): the English one */
+	if (g_config.language != LANGUAGE_ENGLISH && !File_Exists(filename)) {
+		snprintf(filename, sizeof(filename), "%s.%s", name, g_languageSuffixes[LANGUAGE_ENGLISH]);
+	}
 	return filename;
+}
+
+/**
+ * Appends ".(ENG|FRE|...)" to the name of a picture with text in it (a CPS
+ * image or a SHP file of buttons): the language's own only when it is in the
+ * PC format. The pictures of the Amiga Dune II (.GER) are planar and big
+ * endian, the PC code cannot draw them; Polish has no pictures of its own.
+ *
+ * @param name The name of the picture without extension.
+ * @param image True for a CPS image, false for a SHP file.
+ * @return The file name.
+ */
+const char *String_GenerateGfxFilename(const char *name, bool image)
+{
+	static char filename[14];
+	uint8 head[8];
+	uint8 index;
+	bool pc = false;
+
+	snprintf(filename, sizeof(filename), "%s.%s", name, g_languageSuffixes[g_config.language]);
+	if (g_config.language != LANGUAGE_ENGLISH && g_config.language != LANGUAGE_POLISH && File_Exists(filename)) {
+		index = File_Open(filename, FILE_MODE_READ);
+		if (index != FILE_INVALID) {
+			/* CPS: the size of the picture, 320x200 bytes on the PC (Amiga: 40000,
+			 * five bitplanes); SHP: the count of shapes, little endian */
+			if (File_Read(index, head, 8) == 8) {
+				pc = image ? READ_LE_UINT32(head + 4) == 64000 : (READ_LE_UINT16(head) != 0 && READ_LE_UINT16(head) < 0x100);
+			}
+			File_Close(index);
+		}
+	}
+	if (!pc) snprintf(filename, sizeof(filename), "%s.%s", name, g_languageSuffixes[LANGUAGE_ENGLISH]);
+	return filename;
+}
+
+/**
+ * Whether the texts of a language are there: the original's files of the
+ * player (DUNE.GER ...) or the port's Polish translation.
+ *
+ * @param language The language.
+ * @return True if the game can show its texts.
+ */
+bool String_LanguageAvailable(uint8 language)
+{
+	char filename[14];
+
+	if (language >= LANGUAGE_MAX) return false;
+	if (language == LANGUAGE_ENGLISH) return true;
+	snprintf(filename, sizeof(filename), "DUNE.%s", g_languageSuffixes[language]);
+	return File_Exists(filename);
 }
 
 /**
@@ -106,10 +166,29 @@ char *String_Get_ByIndex(uint16 stringID)
 {
 #if defined(__amigaos__)
 	/* Options: the button goes back to the main menu (widget_click.c) */
-	static char mainMenu[] = "Main menu";
-	if (stringID == STR_QUIT_PLAYING) return mainMenu;
+	if (stringID == STR_QUIT_PLAYING) return (char *)Lang_T("Main menu");
 #endif
 	return s_stringsBuffer + s_strings[stringID];
+}
+
+/* The offsets of the strings: little endian on the PC, big endian in the
+ * files of the Amiga Dune II (the German .GER files of a player's Amiga). */
+static bool s_stringsBigEndian;
+
+static uint16 String_Offset(const uint8 *buf, uint16 i)
+{
+	return s_stringsBigEndian ? READ_BE_UINT16(buf + i * 2) : READ_LE_UINT16(buf + i * 2);
+}
+
+/* Little endian unless the first offset (the size of the table) only makes
+ * sense big endian: even, inside the file, the last offset inside too. */
+static bool String_IsBigEndian(const uint8 *buf, uint32 size)
+{
+	uint16 le = READ_LE_UINT16(buf);
+	uint16 be = READ_BE_UINT16(buf);
+
+	if (le >= 2 && (le & 1) == 0 && le <= size && READ_LE_UINT16(buf + le - 2) < size) return false;
+	return be >= 2 && (be & 1) == 0 && be <= size && READ_BE_UINT16(buf + be - 2) < size;
 }
 
 static void String_Load(const char *filename, bool compressed, uint16 start, uint16 end)
@@ -117,16 +196,20 @@ static void String_Load(const char *filename, bool compressed, uint16 start, uin
 	uint8 *buf;
 	uint16 count;
 	uint16 i;
+	uint32 size = 0;
 	char buffer[1024];
 
-	buf = File_ReadWholeFile(String_GenerateFilename(filename));
-	count = READ_LE_UINT16(buf) / 2;
+	filename = String_GenerateFilename(filename);
+	File_Exists_GetSize(filename, &size);
+	buf = File_ReadWholeFile(filename);
+	s_stringsBigEndian = String_IsBigEndian(buf, size);
+	count = String_Offset(buf, 0) / 2;
 
 	if (end == 0) end = start + count - 1;
 
 	for (i = 0; i < count && s_stringsCount <= end; i++) {
 		uint16 len;
-		const char *src = (const char *)buf + READ_LE_UINT16(buf + i * 2);
+		const char *src = (const char *)buf + String_Offset(buf, i);
 
 		if (compressed) {
 			len = String_DecompressAndTranslate(src, buffer, (uint16)sizeof(buffer));
@@ -136,6 +219,11 @@ static void String_Load(const char *filename, bool compressed, uint16 start, uin
 		String_Trim(buffer);
 
 		len = strlen(buffer);
+		/* a translation longer than the buffer: the rest empty, not overwritten memory */
+		if ((uint32)s_strings[s_stringsCount] + len + 1 > MAX_CHARACTER_COUNT || s_stringsCount + 1 >= MAX_STRING_COUNT) {
+			Warning("String_Load(%s): no room for string %hu\n", filename, s_stringsCount);
+			break;
+		}
 		if (len > 0 || s_strings[s_stringsCount] == 0) {
 			memcpy(s_stringsBuffer + s_strings[s_stringsCount++], buffer, len + 1);
 			s_strings[s_stringsCount] = s_strings[s_stringsCount - 1] + len + 1;

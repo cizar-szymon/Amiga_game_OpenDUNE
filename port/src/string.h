@@ -12,8 +12,9 @@ typedef enum Language {
 	LANGUAGE_GERMAN      = 2,
 	LANGUAGE_ITALIAN     = 3,
 	LANGUAGE_SPANISH     = 4,
+	LANGUAGE_POLISH      = 5, /*!< The port's own translation (PROGDIR:lang/POLISH.PAK). */
 
-	LANGUAGE_MAX         = 5,
+	LANGUAGE_MAX         = 6,
 	LANGUAGE_INVALID     = 0xFF
 } Language;
 
@@ -21,6 +22,8 @@ extern const char * const g_languageSuffixes[LANGUAGE_MAX];
 
 extern uint16 String_DecompressAndTranslate(const char *source, char *dest, uint16 destLen);
 extern const char *String_GenerateFilename(const char *name);
+extern const char *String_GenerateGfxFilename(const char *name, bool image);
+extern bool String_LanguageAvailable(uint8 language);
 extern char *String_Get_ByIndex(uint16 stringID);
 extern void String_Init(void);
 extern void String_Uninit(void);
