@@ -277,7 +277,13 @@ void Sprites_LoadTiles(void)
 	g_landscapeTileID = g_iconMap[g_iconMap[ICM_ICONGROUP_LANDSCAPE]];
 	g_wallTileID      = g_iconMap[g_iconMap[ICM_ICONGROUP_WALLS]];
 
+#if defined(__amigaos__)
+	/* in memory of its own, once: SCREEN_2 is the windows' backup, and a LAN
+	 * game's units go on under a window (the units point into the text) */
+	if (g_scriptUnit->text == NULL) Script_LoadFromFile("UNIT.EMC", g_scriptUnit, g_scriptFunctionsUnit, NULL);
+#else
 	Script_LoadFromFile("UNIT.EMC", g_scriptUnit, g_scriptFunctionsUnit, GFX_Screen_Get_ByIndex(SCREEN_2));
+#endif
 }
 
 /**

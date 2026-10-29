@@ -751,17 +751,24 @@ static WindowDesc s_loadSaveDesc = {
 /* Its entries: the original's numbers (the switch in GUI_Widget_Options_Click),
  * 7 = Resolution; Load a game and Save this game are the top bar's buttons. */
 static const int s_optionsMap[6] = { 2, 7, 3, 4, 5, 6 };
+/* a LAN game: no Restart scenario, no Pick another house */
+static const int s_optionsMapLan[4] = { 2, 7, 5, 6 };
+static const int *s_options = s_optionsMap;
+static int s_optionsCount = 6;
 
 static WindowDesc *Amiga_OptionsDesc(void)
 {
 	static const int16 y[6] = { 23, 40, 57, 74, 93, 93 };
+	static const int16 yLan[4] = { 23, 40, 93, 93 };
 	int i;
+	s_options = LAN_GAME ? s_optionsMapLan : s_optionsMap;
+	s_optionsCount = LAN_GAME ? 4 : 6;
 	s_optionsDesc = g_optionsWindowDesc;
 	s_optionsDesc.index = 10;
-	s_optionsDesc.widgetCount = 6;
-	for (i = 0; i < 6; i++) {
-		s_optionsDesc.widgets[i] = (s_optionsMap[i] == 7) ? g_optionsWindowDesc.widgets[2] : g_optionsWindowDesc.widgets[s_optionsMap[i]];
-		s_optionsDesc.widgets[i].offsetY = y[i];
+	s_optionsDesc.widgetCount = s_optionsCount;
+	for (i = 0; i < s_optionsCount; i++) {
+		s_optionsDesc.widgets[i] = (s_options[i] == 7) ? g_optionsWindowDesc.widgets[2] : g_optionsWindowDesc.widgets[s_options[i]];
+		s_optionsDesc.widgets[i].offsetY = LAN_GAME ? yLan[i] : y[i];
 	}
 	s_optionsDesc.widgets[1].stringID = (uint16)-20;
 	return &s_optionsDesc;
@@ -770,7 +777,7 @@ static WindowDesc *Amiga_OptionsDesc(void)
 /* An entry of the Amiga Options window as the original's number. */
 static int Amiga_OptionsChoice(int i)
 {
-	return (i >= 0 && i < 6) ? s_optionsMap[i] : -1;
+	return (i >= 0 && i < s_optionsCount) ? s_options[i] : -1;
 }
 
 /* The list of resolutions; the chosen one (0..LAYOUT_RESOLUTIONS-1) or -1. */

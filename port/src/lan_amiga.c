@@ -56,6 +56,7 @@
 #include "timer.h"
 #include "tools.h"
 #include "unit.h"
+#include "script/script.h"
 #include "config.h"
 #include "inifile.h"
 
@@ -379,7 +380,8 @@ void Lan_TraceTag(const char *tag, uint32 value, void *caller)
 	extern uint32 g_lanTraceFrom, g_lanTraceTo;
 	if (!g_lanGame) return;
 	if (strstr(tag, "-ui") == NULL && (g_timerGame < g_lanTraceFrom || g_timerGame > g_lanTraceTo)) return;
-	Lan_Log("%s t%lu %lu %08lx\n", tag, (unsigned long)g_timerGame, (unsigned long)value, (unsigned long)caller);
+	Lan_Log("%s t%lu %lu %08lx sim%d ui%d modal%d step%d\n", tag, (unsigned long)g_timerGame, (unsigned long)value, (unsigned long)caller,
+	        (int)g_lanSim, g_lanUI, g_lanModal, (int)s_inStep);
 }
 
 /* ---- the scenario of a LAN game: a map's landscape, a start for each player */
@@ -717,7 +719,18 @@ static void Lan_Step(void)
 	Animation_Tick();
 	Unit_Sort();
 	s_steps++;
-	if (s_trace) Lan_Log("r %lu %08lx t%lu\n", (unsigned long)s_steps, (unsigned long)Tools_Random_State(), (unsigned long)g_timerGame);
+	if (s_trace) {
+		int i, loaded = 0;
+		uint32 delays = 0;
+		for (i = 0; i < UNIT_INDEX_MAX; i++) {
+			Unit *u = Unit_Get_ByIndex(i);
+			if (!u->o.flags.s.used) continue;
+			delays += u->o.script.delay;
+			if (Script_IsLoaded(&u->o.script)) loaded++;
+		}
+		Lan_Log("r %lu %08lx t%lu d%lu l%d p%d m%d\n", (unsigned long)s_steps, (unsigned long)Tools_Random_State(), (unsigned long)g_timerGame,
+		        (unsigned long)delays, loaded, (int)g_playerHouseID, g_lanModal);
+	}
 	if (s_steps % LAN_SUM_STEPS == 0) {
 		uint8 b[8];
 		int i = (int)((s_steps / LAN_SUM_STEPS) % 8);
@@ -730,6 +743,7 @@ static void Lan_Step(void)
 		Put32(b + 4, s_sums[i]);
 		Net_Send(g_lanServer ? NET_ALL : 0, MT_SUM, b, 8);
 	}
+	g_lanSim = false;
 	s_inStep = false;
 }
 
