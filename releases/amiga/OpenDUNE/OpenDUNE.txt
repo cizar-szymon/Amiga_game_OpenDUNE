@@ -1,0 +1,151 @@
+OPENDUNE - Dune II na Amige z karta graficzna
+=============================================
+
+Dune II: The Battle for Arrakis (Westwood, 1992) - strategia czasu
+rzeczywistego - w wersji OpenDUNE (otwarte zrodla silnika wersji PC 1.07),
+przeniesionej na Amige z akceleratorem 68040/68060 i karta RTG. Gra dziala
+na duzym ekranie (do 960x540), ma przewijanie blitterem karty, plynny ruch
+jednostek, zaznaczanie grup prostokatem, powiekszenie mapy, muzyke z dysku
+i gre w sieci LAN do 3 graczy.
+
+Wersja programu jest w menu glownym (lewy dolny rog: "Amiga 0.xx") i w
+Shellu: Version OpenDUNE
+
+
+WYMAGANIA
+---------
+
+- Amiga z procesorem 68040 lub 68060 (testowana na Warp 1260 / 7060,
+  68060 @ 100 MHz), 32 MB Fast RAM lub wiecej
+- AmigaOS 3.1 lub nowszy (testowany 3.2), Picasso96 z trybami 8-bit
+  (np. 640x480, 800x600) - karta RTG (Warp, Picasso, CyberVision, UAE)
+- dzwiek: Paula (audio.device); AHI nie jest potrzebne
+- gra LAN: stos TCP/IP (Roadshow, Miami, AmiTCP)
+- DANE GRY z wlasnej kopii Dune II na PC (ponizej)
+
+
+DANE GRY (nie ma ich w paczce)
+------------------------------
+
+Grafika, dzwieki, mowa i misje to pliki oryginalnej gry Dune II na PC.
+Sa chronione prawem autorskim (Westwood/Virgin, dzis Electronic Arts),
+dlatego nie ma ich w paczce i nie podajemy, skad je pobrac - trzeba je
+skopiowac z wlasnej, oryginalnej kopii (dyskietki lub CD), najlepiej w
+wersji 1.07.
+
+Skopiuj do katalogu OpenDUNE/data te pliki:
+
+  ATRE.PAK  DUNE.PAK  ENGLISH.PAK  FINALE.PAK  HARK.PAK  MENTAT.PAK
+  MERC.PAK  ORDOS.PAK  SCENARIO.PAK  SOUND.PAK  VOC.PAK
+  (INTRO.PAK - tylko dla intro; bez niego zostaw skip_intro=1)
+
+Wersje 1.07 (angielska) poznasz po rozmiarach, np. DUNE.PAK 408048,
+SOUND.PAK 1310138, SCENARIO.PAK 317241 bajtow. Inne wersje (1.0, 1.07
+niemiecka, francuska) moga dzialac, ale nie byly testowane.
+
+Pliki z wersji Dune II na Amige NIE pasuja - to inny format.
+
+Dane moga lezec gdzie indziej - wtedy w opendune.ini: datadir=Work:Dune2/
+(katalog z plikami .PAK).
+
+
+MUZYKA (nie ma jej w paczce)
+----------------------------
+
+Muzyka to nagrania oryginalnej muzyki AdLib z gry (tez chronionej), wiec
+kazdy robi je sam z wlasnych danych, raz, na PC:
+
+1. Na PC: Python 3 z numpy, ffmpeg i Docker.
+2. Ze zrodel (github.com/cizar-szymon/Amiga_game_OpenDUNE):
+     python tools/music/make_music.py --data KATALOG_Z_PLIKAMI_PAK
+   Nagrania (33 pliki .RAW, ok. 75 MB) trafia do build/music.
+3. Skopiuj pliki .RAW na Amige do katalogu OpenDUNE/MUSIC.
+
+Bez katalogu MUSIC gra dziala normalnie, tylko bez muzyki. Muzyke
+wlacza/wylacza Options -> Game controls -> Music; glosnosc:
+music_volume=0..64 w opendune.ini (domyslnie 40).
+
+
+INSTALACJA
+----------
+
+1. Rozpakuj OpenDUNE-0.xx.zip w dowolnym miejscu (np. Work:Games),
+   programem UnZip (Aminet: util/arc/UnZip):
+     UnZip OpenDUNE-0.xx.zip -d Work:Games
+2. Skopiuj dane gry do OpenDUNE/data (patrz wyzej), opcjonalnie MUSIC.
+3. Dwuklik na ikonie OpenDUNE.
+
+Zapisy gier, ustawienia i raporty bledow trafiaja do OpenDUNE/saves.
+
+
+STEROWANIE
+----------
+
+  mysz, lewy przycisk        wybor jednostki/budynku, przyciski
+  lewy przycisk + ciagniecie prostokat - zaznacza grupe jednostek
+  prawy przycisk             rozkaz dla zaznaczonych: ruch / atak celu
+  strzalki, krawedz ekranu   przewijanie mapy
+  Z, kolko myszy             powiekszenie mapy x1 / x2 / x3
+  P                          pauza (drugie P - dalej)
+  Tab                        czat w grze LAN
+  F8                         licznik klatek na sekunde (wl./wyl.)
+  F10                        raport bledu (patrz nizej)
+
+Prawy gorny rog ekranu (2x2 piksele): klik przenosi na Workbench, gra
+dziala dalej; powrot: Lewa Amiga + M.
+
+Options w grze: Game controls (muzyka, dzwieki, tempo, Show FPS),
+Resolution (rozdzielczosc ekranu, zapamietywana), Amiga info (komputer,
+zegar karty Warp), LOAD / SAVE na gornym pasku.
+
+
+GRA W SIECI LAN (do 3 graczy)
+-----------------------------
+
+Menu glowne -> Play on LAN. Jeden gracz zaklada serwer (START SERVER,
+wybiera poziom 2-9 i mape), pozostali dolaczaja (JOIN SERVER - serwery w
+sieci sa widoczne same, mozna tez wpisac adres). Serwer pierwszy wybiera
+rod, pozostali z tego, co zostalo. Gra rusza od 2 graczy. Kazdy widzi
+mape tylko tam, gdzie byly jego jednostki. Czat: Tab. Pauza dla
+wszystkich: P. Zapis i wczytanie gry LAN robi serwer.
+
+Wszyscy gracze musza miec te sama wersje programu.
+
+
+RAPORT BLEDU (F10)
+------------------
+
+F10 w dowolnej chwili zapisuje do OpenDUNE/saves:
+  bugNNN.txt         wersja, stan gry, jednostki
+  bugNNN.dat         zapis gry z tej chwili (w trakcie misji)
+  bugNNN-*.bmp       obraz ekranu
+Wyslij te pliki razem z numerem wersji i opisem, co sie stalo.
+
+
+OPCJE (opendune.ini)
+--------------------
+
+  datadir=           katalog z plikami .PAK (domyslnie PROGDIR:data)
+  savedir=           katalog zapisow (domyslnie PROGDIR:saves)
+  screenmode=WxH     rozdzielczosc ekranu (zamiast wyboru w Options)
+  framerate=60       klatki na sekunde
+  skip_intro=1       bez intro na starcie (bez INTRO.PAK musi byc 1)
+  show_fps=1         licznik klatek (tez F8 i Options)
+  smooth_units=0     ruch jednostek jak w oryginale (skokami)
+  rts_controls=0     sterowanie jak w oryginale (bez prostokata i
+                     prawego przycisku)
+  vram_scroll=0      przewijanie bez blittera karty
+  music_dir=         katalog muzyki (domyslnie PROGDIR:MUSIC)
+  music_volume=0..64 glosnosc muzyki (domyslnie 40)
+  lan_info=1         w grze LAN linia z czasem odpowiedzi graczy
+  language=          english / french / german (jezyk danych gry;
+                     w paczce ENGLISH.PAK - domyslnie angielski)
+
+
+O PORCIE
+--------
+
+OpenDUNE: otwarty silnik Dune II (GPL-2.0), www.opendune.org (projekt
+OpenDUNE). Port na Amige z karta RTG: zrodla, opis zmian i pomiary -
+github.com/cizar-szymon/Amiga_game_OpenDUNE (docs/PORTING.md).
+Licencja programu: GPL-2.0 (zrodla w repozytorium).

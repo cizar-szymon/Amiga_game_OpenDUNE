@@ -17,7 +17,7 @@
 #include "../inifile.h"
 #include "amiga_prof.h"
 
-const char amiga_version[] = "$VER: OpenDUNE 0.01 (28.10.2026)";
+/* $VER: generated into rev.c from port/VERSION (Makefile.amiga) */
 
 /* libnix: a stack of this size is set up before main() (start from an icon
  * gets only the icon's stack otherwise). __stack alone does not do it: the

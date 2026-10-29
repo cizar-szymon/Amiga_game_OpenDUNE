@@ -1,0 +1,33 @@
+OPENDUNE (Amiga) - release history
+==================================
+
+Reporting bugs: give the release number (main menu, bottom left, or in the
+Shell: Version OpenDUNE), say what happened and add the report files from
+OpenDUNE/saves - F10 writes bugNNN.txt, bugNNN.dat and bugNNN-*.bmp.
+Reports: github.com/cizar-szymon/Amiga_game_OpenDUNE (Issues).
+
+
+0.46 (29.10.2026) - the first release
+-------------------------------------
+
+- Dune II (OpenDUNE, the engine of the PC version 1.07) on a 68040/68060
+  Amiga with an RTG card: screen 400x300 to 960x540 (Options ->
+  Resolution), the menus enlarged in the middle.
+- Map scrolling by the card's blitter, at the screen edges and with the
+  cursor keys; smooth unit movement between the game's steps (up to 60
+  frames a second).
+- Group selection with a rubber band, orders with the right button, the
+  group in the panel (SQUAD) with action buttons for all of it.
+- Map zoom x2 / x3 (Z, mouse wheel).
+- Pause (P), a smooth build percentage, LOAD / SAVE on the top bar, "Main
+  menu" in Options.
+- LAN game for up to 3 players: servers found on the network, houses,
+  levels 2-9 (36 maps), fog of war for each player, chat (Tab), pause,
+  save and load.
+- Music: recordings of the AdLib music played from disk (made once with a
+  tool from your own game data, directory MUSIC), Music ON/OFF in Game
+  controls.
+- Options -> Amiga info (CPU, memory, card, the Warp card's clock), Show
+  FPS in Game controls, screen corner -> Workbench.
+- F10 on every screen: a bug report with the game state, a saved game and
+  the picture.

@@ -1,0 +1,152 @@
+OPENDUNE - Dune II for the Amiga with a graphics card
+====================================================
+
+Dune II: The Battle for Arrakis (Westwood, 1992), the real-time strategy
+game, as OpenDUNE (the open source engine of the PC version 1.07), ported
+to the Amiga with a 68040/68060 accelerator and an RTG card. The game runs
+on a large screen (up to 960x540) with scrolling by the card's blitter,
+smooth unit movement, group selection with a rubber band, map zoom, music
+from disk and a LAN game for up to 3 players.
+
+The release number is in the main menu (bottom left: "Amiga 0.xx") and in
+the Shell: Version OpenDUNE
+
+
+REQUIREMENTS
+------------
+
+- an Amiga with a 68040 or 68060 (tested on Warp 1260 / 7060, 68060 at
+  100 MHz), 32 MB Fast RAM or more
+- AmigaOS 3.1 or later (tested with 3.2), Picasso96 with 8-bit modes
+  (e.g. 640x480, 800x600) - an RTG card (Warp, Picasso, CyberVision, UAE)
+- sound: Paula (audio.device); AHI is not needed
+- LAN game: a TCP/IP stack (Roadshow, Miami, AmiTCP)
+- the GAME DATA from your own copy of Dune II for the PC (below)
+
+
+GAME DATA (not in the archive)
+------------------------------
+
+The graphics, sounds, speech and missions are files of the original PC
+game. They are copyrighted (Westwood/Virgin, today Electronic Arts), so
+they are not in the archive and we do not say where to download them -
+copy them from your own original copy (floppies or CD), version 1.07 if
+possible.
+
+Copy these files into OpenDUNE/data:
+
+  ATRE.PAK  DUNE.PAK  ENGLISH.PAK  FINALE.PAK  HARK.PAK  MENTAT.PAK
+  MERC.PAK  ORDOS.PAK  SCENARIO.PAK  SOUND.PAK  VOC.PAK
+  (INTRO.PAK - only for the intro; without it keep skip_intro=1)
+
+The English version 1.07 has, for example, DUNE.PAK 408048, SOUND.PAK
+1310138 and SCENARIO.PAK 317241 bytes. Other versions (1.0, German or
+French 1.07) may work but were not tested.
+
+The files of the Amiga version of Dune II do NOT fit - another format.
+
+The data can be elsewhere - then in opendune.ini: datadir=Work:Dune2/
+(the directory with the .PAK files).
+
+
+MUSIC (not in the archive)
+--------------------------
+
+The music is a recording of the game's original AdLib music (copyrighted
+too), so everyone makes it from their own data, once, on a PC:
+
+1. On the PC: Python 3 with numpy, ffmpeg and Docker.
+2. From the sources (github.com/cizar-szymon/Amiga_game_OpenDUNE):
+     python tools/music/make_music.py --data DIRECTORY_WITH_THE_PAK_FILES
+   The recordings (33 .RAW files, about 75 MB) go to build/music.
+3. Copy the .RAW files to the Amiga into OpenDUNE/MUSIC.
+
+Without the MUSIC directory the game runs as well, only without music.
+Music on/off: Options -> Game controls -> Music; volume: music_volume=0..64
+in opendune.ini (default 40).
+
+
+INSTALLATION
+------------
+
+1. Unpack OpenDUNE-0.xx.zip anywhere (e.g. Work:Games) with UnZip
+   (Aminet: util/arc/UnZip):
+     UnZip OpenDUNE-0.xx.zip -d Work:Games
+2. Copy the game data into OpenDUNE/data (see above), MUSIC if you like.
+3. Double-click the OpenDUNE icon.
+
+Saved games, settings and bug reports go to OpenDUNE/saves.
+
+
+CONTROLS
+--------
+
+  mouse, left button          select a unit/building, buttons
+  left button + drag          rubber band - selects a group of units
+  right button                order for the selection: move / attack
+  cursor keys, screen edge    scroll the map
+  Z, mouse wheel              zoom the map x1 / x2 / x3
+  P                           pause (P again - go on)
+  Tab                         chat in a LAN game
+  F8                          frames per second counter (on/off)
+  F10                         bug report (see below)
+
+The top right corner of the screen (2x2 pixels): a click goes to the
+Workbench, the game goes on; back: Left Amiga + M.
+
+Options in the game: Game controls (music, sounds, speed, Show FPS),
+Resolution (screen size, kept), Amiga info (the computer, the Warp
+card's clock), LOAD / SAVE on the top bar.
+
+
+LAN GAME (up to 3 players)
+--------------------------
+
+Main menu -> Play on LAN. One player starts a server (START SERVER, picks
+the level 2-9 and the map), the others join (JOIN SERVER - servers on the
+network show up by themselves, an address can be typed too). The server
+picks its house first, the others from what is left. The game starts with
+2 players or more. Everyone sees the map only where their units have
+been. Chat: Tab. Pause for everyone: P. The server saves and loads a LAN
+game.
+
+All players need the same release of the program.
+
+
+BUG REPORT (F10)
+----------------
+
+F10 at any moment writes into OpenDUNE/saves:
+  bugNNN.txt         release, game state, units
+  bugNNN.dat         a saved game of that moment (during a mission)
+  bugNNN-*.bmp       the screen
+Send these files with the release number and what happened.
+
+
+OPTIONS (opendune.ini)
+----------------------
+
+  datadir=           directory of the .PAK files (default PROGDIR:data)
+  savedir=           directory of the saves (default PROGDIR:saves)
+  screenmode=WxH     screen size (instead of the choice in Options)
+  framerate=60       frames per second
+  skip_intro=1       no intro at the start (must be 1 without INTRO.PAK)
+  show_fps=1         frame counter (also F8 and Options)
+  smooth_units=0     unit movement as the original (in steps)
+  rts_controls=0     controls as the original (no rubber band, no right
+                     button orders)
+  vram_scroll=0      scrolling without the card's blitter
+  music_dir=         music directory (default PROGDIR:MUSIC)
+  music_volume=0..64 music volume (default 40)
+  lan_info=1         in a LAN game a line with the players' response time
+  language=          english / french / german (the language of the
+                     game data; ENGLISH.PAK - English is the default)
+
+
+ABOUT THE PORT
+--------------
+
+OpenDUNE: the open Dune II engine (GPL-2.0), the OpenDUNE project. The
+port to the Amiga with an RTG card: sources, changes and measurements -
+github.com/cizar-szymon/Amiga_game_OpenDUNE (docs/PORTING.md).
+Licence of the program: GPL-2.0 (sources in the repository).

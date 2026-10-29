@@ -34,9 +34,15 @@ $(OUT): $(OBJS)
 	$(CC) $(LDFLAGS) -o $@ $(OBJS) -lm
 	$(STRIP) -o $@.s $@
 
-$(OBJDIR)/rev.c: src/rev.c.in
+# the release number: one place, port/VERSION (0.xx beta, 1.xx releases);
+# in the game (main menu, bug reports) and in $VER (Version OpenDUNE)
+VERSION    := $(shell cat VERSION)
+BUILD_DATE := $(shell date +%-d.%-m.%Y)
+
+$(OBJDIR)/rev.c: src/rev.c.in VERSION
 	@mkdir -p $(dir $@)
-	sed -e 's/!!VERSION!!/0.01-amiga/' -e 's/!!MODIFIED!!/2/' $< > $@
+	sed -e 's/!!VERSION!!/$(VERSION)/' -e 's/!!MODIFIED!!/2/' $< > $@
+	echo 'const char amiga_version[] = "$$VER: OpenDUNE $(VERSION) ($(BUILD_DATE))";' >> $@
 
 $(OBJDIR)/rev.o: $(OBJDIR)/rev.c
 	$(CC) $(CFLAGS) -iquote src -c -o $@ $<

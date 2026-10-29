@@ -521,6 +521,24 @@ Serwer Amiga 1 (Harkonnen, Warp1260X @ 100 MHz, 640×360, `lan_info=1`, `debug_s
   `77041303`) nie istnieje w Amiberry (32 bity jako RGBA, `77041302`); w kopii
   `screenmode.prefs` ID zmienione – Workbench w RTG 1024×768.
 
+### Wydanie 0.46, GitHub (29.10.2026, decyzje użytkownika)
+- Numer wydania w jednym miejscu: `port/VERSION` (0.46 = liczba commitów, beta); Makefile
+  wstawia go do `rev.c` (`g_opendune_revision`, raporty F10) i `$VER` (`Version OpenDUNE`), menu
+  główne pokazuje „Amiga 0.46” w lewym dolnym rogu.
+- Publiczne repo `github.com/cizar-szymon/Amiga_game_OpenDUNE`: źródła + `releases/amiga`
+  (program, ikony, `opendune.ini`, opisy PL/EN dla gracza, historia wydań, `COPYING` – GPL-2.0,
+  puste `data/` i `MUSIC/` z ReadMe) i `OpenDUNE-<v>.zip`. Bez danych Dune II i bez nagrań muzyki
+  (prawa autorskie): opis, skąd wziąć dane (własna kopia 1.07, lista plików, bez linków) i jak
+  nagrać muzykę (`tools/music/make_music.py`).
+- Pełna paczka tylko lokalnie: `private/OpenDUNE-<v>-full.zip` (+ `data/*.PAK`, `MUSIC/*.RAW`),
+  `private/` poza gitem.
+- `tools/make_release.sh` robi oba; ZIP (wybór użytkownika zamiast LHA) przez `tools/make_zip.py`
+  z uprawnieniami Unix (program 755): bez nich Amiga UnZip rozpakowuje program bez bitu E i nie da
+  się go uruchomić. Sprawdzone w WinUAE: UnZip 5.5 → `----rwed`, gra z rozpakowanej pełnej paczki
+  startuje, dane i muzyka (`DUNE7_6`) działają.
+- (LhA w WinUAE odrzucone: uruchomiony w tle bez konsoli kończy się błędem 20, zablokowane pliki po
+  przerwanych próbach, pełna paczka trwałaby długo.)
+
 ## Gra LAN (gałąź `lan-game`, 29.10.2026)
 
 Prośba użytkownika (29.10, w nocy): gra do 3 graczy w sieci, łączenie jak w Settlers; w menu

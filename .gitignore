@@ -8,3 +8,5 @@ build/
 upstream/
 novacoder/
 *.cfg
+# the full release with the game data and music (tools/make_release.sh): only on this PC
+private/

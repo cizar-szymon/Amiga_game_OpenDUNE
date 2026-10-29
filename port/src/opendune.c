@@ -75,6 +75,7 @@
 #include "rev.h"
 #endif
 #if defined(__amigaos__)
+#include "rev.h"
 #include "gui/rts_amiga.h"
 #include "gui/layout_amiga.h"
 #include "os/amiga_prof.h"
@@ -924,6 +925,10 @@ static void GameLoop_GameIntroAnimationMenu(void)
 		GUI_SetPaletteAnimated(g_palette1, 30);
 
 		GUI_DrawText_Wrapper("V1.07", 319, 192, 133, 0, 0x231, 0x39);
+#if defined(__amigaos__)
+		/* the port's release (port/VERSION), for bug reports */
+		GUI_DrawText_Wrapper("Amiga %s", 1, 192, 133, 0, 0x031, g_opendune_revision);
+#endif
 		GUI_DrawText_Wrapper(NULL, 0, 0, 0, 0, 0x22);
 
 		Widget_SetCurrentWidget(13);
