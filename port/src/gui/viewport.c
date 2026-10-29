@@ -32,6 +32,7 @@
 #include "../unit.h"
 #if defined(__amigaos__)
 #include "rts_amiga.h"
+#include "layout_amiga.h"
 #if defined(__amigaos__)
 #include "smooth_amiga.h"
 #include "../lan_amiga.h"
@@ -148,6 +149,9 @@ bool GUI_Widget_Viewport_Click(Widget *w)
 	}
 
 	if (w->index == 43) {
+#if defined(__amigaos__)
+		Layout_ViewPoint(&x, &y);	/* the zoomed view */
+#endif
 		x =  x / 16 + Tile_GetPackedX(g_minimapPosition);
 		y = (y - 40) / 16 + Tile_GetPackedY(g_minimapPosition);
 	} else if (w->index == 44) {
@@ -863,6 +867,15 @@ void GUI_Widget_Viewport_Draw(bool forceRedraw, bool hasScrolled, bool drawToMai
 	}
 
 	if (updateDisplay && !drawToMainScreen) {
+#if defined(__amigaos__)
+		if (g_viewport_fadein && g_viewZoom > 1) {
+			/* zoomed: no fade (it copies pixel by pixel), the stretched copy */
+			g_viewport_fadein = false;
+			g_zoomCopy++;
+			GUI_Screen_Copy(g_curWidgetXBase, g_curWidgetYBase, g_curWidgetXBase, g_curWidgetYBase, g_curWidgetWidth, g_curWidgetHeight, SCREEN_ACTIVE, SCREEN_0);
+			g_zoomCopy--;
+		} else
+#endif
 		if (g_viewport_fadein) {
 			GUI_Mouse_Hide_InWidget(g_curWidgetIndex);
 
@@ -906,7 +919,13 @@ void GUI_Widget_Viewport_Draw(bool forceRedraw, bool hasScrolled, bool drawToMai
 					init = true;
 				}
 
+#if defined(__amigaos__)
+				g_zoomCopy++;	/* stretched when zoomed */
+#endif
 				GUI_Screen_Copy(x, y, x, y, width, height, SCREEN_ACTIVE, SCREEN_0);
+#if defined(__amigaos__)
+				g_zoomCopy--;
+#endif
 			}
 
 			if (init) GUI_Mouse_Show_InWidget();

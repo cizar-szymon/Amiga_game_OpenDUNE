@@ -11,6 +11,14 @@
  * (GUI_DrawInterfaceAndRadar), Layout_Set(false) when it is left for a 320x200
  * screen (GUI_ChangeSelectionType(SELECTIONTYPE_MENTAT), the Mentat button).
  * Positions in the tables are moved from their original values, which are kept.
+ *
+ * Zoom (as in the Settlers port: Z steps x1 -> x2 -> x3 -> x1, the mouse wheel
+ * one step in or out): the viewport is drawn with fewer tiles (logical, in
+ * SCREEN_1 at its usual place) and its copy to SCREEN_0 is stretched over the
+ * whole viewport (Layout_ZoomCopy, from GUI_Screen_Copy); windows, the panel
+ * and the pointer stay 1:1. The pointer over the viewport is turned into the
+ * logical picture's pixels where the game turns it into tiles
+ * (Layout_ViewPoint). Only the picture changes: in a LAN game too.
  */
 
 #include <stdlib.h>
@@ -33,9 +41,17 @@
 #include "widget.h"
 #include "layout_amiga.h"
 #include "../house.h"
+#include "../opendune.h"
+
+extern bool Video_ScrollView(int16 dx, int16 dy, int16 x, int16 y, int16 w, int16 h);
 
 uint16 g_viewportTilesW = 15;
 uint16 g_viewportTilesH = 10;
+int g_viewZoom = 1;			/* the zoom in force (1 off the large map screen) */
+int g_zoomCopy = 0;			/* > 0: a copy of the viewport to SCREEN_0 (stretched when zoomed) */
+static int s_zoomWanted = 1;		/* the player's choice */
+static uint16 s_fullTilesW = 15, s_fullTilesH = 10;	/* the viewport's tiles at x1 */
+static volatile int s_zoomRequest;	/* from the video driver: 1 Z, 2 wheel in, 3 wheel out */
 int16 g_sidebarDX = 0;
 int16 g_radarY = 136;
 int16 g_panelDY = 0;
@@ -71,7 +87,7 @@ static void Layout_Widget(uint16 index, int16 x, int16 y, uint16 w, uint16 h)
 static void Layout_GameWidgets(void)
 {
 	const WidgetInfo *info;
-	uint16 vw = g_viewportTilesW * 16, vh = g_viewportTilesH * 16;
+	uint16 vw = s_fullTilesW * 16, vh = s_fullTilesH * 16;	/* on the screen (zoomed or not) */
 	unsigned i;
 
 	for (info = g_table_gameWidgetInfo; info->index >= 0; info++) {
@@ -117,8 +133,8 @@ static void Layout_Properties(void)
 	g_widgetProperties[0].width = SCREEN_WIDTH / 8;
 	g_widgetProperties[0].height = SCREEN_HEIGHT;
 	/* message box: centred over the viewport */
-	g_widgetProperties[1].xBase += (g_viewportTilesW * 16 - 240) / 16;
-	g_widgetProperties[1].yBase += (g_viewportTilesH * 16 - 160) / 2;
+	g_widgetProperties[1].xBase += (s_fullTilesW * 16 - 240) / 16;
+	g_widgetProperties[1].yBase += (s_fullTilesH * 16 - 160) / 2;
 	g_widgetProperties[2].width = g_viewportTilesW * 2;
 	g_widgetProperties[2].height = g_viewportTilesH * 16;
 	for (i = 3; i <= 6; i++) g_widgetProperties[i].xBase += dx8;	/* radar, credits, action panel */
@@ -171,16 +187,21 @@ void Layout_Set(bool big)
 		Video_Amiga_ScreenSize(&w, &h);		/* the map screen 1:1: as large as the screen */
 		GFX_SetScreenSize((uint16)min(w, SCREEN_WIDTH_MAX), (uint16)min(h, SCREEN_HEIGHT_MAX));
 		Mouse_SetRegion(0, 0, SCREEN_WIDTH - 1, SCREEN_HEIGHT - 1);
-		g_viewportTilesW = (SCREEN_WIDTH - 80) / 16;
-		g_viewportTilesH = (SCREEN_HEIGHT - 40) / 16;
+		s_fullTilesW = (SCREEN_WIDTH - 80) / 16;
+		s_fullTilesH = (SCREEN_HEIGHT - 40) / 16;
+		g_viewZoom = min(s_zoomWanted, Layout_MaxZoom());
+		if (g_viewZoom < 1) g_viewZoom = 1;
+		g_viewportTilesW = (s_fullTilesW + g_viewZoom - 1) / g_viewZoom;
+		g_viewportTilesH = (s_fullTilesH + g_viewZoom - 1) / g_viewZoom;
 		g_sidebarDX = SCREEN_WIDTH - 320;
 		g_radarY = BIG_RADAR_Y;
 		g_panelDY = BIG_PANEL_Y - 42;
 	} else {
 		GFX_SetScreenSize(320, 200);
 		Mouse_SetRegion(0, 0, SCREEN_WIDTH - 1, SCREEN_HEIGHT - 1);
-		g_viewportTilesW = 15;
-		g_viewportTilesH = 10;
+		s_fullTilesW = g_viewportTilesW = 15;
+		s_fullTilesH = g_viewportTilesH = 10;
+		g_viewZoom = 1;
 		g_sidebarDX = 0;
 		g_radarY = 136;
 		g_panelDY = 0;
@@ -633,4 +654,171 @@ void Layout_PanelBlackBelow(void)
 	if (end >= bottom) return;
 	GUI_DrawFilledRectangle(left, end, left + width - 1, bottom - 1, 12);
 	GUI_DrawBorder(left, top, width, end - top, 1, false);
+}
+
+/* ---- zoom of the map view ---- */
+
+/** The largest zoom of the map screen (as the Settlers port): 4:3 above 400
+ * wide x2, from 800 x3; 16:9 from 960 x3 (640x360 none). */
+int Layout_MaxZoom(void)
+{
+	if (!s_big) return 1;
+	if (SCREEN_WIDTH * 9 == SCREEN_HEIGHT * 16) return SCREEN_WIDTH >= 960 ? 3 : 1;
+	if (SCREEN_WIDTH >= 800) return 3;
+	if (SCREEN_WIDTH > 400) return 2;
+	return 1;
+}
+
+/** Z (step 0) or the wheel (+1 / -1), from the video driver's key handling. */
+void Layout_ZoomRequest(int step)
+{
+	s_zoomRequest = step == 0 ? 1 : step > 0 ? 2 : 3;
+}
+
+/** A text was typed (edit box, chat): its Z is no zoom. */
+void Layout_ZoomCancel(void)
+{
+	s_zoomRequest = 0;
+}
+
+static void Layout_ChangeZoom(int zoom)
+{
+	int cx = Tile_GetPackedX(g_viewportPosition) + g_viewportTilesW / 2;
+	int cy = Tile_GetPackedY(g_viewportPosition) + g_viewportTilesH / 2;
+
+	s_zoomWanted = zoom;
+	if (zoom == g_viewZoom) return;
+	GUI_Mouse_Hide_Safe();
+	Map_UpdateMinimapPosition(0xFFFF, true);	/* off the radar at the old size */
+	g_viewZoom = zoom;
+	g_viewportTilesW = (s_fullTilesW + zoom - 1) / zoom;
+	g_viewportTilesH = (s_fullTilesH + zoom - 1) / zoom;
+	/* the middle of the view stays */
+	g_viewportPosition = Tile_PackXY((uint16)max(cx - g_viewportTilesW / 2, 0), (uint16)max(cy - g_viewportTilesH / 2, 0));
+	Layout_ClampViewport();
+	Layout_Properties();
+	Layout_GameWidgets();
+	g_viewport_forceRedraw = true;
+	Map_UpdateMinimapPosition(g_minimapPosition, true);
+	/* (it copies the radar to the screen only when it cleared something) */
+	GUI_Screen_Copy(32 + g_sidebarDX / 8, g_radarY, 32 + g_sidebarDX / 8, g_radarY, 8, 64, SCREEN_1, SCREEN_0);
+	GUI_Mouse_Show_Safe();
+}
+
+/** On the map screen (RTS_Tick): a zoom asked for by Z or the wheel. */
+void Layout_ZoomTick(void)
+{
+	int request = s_zoomRequest, most = Layout_MaxZoom(), z = g_viewZoom;
+	if (request == 0) return;
+	s_zoomRequest = 0;
+	if (most <= 1) return;
+	if (request == 1) z = z >= most ? 1 : z + 1;
+	else if (request == 2) z = min(z + 1, most);
+	else z = max(z - 1, 1);
+	Layout_ChangeZoom(z);
+}
+
+/** The point of the screen is over the viewport (zoomed or not). */
+bool Layout_InView(int x, int y)
+{
+	return x >= 0 && x < s_fullTilesW * 16 && y >= 40 && y < 40 + s_fullTilesH * 16;
+}
+
+/** A point of the screen over the zoomed viewport -> the logical picture's pixel. */
+void Layout_ViewPoint(int16 *x, int16 *y)
+{
+	if (g_viewZoom <= 1) return;
+	if (*x < 0 || *x >= s_fullTilesW * 16 || *y < 40 || *y >= 40 + s_fullTilesH * 16) return;
+	*x = (int16)(*x / g_viewZoom);
+	*y = (int16)(40 + (*y - 40) / g_viewZoom);
+}
+
+/* Rows [y1, y2) of SCREEN_1's logical viewport, columns [x1, x2), stretched
+ * into SCREEN_0. */
+static void Layout_Stretch(int x1, int y1, int x2, int y2)
+{
+	const uint8 *src = GFX_Screen_Get_ByIndex(SCREEN_1);
+	uint8 *dst = GFX_Screen_Get_ByIndex(SCREEN_0);
+	int z = g_viewZoom, fw = s_fullTilesW * 16, fy2 = 40 + s_fullTilesH * 16;
+	int dx1 = x1 * z, dx2 = min(x2 * z, fw), dy1 = 40 + (y1 - 40) * z, dy2 = min(40 + (y2 - 40) * z, fy2);
+	int y;
+
+	if (dx1 >= dx2 || dy1 >= dy2) return;
+	for (y = y1; y < y2; y++) {
+		const uint8 *s = src + y * SCREEN_WIDTH + x1;
+		int ty = 40 + (y - 40) * z, r, n = dx2 - dx1;
+		uint8 *d = dst + ty * SCREEN_WIDTH + dx1;
+		int x;
+		if (ty >= fy2) break;
+		if (z == 2) {
+			for (x = 0; x + 1 < n; x += 2) { uint8 p = *s++; d[x] = p; d[x + 1] = p; }
+			if (x < n) d[x] = *s;
+		} else {
+			for (x = 0; x < n; x++) d[x] = s[x / z];
+		}
+		for (r = 1; r < z && ty + r < fy2; r++) memcpy(d + r * SCREEN_WIDTH, d, n);
+	}
+	GFX_Screen_SetDirty(SCREEN_0, (uint16)dx1, (uint16)dy1, (uint16)dx2, (uint16)dy2);
+}
+
+/**
+ * GUI_Screen_Copy from SCREEN_1 to SCREEN_0, the same place, while the view is
+ * zoomed (x, w in pixels): what of it is the logical viewport is stretched over
+ * the real one, what is outside the real viewport copied 1:1, the rest of the
+ * real viewport in SCREEN_1 (beyond the logical picture) left alone.
+ */
+bool Layout_ZoomCopy(int x, int y, int w, int h)
+{
+	const uint8 *src;
+	uint8 *dst;
+	int fw = s_fullTilesW * 16, fy2 = 40 + s_fullTilesH * 16;
+	int lw = g_viewportTilesW * 16, ly2 = 40 + g_viewportTilesH * 16;
+	int x2 = x + w, y2 = y + h, r;
+
+	if (g_viewZoom <= 1 || !s_big) return false;
+	if (x2 <= 0 || y2 <= 40 || x >= fw || y >= fy2) return false;	/* not over the viewport: as always */
+
+	GUI_Mouse_Hide_Safe();
+	src = GFX_Screen_Get_ByIndex(SCREEN_1);
+	dst = GFX_Screen_Get_ByIndex(SCREEN_0);
+	/* the logical viewport */
+	Layout_Stretch(max(x, 0), max(y, 40), min(x2, lw), min(y2, ly2));
+	/* 1:1 outside the real viewport: above, below, right of it */
+	for (r = y; r < y2; r++) {
+		int a = x, b = x2;
+		if (r >= 40 && r < fy2) a = max(a, fw);
+		if (a >= b) continue;
+		memcpy(dst + r * SCREEN_WIDTH + a, src + r * SCREEN_WIDTH + a, b - a);
+	}
+	GFX_Screen_SetDirty(SCREEN_0, (uint16)max(x, 0), (uint16)max(y, 0), (uint16)min(x2, SCREEN_WIDTH), (uint16)min(y2, SCREEN_HEIGHT));
+	GUI_Mouse_Show_Safe();
+	return true;
+}
+
+/**
+ * The view moved by dx, dy logical pixels (GUI_DrawScreen): SCREEN_1's logical
+ * viewport and SCREEN_0's real one each by their own amount, on the card by
+ * the blitter; the edge tiles cut by the real viewport stretched again (their
+ * cut part comes into view).
+ */
+void Layout_ZoomShift(int16 dx, int16 dy)
+{
+	int z = g_viewZoom, fw = s_fullTilesW * 16, fh = s_fullTilesH * 16;
+	int lw = g_viewportTilesW * 16, lh = g_viewportTilesH * 16;
+
+	GUI_Mouse_Hide_Safe();
+	GFX_ShiftScreenRect(SCREEN_1, dx, dy, 0, 40, (int16)lw, (int16)lh);
+	GFX_ShiftScreenRect(SCREEN_0, (int16)(dx * z), (int16)(dy * z), 0, 40, (int16)fw, (int16)fh);
+	if (!Video_ScrollView((int16)(dx * z), (int16)(dy * z), 0, 40, (int16)fw, (int16)fh)) {
+		GFX_Screen_SetDirty(SCREEN_0, 0, 40, (uint16)fw, (uint16)(40 + fh));
+	} else {
+		/* the card moves the pointer it still shows too: send that place again */
+		int x1 = max(g_mouseX - 16 + dx * z, 0), y1 = max(g_mouseY - 16 + dy * z, 40);
+		int x2 = min(g_mouseX + 32 + dx * z, fw), y2 = min(g_mouseY + 32 + dy * z, 40 + fh);
+		if (x1 < x2 && y1 < y2) GFX_Screen_SetDirty(SCREEN_0, (uint16)x1, (uint16)y1, (uint16)x2, (uint16)y2);
+	}
+	/* the last two columns and rows of tiles: partly outside before */
+	Layout_Stretch(max(lw - 32, 0), 40, lw, 40 + lh);
+	Layout_Stretch(0, max(40 + lh - 32, 40), lw, 40 + lh);
+	GUI_Mouse_Show_Safe();
 }

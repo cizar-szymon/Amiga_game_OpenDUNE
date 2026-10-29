@@ -2168,7 +2168,13 @@ void GUI_DrawInterfaceAndRadar(Screen screenID)
 
 		GUI_Mouse_Hide_Safe();
 
+#if defined(__amigaos__)
+		g_zoomCopy++;	/* the viewport in it: stretched when zoomed */
+#endif
 		GUI_Screen_Copy(0, 0, 0, 0, SCREEN_WIDTH / 8, SCREEN_HEIGHT, SCREEN_1, SCREEN_0);
+#if defined(__amigaos__)
+		g_zoomCopy--;
+#endif
 		GUI_DrawCredits(LOCAL_HOUSE_ID, (g_playerCredits == 0xFFFF) ? 2 : 1);
 		GUI_SetPaletteAnimated(g_palette1, 15);
 
@@ -2673,6 +2679,11 @@ void GUI_SetClippingArea(uint16 left, uint16 top, uint16 right, uint16 bottom)
  */
 void GUI_Screen_Copy(int16 xSrc, int16 ySrc, int16 xDst, int16 yDst, int16 width, int16 height, Screen screenSrc, Screen screenDst)
 {
+#if defined(__amigaos__)
+	/* the zoomed viewport: stretched (layout_amiga.c) */
+	if (g_viewZoom > 1 && g_zoomCopy > 0 && (screenSrc == SCREEN_1 || (screenSrc == SCREEN_ACTIVE && GFX_Screen_IsActive(SCREEN_1))) && screenDst == SCREEN_0 && xSrc == xDst && ySrc == yDst
+	    && Layout_ZoomCopy(xSrc * 8, ySrc, width * 8, height)) return;
+#endif
 	if (width  > SCREEN_WIDTH / 8) width  = SCREEN_WIDTH / 8;
 	if (height > SCREEN_HEIGHT)    height = SCREEN_HEIGHT;
 
@@ -4691,9 +4702,13 @@ void GUI_DrawScreen(Screen screenID)
 			/* the picture moved once, in SCREEN_0 and into SCREEN_1 together
 			 * (GUI_Widget_Viewport_Draw then copies only what changed); on the
 			 * card the blitter moves it, else the viewport is sent again */
-			GFX_ShiftViewport(xOffset << 4, yOffset << 4, 0, 40, VIEWPORT_TILES_W * 16, VIEWPORT_TILES_H * 16);
-			if (!Video_ScrollView(xOffset << 4, yOffset << 4, 0, 40, VIEWPORT_TILES_W * 16, VIEWPORT_TILES_H * 16)) {
-				GFX_Screen_SetDirty(SCREEN_0, 0, 40, VIEWPORT_TILES_W * 16, 40 + VIEWPORT_TILES_H * 16);
+			if (g_viewZoom > 1) {
+				Layout_ZoomShift(xOffset << 4, yOffset << 4);
+			} else {
+				GFX_ShiftViewport(xOffset << 4, yOffset << 4, 0, 40, VIEWPORT_TILES_W * 16, VIEWPORT_TILES_H * 16);
+				if (!Video_ScrollView(xOffset << 4, yOffset << 4, 0, 40, VIEWPORT_TILES_W * 16, VIEWPORT_TILES_H * 16)) {
+					GFX_Screen_SetDirty(SCREEN_0, 0, 40, VIEWPORT_TILES_W * 16, 40 + VIEWPORT_TILES_H * 16);
+				}
 			}
 #else
 			GUI_Screen_Copy(max(-xOffset << 1, 0), 40 + max(-yOffset << 4, 0), max(0, xOffset << 1), 40 + max(0, yOffset << 4), xOverlap << 1, yOverlap << 4, SCREEN_0, SCREEN_1);

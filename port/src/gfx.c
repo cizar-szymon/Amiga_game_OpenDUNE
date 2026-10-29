@@ -214,6 +214,22 @@ void GFX_ShiftViewport(int16 dx, int16 dy, int16 x, int16 y, int16 w, int16 h)
 	}
 }
 
+/** Moves the rectangle x, y, w, h of one screen by dx, dy pixels (zoomed view). */
+void GFX_ShiftScreenRect(int screenID, int16 dx, int16 dy, int16 x, int16 y, int16 w, int16 h)
+{
+	uint8 *s = s_screenBuffer[screenID];
+	int16 cw = w - (dx < 0 ? -dx : dx), ch = h - (dy < 0 ? -dy : dy);
+	int16 sx = dx < 0 ? x - dx : x, tx = dx < 0 ? x : x + dx;
+	int16 sy = dy < 0 ? y - dy : y, ty = dy < 0 ? y : y + dy;
+	int16 r;
+
+	if (cw <= 0 || ch <= 0) return;
+	for (r = 0; r < ch; r++) {
+		int16 row = (dy > 0) ? ch - 1 - r : r;
+		memmove(s + (ty + row) * SCREEN_WIDTH + tx, s + (sy + row) * SCREEN_WIDTH + sx, cw);
+	}
+}
+
 /** Changes the size of the screen the game draws; SCREEN_0 is cleared. */
 void GFX_SetScreenSize(uint16 width, uint16 height)
 {

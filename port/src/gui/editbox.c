@@ -49,7 +49,22 @@ static void GUI_EditBox_BlinkCursor(uint16 positionX, bool resetBlink)
  * @param paint Flag indicating if the widget need to be repainted.
  * @return Key code / Button press code.
  */
+#if defined(__amigaos__)
+extern void Layout_ZoomCancel(void);
+static uint16 GUI_EditBox_(char *text, uint16 maxLength, uint16 widgetID, Widget *w, uint16 (*tickProc)(void), bool paint);
+#endif
+
 uint16 GUI_EditBox(char *text, uint16 maxLength, uint16 widgetID, Widget *w, uint16 (*tickProc)(void), bool paint)
+#if defined(__amigaos__)
+{
+	/* a Z typed into the text is no zoom (layout_amiga.c) */
+	uint16 r = GUI_EditBox_(text, maxLength, widgetID, w, tickProc, paint);
+	Layout_ZoomCancel();
+	return r;
+}
+
+static uint16 GUI_EditBox_(char *text, uint16 maxLength, uint16 widgetID, Widget *w, uint16 (*tickProc)(void), bool paint)
+#endif
 {
 	Screen oldScreenID;
 	uint16 oldWidgetID;

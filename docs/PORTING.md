@@ -318,6 +318,26 @@ Pomiar, misja 5 (62×62, Harkonnen, `misja5`), przewijanie przy krawędzi + ruch
   ekran ma rozmiar trybu, a obraz jest wyśrodkowany (`s_reqW/H` = rozmiar gry, `s_width/height` =
   ekran). Licznik FPS w lewym dolnym rogu obrazu, nie ekranu.
 
+### Zoom widoku mapy (29.10.2026, jak w Settlers, decyzja użytkownika)
+
+- **Z** – po kolei ×1 → ×2 → ×3 → ×1; **kółko myszy** – stopień bliżej / dalej (RAWKEY 0x7A/0x7B,
+  OS 3.2 / NewMouse); środek widoku zostaje. Największy zoom jak w Settlers: 4:3 powyżej 400
+  szerokości ×2, od 800 ×3; 16:9 od 960 ×3, 640×360 bez zoomu. Także w grze LAN (zmienia tylko obraz).
+- **Jak:** widok rysuje się z mniejszą liczbą pól (logicznie, w SCREEN_1 na zwykłym miejscu),
+  a jego kopia do SCREEN_0 jest rozciągana na cały widok (`Layout_ZoomCopy` z `GUI_Screen_Copy`,
+  tylko gdy kopiuje widok: licznik `g_zoomCopy` w `viewport.c` i `GUI_DrawInterfaceAndRadar`).
+  Okna, panel, radar i kursor zostają 1:1, sterownik obrazu bez zmian (porównanie z kopią,
+  blitter). Przewijanie: SCREEN_1 o dx, SCREEN_0 i karta (blitter) o dx·zoom
+  (`Layout_ZoomShift`); ostatnie dwie kolumny/wiersze pól rozciągane ponownie (były ucięte);
+  miejsce kursora przesunięte blitterem wysyłane ponownie (inaczej ślady kursora).
+- **Mysz:** pozycja nad widokiem → piksel obrazu logicznego (`Layout_ViewPoint`) tam, gdzie gra
+  zamienia ją na pole: klik w widok, prostokąt zaznaczania, rozkaz prawym przyciskiem;
+  „czy nad widokiem” z pełnego widoku (`Layout_InView`).
+- `Z` wpisane w pole tekstowe (nazwa zapisu) nie zmienia zoomu (`Layout_ZoomCancel` po edycji).
+- Sprawdzone w WinUAE: 640×480 ×2, 800×600 ×3, przewijanie strzałkami, klik, zaznaczanie
+  prostokątem, rozkaz, okno Options nad powiększonym widokiem, kółko. Pomiar fps na Amidze – do
+  zrobienia (Amiga 2 nie odpowiadała).
+
 ## Gra LAN (gałąź `lan-game`, 29.10.2026)
 
 Prośba użytkownika (29.10, w nocy): gra do 3 graczy w sieci, łączenie jak w Settlers; w menu

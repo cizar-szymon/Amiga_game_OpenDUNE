@@ -29,6 +29,7 @@
 #include "../os/math.h"
 #include "../gfx.h"
 #include "../house.h"
+#include "layout_amiga.h"
 #include "../inifile.h"
 #include "../map.h"
 #include "../input/mouse.h"
@@ -82,7 +83,7 @@ static volatile int16 s_ox, s_oy;				/* the order point */
 
 static bool RTS_InViewport(int x, int y)
 {
-	return x >= 0 && x < VIEWPORT_TILES_W * 16 && y >= 40 && y < 40 + VIEWPORT_TILES_H * 16;
+	return Layout_InView(x, y);	/* on the screen: zoomed or not */
 }
 
 /* Only on the map screen, while the game loop runs (not in a window). */
@@ -163,9 +164,9 @@ bool RTS_GetDragRect(int16 *x0, int16 *y0, int16 *x1, int16 *y1)
 	a = s_dy0; b = s_dy1;
 	*y0 = min(a, b); *y1 = max(a, b);
 	/* inside the viewport */
-	*x1 = min(*x1, (int16)(VIEWPORT_TILES_W * 16 - 1));
 	*y0 = max(*y0, (int16)40);
-	*y1 = min(*y1, (int16)(40 + VIEWPORT_TILES_H * 16 - 1));
+	while (*x1 > 0 && !Layout_InView(*x1, 40)) (*x1)--;	/* on the screen: zoomed or not */
+	while (*y1 > 40 && !Layout_InView(0, *y1)) (*y1)--;
 	return true;
 }
 
@@ -221,6 +222,13 @@ static void RTS_SelectRect(int x0, int y0, int x1, int y1)
 
 	if (x0 > x1) { int t = x0; x0 = x1; x1 = t; }
 	if (y0 > y1) { int t = y0; y0 = y1; y1 = t; }
+	{
+		/* the zoomed view: the logical picture's pixels */
+		int16 a = (int16)x0, b = (int16)y0, c = (int16)x1, d = (int16)y1;
+		Layout_ViewPoint(&a, &b);
+		Layout_ViewPoint(&c, &d);
+		x0 = a; y0 = b; x1 = c; y1 = d;
+	}
 	y0 -= 40;
 	y1 -= 40;
 
@@ -333,6 +341,12 @@ static void RTS_Order(int x, int y)
 	bool enemy = false;
 	Unit *first = NULL;
 
+	{
+		int16 a = (int16)x, b = (int16)y;
+		Layout_ViewPoint(&a, &b);	/* the zoomed view */
+		x = a;
+		y = b;
+	}
 	packed = Tile_PackXY(x / 16 + Tile_GetPackedX(g_minimapPosition), (y - 40) / 16 + Tile_GetPackedY(g_minimapPosition));
 	if (!Map_IsValidPosition(packed)) return;
 
@@ -478,6 +492,7 @@ void RTS_Tick(void)
 	if (s_enabled < 0) s_enabled = IniFile_GetInteger("rts_controls", 1) != 0 ? 1 : 0;
 	s_lastMain = Timer_GetTime();
 	RTS_Pause();		/* also with rts_controls=0 */
+	if (g_gameMode == GM_NORMAL && g_selectionType != SELECTIONTYPE_MENTAT) Layout_ZoomTick();
 	if (s_enabled == 0) return;
 
 	if (g_gameMode != GM_NORMAL) {

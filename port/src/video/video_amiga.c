@@ -130,6 +130,10 @@ static const uint8 s_rawToAT[0x68] = {
 #define RAW_F8 0x57
 #define RAW_F10 0x59
 #define RAW_P   0x19
+#define RAW_Z   0x31
+#define RAW_WHEEL_UP   0x7A	/* AmigaOS 3.2 / NewMouse */
+#define RAW_WHEEL_DOWN 0x7B
+extern void Layout_ZoomRequest(int step);
 
 extern void AmigaBug_Request(void);
 extern void AmigaBug_Printf(const char *format, ...);
@@ -417,6 +421,12 @@ void Video_Amiga_Key(uint16 code)
 	uint8 sc;
 
 	code &= ~IECODE_UP_PREFIX;
+	if (s_lw > 320 && (code == RAW_WHEEL_UP || code == RAW_WHEEL_DOWN)) {
+		/* the map screen: zoom one step in / out (as the Settlers port) */
+		if (!up) Layout_ZoomRequest(code == RAW_WHEEL_UP ? 1 : -1);
+		return;
+	}
+	if (code == RAW_Z && s_lw > 320 && !up) Layout_ZoomRequest(0);	/* and on to the game (typing) */
 	if (code >= sizeof(s_rawToAT)) return;
 	if (code == RAW_P && s_lw > 320) {
 		/* the map screen: pause (standard keys of the ports: P) */
