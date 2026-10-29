@@ -616,6 +616,13 @@ static void GUI_Widget_GameControls_Click(Widget *w)
 {
 	WindowDesc *desc = &g_gameControlWindowDesc;
 	bool loop;
+#if defined(__amigaos__)
+	WidgetProperties props = g_widgetProperties[desc->index];
+
+	/* one row more (Show FPS): 17 rows taller */
+	g_widgetProperties[desc->index].yBase -= 8;
+	g_widgetProperties[desc->index].height += 17;
+#endif
 
 	GUI_Window_BackupScreen(desc);
 
@@ -626,9 +633,20 @@ static void GUI_Widget_GameControls_Click(Widget *w)
 		uint16 key = GUI_Widget_HandleEvents(w2);
 
 		if ((key & 0x8000) != 0) {
+			int choice = (key & 0x7FFF) - 0x1E;
+
 			w = GUI_Widget_Get_ByIndex(w2, key & 0x7FFF);
 
-			switch ((key & 0x7FFF) - 0x1E) {
+#if defined(__amigaos__)
+			/* 5: the FPS counter, 6: Previous */
+			if (choice == 5) {
+				Layout_SetShowFPS(!Video_Amiga_ShowFPS(-1));
+				choice = -1;
+			} else if (choice == 6) {
+				choice = 5;
+			}
+#endif
+			switch (choice) {
 				case 0:
 					g_gameConfig.music ^= 0x1;
 					if (g_gameConfig.music == 0) Driver_Music_Stop();
@@ -667,6 +685,9 @@ static void GUI_Widget_GameControls_Click(Widget *w)
 	}
 
 	GUI_Window_RestoreScreen(desc);
+#if defined(__amigaos__)
+	g_widgetProperties[desc->index] = props;
+#endif
 }
 
 /* shade everything except colors 231 to 238 */

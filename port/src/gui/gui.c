@@ -3074,6 +3074,10 @@ char *GUI_String_Get_ByIndex(int16 stringID)
 		case -28: return "Amiga info";
 		case -29: return "-";
 		case -30: return "+";
+		case -31:	/* Game controls: the FPS counter */
+			stringID = Video_Amiga_ShowFPS(-1) ? STR_ON : STR_OFF;
+			break;
+		case -32: return "Show FPS";
 		case -21: case -22: case -23: case -24: case -25: case -26: {
 			static char text[6][32];
 			int i = -21 - stringID;

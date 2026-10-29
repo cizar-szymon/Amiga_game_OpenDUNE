@@ -93,9 +93,19 @@ static int s_mouseMinX = 0, s_mouseMaxX = 319;
 static int s_mouseMinY = 0, s_mouseMaxY = 199;
 static bool s_mouseLeft, s_mouseRight;
 
-/* FPS counter (F8 or show_fps=1): frames sent per second, bottom left corner */
+/* FPS counter (F8, Game controls or show_fps=1): frames sent per second, bottom left corner */
 static bool s_showFPS;
 static uint32 s_fpsTime, s_fpsFrames, s_fpsShown;
+
+/** The FPS counter: on (1), off (0) or as it is (-1); returns whether it shows. */
+bool Video_Amiga_ShowFPS(int on)
+{
+	if (on >= 0 && s_showFPS != (on != 0)) {
+		s_showFPS = on != 0;
+		s_needRepaint = true;
+	}
+	return s_showFPS;
+}
 
 static bool s_atexitDone;
 
@@ -202,6 +212,7 @@ static void Video_Cleanup(void)
 }
 
 extern bool Layout_SavedResolution(int *w, int *h);
+extern int Layout_SavedShowFPS(void);
 
 /* The screen and its window (s_width x s_height); also again for another
  * resolution (Video_Amiga_SetScreen). */
@@ -362,6 +373,7 @@ bool Video_Init(int screen_magnification, VideoScaleFilter filter)
 
 	s_commands = IniFile_GetInteger("debug_commands", 0) != 0;
 	s_showFPS = IniFile_GetInteger("show_fps", 0) != 0;
+	if (Layout_SavedShowFPS() >= 0) s_showFPS = Layout_SavedShowFPS() != 0;	/* chosen in Game controls */
 	s_vramScroll = IniFile_GetInteger("vram_scroll", 1) != 0;
 	Video_RequestedSize(&reqW, &reqH);
 	if (!Video_OpenScreen(reqW, reqH)) {

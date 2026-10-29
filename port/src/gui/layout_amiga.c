@@ -315,6 +315,40 @@ bool Layout_SetResolution(int w, int h)
 	return true;
 }
 
+/* ---- the FPS counter (Options -> Game controls), kept in the save directory ---- */
+
+#define SHOWFPS_FILE "SHOWFPS.CFG"
+
+/** The FPS counter chosen in Game controls: 1 on, 0 off, -1 never chosen (the ini's show_fps). */
+int Layout_SavedShowFPS(void)
+{
+	char c = '\0';
+	uint8 fd;
+
+	if (!File_Exists_Personal(SHOWFPS_FILE)) return -1;
+	fd = File_Open_Personal(SHOWFPS_FILE, FILE_MODE_READ);
+	if (fd == 0xFF) return -1;
+	File_Read(fd, &c, 1);
+	File_Close(fd);
+	return c == '1' ? 1 : c == '0' ? 0 : -1;
+}
+
+/** The FPS counter on or off, the choice kept. */
+void Layout_SetShowFPS(bool on)
+{
+	char text[2];
+	uint8 fd;
+
+	Video_Amiga_ShowFPS(on ? 1 : 0);
+	text[0] = on ? '1' : '0';
+	text[1] = '\n';
+	fd = File_Open_Personal(SHOWFPS_FILE, FILE_MODE_WRITE);
+	if (fd != 0xFF) {
+		File_Write(fd, text, 2);
+		File_Close(fd);
+	}
+}
+
 /* ---- the LOAD and SAVE buttons of the top bar (large map screen only) ---- */
 
 #define BUTTON_X0   190	/* after OPTIONS (104 + 78) */

@@ -343,6 +343,14 @@ wstrzymana, są kredyty) – i przerysowuje się przy każdej zmianie o 1% (`dis
 Tylko wyświetlanie: gra (i gra LAN) bez zmian. WinUAE, CONCRETE: 8, 21, 33, 46, 59, 71, 84, 97%
 w zrzutach co ~0,6 s (wcześniej co 6,25%).
 
+### Mapa bez efektu pojawiania się, Show FPS w Game controls (29.10.2026, życzenie użytkownika)
+- Po wyjściu z trybu stawiania budynku (i innych zmianach wyboru, gdzie gra ustawia
+  `g_viewport_fadein`) mapa nie jest już „wsypywana” po kawałku (`GUI_Screen_FadeIn`, ~1 s),
+  tylko kopiowana od razu – jak wcześniej przy zoomie ×2/×3 (`viewport.c`).
+- Options → Game controls: nowy wiersz „Show FPS” ON/OFF (okno o 17 wierszy wyższe, Previous
+  niżej). Wybór w `saves/SHOWFPS.CFG`, przy starcie ma pierwszeństwo przed `show_fps` z ini;
+  F8 dalej przełącza licznik doraźnie (bez zapisu). Sprawdzone w WinUAE 640×480.
+
 ### Options → Amiga info, róg do Workbencha (29.10.2026, życzenie użytkownika)
 
 - **Amiga info** (trzecia pozycja Options, także w grze LAN): te same dane i możliwości co okno
@@ -397,6 +405,45 @@ nowa. WinUAE, misja 8, przeciągnięcie do dolnej krawędzi: stara wersja zostaw
 - Sprawdzone w WinUAE: 640×480 ×2, 800×600 ×3, przewijanie strzałkami, klik, zaznaczanie
   prostokątem, rozkaz, okno Options nad powiększonym widokiem, kółko. Pomiar fps na Amidze – do
   zrobienia (Amiga 2 nie odpowiadała).
+
+### Pomiar fps na dużej mapie (29.10.2026, Amiga 1, Warp1260X 68060 @ 100 MHz, 640×360 → 640×400)
+Misja 8 Atreides (62×62, `debug_start_scenario=8`), `debug_stats=1`, `framerate=60`, `vram_scroll=1`,
+`smooth_units=1`. Przewijanie strzałkami (`od.py key`, ~5 kroków/s), jednostki z `od.py spawn`
+(8 quadów + 8 trike'ów w poprzek widoku, odsłaniają mapę). Okresy po 5 s:
+
+| Scena | fps | rysowanie mapy | wysyłanie (`video`) | logika | wolne |
+|---|---|---|---|---|---|
+| postój (kilka jednostek startowych się rusza) | 29–44 | 4–6% (0,3–0,5 ms) | 6–7% (1,0–1,2 ms) | 2% | 80–82% |
+| przewijanie (12–28 przesunięć blitterem / 5 s) | 30–53 | 10–14% (0,8–1,1 ms) | 10–14% (1,6–2,3 ms) | 2,5% | 65–73% |
+| 16 jednostek w ruchu + odsłanianie mapy | 54–55 | **39–52% (3,3–4,6 ms)** | 21–23% (3,5–3,8 ms) | 4–5% | **22–30%** |
+| przewijanie + 16 jednostek w ruchu | 53–55 | 20–24% (1,6–2,0 ms) | 13–17% (2,0–2,9 ms) | 3–4% | 50–59% |
+
+- Najcięższe jest odsłanianie mapy przez wiele jadących jednostek naraz (rysowanie 4,6 ms na
+  wywołanie, 16 KB/klatkę na kartę), a i tak zostaje ~22% wolnego CPU i 54–55 fps przy limicie 60.
+- Znaleziony błąd: po przewinięciu w pionie na karcie zostaje kawałek kursora (biała strzałka) pod
+  pozycją myszy – zrzut `clutshot` po 6 krokach w dół i 6 w górę. Do poprawienia.
+
+### Pomiar gry LAN (29.10.2026, 3 graczy, `tools/lan_test.sh 154 160` z `PEER=1`)
+Serwer Amiga 1 (Harkonnen, Warp1260X @ 100 MHz, 640×360, `lan_info=1`, `debug_stats=1`), WinUAE
+(Atreides, 640×480), `lan_peer.py` z PC (bez rozkazów); poziom 2, mapa 0. Pomiary na serwerze:
+
+| Scena | fps | rysowanie mapy | wysyłanie | wolne | tempo gry |
+|---|---|---|---|---|---|
+| postój | 59–60 | 12% (1,0 ms) | 11% (1,8 ms) | 68% | 58,5 taktów/s (z 60, z narzutem pomiaru) |
+| przewijanie strzałkami | 59–60 | 14–19% (1,5 ms) | 12–15% (2,4 ms) | 57–58% | – |
+| ruch jednostek serwera i WinUAE (rozkazy przez sieć) | 58–60 | 16–29% (1,3–2,4 ms) | 14–17% (2,5–2,8 ms) | 45–65% | 59,8 taktów/s |
+
+- Przez cały test sumy stanu zgodne („same 13800”), żadnego OUT OF STEP.
+- Czas odpowiedzi graczy zwykle 20–80 ms, w chwili wydania rozkazów chwilowo do 364–374 ms.
+- 60 fps także na postoju, bo linia `lan_info` jest rysowana w widoku w każdej klatce (300 zmian
+  widoku / 5 s), więc koszt wysyłania (~1,8 ms, 11%) jest stały. Bez `lan_info` byłoby taniej.
+- Znalezione błędy (do poprawienia):
+  - po przewinięciu w pionie linia `lan_info` zostaje skopiowana przez przesunięcie widoku
+    (druga, stara linia niżej, nie znika);
+  - prostokąt pod linią ma szerokość bieżącego tekstu, więc po krótszym tekście zostają końcówki
+    dłuższego (np. „WAITING G3”, „PEER: WAITING ;”);
+  - „WAITING” widać na serwerze prawie stale, choć tempo gry jest pełne – to krótkie czekanie na
+    turę w każdym kroku, napis nie odróżnia go od prawdziwego zatrzymania.
 
 ## Gra LAN (gałąź `lan-game`, 29.10.2026)
 

@@ -868,8 +868,9 @@ void GUI_Widget_Viewport_Draw(bool forceRedraw, bool hasScrolled, bool drawToMai
 
 	if (updateDisplay && !drawToMainScreen) {
 #if defined(__amigaos__)
-		if (g_viewport_fadein && g_viewZoom > 1) {
-			/* zoomed: no fade (it copies pixel by pixel), the stretched copy */
+		if (g_viewport_fadein) {
+			/* no fade (user's wish: the map at once, e.g. after the build
+			 * window); zoomed it is the stretched copy */
 			g_viewport_fadein = false;
 			g_zoomCopy++;
 			GUI_Screen_Copy(g_curWidgetXBase, g_curWidgetYBase, g_curWidgetXBase, g_curWidgetYBase, g_curWidgetWidth, g_curWidgetHeight, SCREEN_ACTIVE, SCREEN_0);
