@@ -134,6 +134,7 @@ static const uint8 s_rawToAT[0x68] = {
 #define RAW_WHEEL_UP   0x7A	/* AmigaOS 3.2 / NewMouse */
 #define RAW_WHEEL_DOWN 0x7B
 extern void Layout_ZoomRequest(int step);
+extern bool Lan_ChatKey(uint16 code, bool up);
 
 extern void AmigaBug_Request(void);
 extern void AmigaBug_Printf(const char *format, ...);
@@ -421,6 +422,7 @@ void Video_Amiga_Key(uint16 code)
 	uint8 sc;
 
 	code &= ~IECODE_UP_PREFIX;
+	if (Lan_ChatKey(code, up)) return;	/* the chat of a LAN game takes it */
 	if (s_lw > 320 && (code == RAW_WHEEL_UP || code == RAW_WHEEL_DOWN)) {
 		/* the map screen: zoom one step in / out (as the Settlers port) */
 		if (!up) Layout_ZoomRequest(code == RAW_WHEEL_UP ? 1 : -1);

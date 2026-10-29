@@ -67,4 +67,11 @@ extern int Lan_DelayForPing(int ms);
 extern const uint8 *Lan_Houses(void);
 extern int Lan_MsgType(int which);
 
+/* the chat (gui/lan_chat_amiga.c) */
+extern bool Lan_SendChat(const uint8 *data, int length);
+extern void Lan_ChatReceived(int slot, const uint8 *text, int length);
+extern bool Lan_ChatKey(uint16 code, bool up);
+extern bool Lan_ChatOpen(void);
+extern void Lan_ChatDraw(void);
+
 #endif /* LAN_AMIGA_H */

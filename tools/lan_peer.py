@@ -18,7 +18,7 @@ PROTOCOL = 1
 VERSION = b'0.02'
 GAME = 16			# the first type of a frame of the game
 F_HELLO, F_BYE, F_PING, F_PONG = 1, 2, 3, 4
-MT_LOBBY, MT_PICK, MT_START, MT_TURN, MT_TURNALL, MT_SUM, MT_QUIT, MT_GONE = 1, 2, 3, 4, 5, 6, 7, 8
+MT_LOBBY, MT_PICK, MT_START, MT_TURN, MT_TURNALL, MT_SUM, MT_QUIT, MT_GONE, MT_MAP, MT_CHAT = 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
 HOUSES = {0: 'Harkonnen', 1: 'Atreides', 2: 'Ordos', 0xFF: '-'}
 
 
@@ -42,6 +42,7 @@ def main():
     picked = False
     delay = None
     turns = 0
+    replies = []	# chat answers, 3 s later
     end = time.time() + a.seconds
     while time.time() < end:
         try:
@@ -52,6 +53,8 @@ def main():
             buf += d
         except socket.timeout:
             pass
+        while replies and replies[0][0] <= time.time():
+            s.sendall(frame(GAME + MT_CHAT, bytes([me or 0]) + replies.pop(0)[1].encode('latin-1')))
         while len(buf) >= 2 and len(buf) >= 1 + buf[0]:
             n = buf[0]
             t = buf[1]
@@ -100,6 +103,12 @@ def main():
                     return
                 elif mt == MT_GONE:
                     print('player gone', data[0])
+                elif mt == MT_CHAT:
+                    # a chat line [slot][text]: printed and answered (tests of the chat)
+                    text = data[1:].decode('latin-1')
+                    print('chat from %d: %s' % (data[0], text))
+                    if not text.startswith('got '):
+                        replies.append((time.time() + 3, ('got ' + text)[:32]))
     s.sendall(frame(GAME + MT_QUIT, b'q'))
     time.sleep(0.2)
     s.close()

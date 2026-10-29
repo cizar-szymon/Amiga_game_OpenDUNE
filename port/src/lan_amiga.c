@@ -162,7 +162,7 @@ static bool s_ended;
 static bool s_leave;		/* the player quit (Options) */
 static bool s_trace;		/* opendune.ini debug_lan_trace=1: the random state of each first step */
 
-enum { MT_LOBBY = 1, MT_PICK, MT_START, MT_TURN, MT_TURNALL, MT_SUM, MT_QUIT, MT_GONE, MT_MAP };
+enum { MT_LOBBY = 1, MT_PICK, MT_START, MT_TURN, MT_TURNALL, MT_SUM, MT_QUIT, MT_GONE, MT_MAP, MT_CHAT };
 
 static bool s_logNew = true;
 
@@ -712,6 +712,21 @@ static void Lan_Receive(void)
 					case MT_GONE:
 						if (!g_lanServer && ev.length >= 1 && ev.data[0] < LAN_MAX_PLAYERS) Lan_PlayerGone(ev.data[0], "gone");
 						break;
+					case MT_CHAT:
+						/* [slot][text]: the server sets the sender and passes it on */
+						if (ev.length >= 2 && slot < LAN_MAX_PLAYERS) {
+							int from = g_lanServer ? slot : ev.data[0];
+							if (from >= LAN_MAX_PLAYERS || !g_lanPlayers[from].used) break;
+							if (g_lanServer) {
+								int peer;
+								ev.data[0] = (uint8)from;
+								for (peer = 0; peer < NET_MAX_PEERS; peer++) {
+									if (peer + 1 != from && g_lanPlayers[peer + 1].used && !g_lanPlayers[peer + 1].gone) Net_Send(peer, MT_CHAT, ev.data, ev.length);
+								}
+							}
+							Lan_ChatReceived(from, ev.data + 1, ev.length - 1);
+						}
+						break;
 					default: break;
 				}
 				break;
@@ -1106,6 +1121,18 @@ static void Lan_ResetSeen(void)
 	memset(s_unitTile, 0xFF, sizeof(s_unitTile));
 	memset(s_structureTile, 0xFF, sizeof(s_structureTile));
 	Lan_UpdateSeen(true);
+}
+
+/** A chat line ([slot][text]) to the others (gui/lan_chat_amiga.c); false: no connection. */
+bool Lan_SendChat(const uint8 *data, int length)
+{
+	int slot, n = 0;
+	if (!g_lanGame) return false;
+	for (slot = 0; slot < LAN_MAX_PLAYERS; slot++) {
+		if (slot != g_lanMe && g_lanPlayers[slot].used && !g_lanPlayers[slot].gone) n++;
+	}
+	if (n == 0) return false;
+	return Net_Send(g_lanServer ? NET_ALL : 0, MT_CHAT, data, length) != 0;
 }
 
 /** The player quits the LAN game (Options); the game loop ends it (Lan_CheckEnd). */

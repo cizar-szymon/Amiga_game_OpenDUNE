@@ -416,6 +416,21 @@ ostatni. Gra może ruszyć już przy 2 graczach. Bez gracza komputerowego. Drugi
   Options → Quit playing („You have left the game.”); serwer zamknięty – koniec u wszystkich.
   Potem menu główne.
 
+### Czat (29.10.2026, jak w Settlers, `gui/lan_chat_amiga.c`)
+
+- **Tab** na ekranie mapy gry LAN (bez okna) otwiera okienko w lewym górnym rogu widoku: 8 ostatnich
+  linii (nazwa w kolorze rodu), pod nimi pisana linia; **Return** wysyła, **Esc / Tab** zamyka
+  (tekst zostaje), **Backspace** kasuje; do 32 znaków: litery, cyfry, spacja, `. , : ? ! -`.
+  Linia odebrana przy zamkniętym okienku pokazuje je na 10 s (z dźwiękiem). W grze LAN Tab nie
+  wybiera następnej jednostki (Shift+Tab bez zmian).
+- Klawisze bierze wprost sterownik obrazu (`Lan_ChatKey`, surowe kody Amigi): przy otwartym
+  okienku gra nie dostaje żadnego (Z nie zmienia zoomu, litery nie są skrótami).
+- Sieć: `MT_CHAT` = [slot][tekst], od razu, poza turami (nie zmienia gry); serwer ustawia
+  nadawcę i przekazuje dalej; bez połączenia notka „NOT SENT - NO CONNECTION”.
+- Okienko rysowane na SCREEN_0 po każdej klatce mapy (`Lan_ChatDraw` po `GUI_DrawScreen`); po
+  zniknięciu widok rysuje się od nowa. Sprawdzone w WinUAE z `tools/lan_peer.py` (odpowiada „got
+  …” po 3 s): wysłanie, odebranie, pokazanie na 10 s, zamknięcie.
+
 ### Okna (320×200, `gui/lan_menu_amiga.c`)
 
 - „Play on LAN”: START SERVER / JOIN SERVER / BACK (bez bsdsocket.library: komunikat).

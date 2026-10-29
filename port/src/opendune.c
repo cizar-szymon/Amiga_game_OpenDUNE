@@ -1235,6 +1235,9 @@ static void GameLoop_Main(void)
 
 			PROF_BEGIN(PROF_DRAW)
 			GUI_DrawScreen(SCREEN_0);
+#if defined(__amigaos__)
+			Lan_ChatDraw();	/* the chat box of a LAN game over it */
+#endif
 			PROF_END(PROF_DRAW)
 		}
 
