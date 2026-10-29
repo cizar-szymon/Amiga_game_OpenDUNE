@@ -62,6 +62,8 @@
 
 #include "lan_maps.h"
 #define LAN_LEVELS ((int)(sizeof(s_lanLevels) / sizeof(s_lanLevels[0])))
+/* level 1 (mission 1) has no barracks or factory: nobody could win a fight */
+#define LAN_LEVEL_MIN 2
 
 extern uint32 AmigaTimer_GetMs(void);
 extern uint8 g_validateHouseID;
@@ -88,12 +90,13 @@ uint16 g_lanSimViewPos = 0;
 LanPlayer g_lanPlayers[LAN_MAX_PLAYERS];
 int g_lanMe = 0;		/* my slot: 0 server */
 int g_lanMap = 0;
-int g_lanLevel = 1;	/* 1..LAN_LEVELS: the start and the knowledge of that mission */
+int g_lanLevel = LAN_LEVEL_MIN;	/* LAN_LEVEL_MIN..LAN_LEVELS: the start and the knowledge of that mission */
 bool g_lanServer = false;
 
 static const uint8 s_lanHouses[3] = { HOUSE_ATREIDES, HOUSE_HARKONNEN, HOUSE_ORDOS };
 
 int Lan_LevelCount(void) { return LAN_LEVELS; }
+int Lan_LevelMin(void) { return LAN_LEVEL_MIN; }
 
 int Lan_MapCount(void) { return (int)(sizeof(s_lanMaps) / sizeof(s_lanMaps[0])); }
 
@@ -400,7 +403,7 @@ static char s_scenario[2048];
 
 static const LanLevel *Lan_Level(uint8 house)
 {
-	int level = g_lanLevel < 1 ? 1 : g_lanLevel > LAN_LEVELS ? LAN_LEVELS : g_lanLevel;
+	int level = g_lanLevel < LAN_LEVEL_MIN ? LAN_LEVEL_MIN : g_lanLevel > LAN_LEVELS ? LAN_LEVELS : g_lanLevel;
 	return &s_lanLevels[level - 1][house < 3 ? house : 0];
 }
 
@@ -952,7 +955,7 @@ void Lan_StartGame(void)
 	g_gameConfig.hints = 0;
 
 	g_scenarioID = 22;
-	if (g_lanLevel < 1 || g_lanLevel > LAN_LEVELS) g_lanLevel = 1;
+	if (g_lanLevel < LAN_LEVEL_MIN || g_lanLevel > LAN_LEVELS) g_lanLevel = LAN_LEVEL_MIN;
 	g_campaignID = (uint16)(g_lanLevel - 1);	/* what the houses know: as in mission <level> */
 	g_strategicRegionBits = 0;
 	Tools_RandomLCG_Seed((uint16)seed);
@@ -1159,7 +1162,7 @@ void Lan_TakeLobby(const uint8 *d, int len)
 	g_lanMap = d[n++];
 	if (g_lanMap >= Lan_MapCount()) g_lanMap = 0;
 	g_lanLevel = d[n++];
-	if (g_lanLevel < 1 || g_lanLevel > LAN_LEVELS) g_lanLevel = 1;
+	if (g_lanLevel < LAN_LEVEL_MIN || g_lanLevel > LAN_LEVELS) g_lanLevel = LAN_LEVEL_MIN;
 	for (slot = 0; slot < LAN_MAX_PLAYERS && n + 2 <= len; slot++) {
 		int k = 0;
 		g_lanPlayers[slot].used = d[n++] != 0;

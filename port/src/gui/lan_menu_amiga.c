@@ -499,7 +499,10 @@ static bool Lan_Click(int x, int y, bool *leave)
 				return false;
 			}
 			if (Lan_Over(110, 64, 170, 10)) {
-				g_lanLevel = (g_lanLevel - 1 + (g_mouseX < 195 ? Lan_LevelCount() - 1 : 1)) % Lan_LevelCount() + 1;
+				{
+					int n = Lan_LevelCount() - Lan_LevelMin() + 1;
+					g_lanLevel = (g_lanLevel - Lan_LevelMin() + (g_mouseX < 195 ? n - 1 : 1)) % n + Lan_LevelMin();
+				}
 				if (s_serving) Lan_SendLobby();
 				return false;
 			}
