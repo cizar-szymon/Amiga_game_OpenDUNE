@@ -42,6 +42,10 @@
 #include "layout_amiga.h"
 #include "../house.h"
 #include "../opendune.h"
+#include "../inifile.h"
+#include "../timer.h"
+#include "../lan_amiga.h"
+#include "../os/amiga_prof.h"
 
 extern bool Video_ScrollView(int16 dx, int16 dy, int16 x, int16 y, int16 w, int16 h);
 
@@ -52,6 +56,25 @@ int g_zoomCopy = 0;			/* > 0: a copy of the viewport to SCREEN_0 (stretched when
 static int s_zoomWanted = 1;		/* the player's choice */
 static uint16 s_fullTilesW = 15, s_fullTilesH = 10;	/* the viewport's tiles at x1 */
 static volatile int s_zoomRequest;	/* from the video driver: 1 Z, 2 wheel in, 3 wheel out */
+
+/*
+ * Smooth scrolling (ini smooth_scroll=1, the default; the user's choice: the
+ * view one tile smaller). The game draws its viewport in whole tiles into
+ * SCREEN_1 (the logical picture, one tile more than shows); the screen shows
+ * it from a pixel offset s_offX/Y (0..16, more at the map's far edges), as
+ * the zoom shows it stretched: the view on the screen is s_viewW x s_viewH,
+ * a strip of 16 pixels right of it and below it stays black. Scrolling moves
+ * a target position (Map_MoveDirection: 16 pixels); Layout_ScrollTick moves
+ * the view to it pixel by pixel - the offset, and a whole tile of the game's
+ * viewport when it is passed.
+ */
+static int s_smooth = -1;			/* smooth_scroll from the ini, -1 not read */
+static int s_viewW = 240, s_viewH = 160;	/* the view on the screen, pixels */
+static int s_offX, s_offY;			/* the offset SCREEN_0 shows */
+static int s_nextX, s_nextY;			/* the offset after the coming tile shift */
+static int s_posX, s_posY, s_tgtX, s_tgtY;	/* the view's position, its target (map pixels) */
+static uint16 s_myVp = 0xFFFF;			/* the viewport position the scrolling set */
+static uint32 s_scrollTime;			/* Timer_GetTime() of the last Layout_ScrollTick */
 int16 g_sidebarDX = 0;
 int16 g_radarY = 136;
 int16 g_panelDY = 0;
@@ -87,7 +110,7 @@ static void Layout_Widget(uint16 index, int16 x, int16 y, uint16 w, uint16 h)
 static void Layout_GameWidgets(void)
 {
 	const WidgetInfo *info;
-	uint16 vw = s_fullTilesW * 16, vh = s_fullTilesH * 16;	/* on the screen (zoomed or not) */
+	uint16 vw = (uint16)s_viewW, vh = (uint16)s_viewH;	/* on the screen (zoomed or not) */
 	unsigned i;
 
 	for (info = g_table_gameWidgetInfo; info->index >= 0; info++) {
@@ -152,6 +175,56 @@ static void Layout_Properties(void)
 }
 
 /** Keeps the viewport on the map (it may be larger than a small map). */
+/** Smooth scrolling on the large map screen (ini smooth_scroll, default 1). */
+static bool Layout_Smooth(void)
+{
+	if (s_smooth < 0) s_smooth = IniFile_GetInteger("smooth_scroll", 1) != 0 ? 1 : 0;
+	return s_big && s_smooth != 0;
+}
+
+/** The screen shows the viewport through a transformation (zoom or offset):
+ * the copies SCREEN_1 -> SCREEN_0 of the viewport go through Layout_ZoomCopy. */
+bool Layout_Transformed(void)
+{
+	return s_big && (g_viewZoom > 1 || Layout_Smooth());
+}
+
+/** The width of the view on the screen (pixels). */
+int Layout_ViewWidth(void)
+{
+	return s_viewW;
+}
+
+/* The view's size on the screen and the game's viewport in tiles (the logical
+ * picture: enough for the view at the zoom, one tile more when smooth). */
+static void Layout_Sizes(void)
+{
+	int z = g_viewZoom, more = Layout_Smooth() ? 1 : 0;
+	s_viewW = s_fullTilesW * 16 - more * 16;
+	s_viewH = s_fullTilesH * 16 - more * 16;
+	g_viewportTilesW = (uint16)((s_viewW + 16 * z - 1) / (16 * z) + more);
+	g_viewportTilesH = (uint16)((s_viewH + 16 * z - 1) / (16 * z) + more);
+}
+
+/* The smallest and largest position of the view (map pixels). */
+static void Layout_PosLimits(int *x1, int *x2, int *y1, int *y2)
+{
+	const MapInfo *mapInfo = &g_mapInfos[g_scenario.mapScale];
+	*x1 = mapInfo->minX * 16;
+	*y1 = mapInfo->minY * 16;
+	*x2 = max(*x1, (mapInfo->minX + mapInfo->sizeX) * 16 - s_viewW / g_viewZoom);
+	*y2 = max(*y1, (mapInfo->minY + mapInfo->sizeY) * 16 - s_viewH / g_viewZoom);
+}
+
+/* The scrolling from the viewport as it is: no offset, the position at it. */
+static void Layout_SmoothReset(void)
+{
+	s_offX = s_offY = s_nextX = s_nextY = 0;
+	s_posX = s_tgtX = Tile_GetPackedX(g_viewportPosition) * 16;
+	s_posY = s_tgtY = Tile_GetPackedY(g_viewportPosition) * 16;
+	s_myVp = g_viewportPosition;
+}
+
 void Layout_ClampViewport(void)
 {
 	const MapInfo *mapInfo = &g_mapInfos[g_scenario.mapScale];
@@ -164,6 +237,7 @@ void Layout_ClampViewport(void)
 	y = max(y, (int16)mapInfo->minY);
 	g_viewportPosition = Tile_PackXY(x, y);
 	g_minimapPosition = g_viewportPosition;
+	Layout_SmoothReset();
 }
 
 void Layout_Set(bool big)
@@ -192,8 +266,7 @@ void Layout_Set(bool big)
 		s_fullTilesH = (SCREEN_HEIGHT - 40) / 16;
 		g_viewZoom = min(s_zoomWanted, Layout_MaxZoom());
 		if (g_viewZoom < 1) g_viewZoom = 1;
-		g_viewportTilesW = (s_fullTilesW + g_viewZoom - 1) / g_viewZoom;
-		g_viewportTilesH = (s_fullTilesH + g_viewZoom - 1) / g_viewZoom;
+		Layout_Sizes();
 		g_sidebarDX = SCREEN_WIDTH - 320;
 		g_radarY = BIG_RADAR_Y;
 		g_panelDY = BIG_PANEL_Y - 42;
@@ -202,6 +275,8 @@ void Layout_Set(bool big)
 		Mouse_SetRegion(0, 0, SCREEN_WIDTH - 1, SCREEN_HEIGHT - 1);
 		s_fullTilesW = g_viewportTilesW = 15;
 		s_fullTilesH = g_viewportTilesH = 10;
+		s_viewW = 240;
+		s_viewH = 160;
 		g_viewZoom = 1;
 		g_sidebarDX = 0;
 		g_radarY = 136;
@@ -725,19 +800,23 @@ static void Layout_ChangeZoom(int zoom)
 	/* the tile under the pointer stays under it (the user's wish); the pointer
 	 * off the viewport: the middle of the view stays */
 	bool atPointer = Layout_InView(g_mouseX, g_mouseY);
-	int px = atPointer ? g_mouseX / 16 : 0, py = atPointer ? (g_mouseY - 40) / 16 : 0;	/* screen tiles from the view's corner */
-	int cx = Tile_GetPackedX(g_viewportPosition) + (atPointer ? px / g_viewZoom : g_viewportTilesW / 2);
-	int cy = Tile_GetPackedY(g_viewportPosition) + (atPointer ? py / g_viewZoom : g_viewportTilesH / 2);
+	int16 lx = (int16)g_mouseX, ly = (int16)g_mouseY;
+	int cx, cy;
+
+	Layout_ViewPoint(&lx, &ly);			/* the logical pixel under the pointer */
+	cx = Tile_GetPackedX(g_viewportPosition) + (atPointer ? lx / 16 : g_viewportTilesW / 2);
+	cy = Tile_GetPackedY(g_viewportPosition) + (atPointer ? (ly - 40) / 16 : g_viewportTilesH / 2);
 
 	s_zoomWanted = zoom;
 	if (zoom == g_viewZoom) return;
 	GUI_Mouse_Hide_Safe();
 	Map_UpdateMinimapPosition(0xFFFF, true);	/* off the radar at the old size */
 	g_viewZoom = zoom;
-	g_viewportTilesW = (s_fullTilesW + zoom - 1) / zoom;
-	g_viewportTilesH = (s_fullTilesH + zoom - 1) / zoom;
+	Layout_Sizes();
 	if (atPointer) {
-		g_viewportPosition = Tile_PackXY((uint16)max(cx - px / zoom, 0), (uint16)max(cy - py / zoom, 0));
+		/* the pointer's distance from the view's corner in tiles of the new zoom */
+		int px = g_mouseX / (16 * zoom), py = (g_mouseY - 40) / (16 * zoom);
+		g_viewportPosition = Tile_PackXY((uint16)max(cx - px, 0), (uint16)max(cy - py, 0));
 	} else {
 		g_viewportPosition = Tile_PackXY((uint16)max(cx - g_viewportTilesW / 2, 0), (uint16)max(cy - g_viewportTilesH / 2, 0));
 	}
@@ -764,64 +843,84 @@ void Layout_ZoomTick(void)
 	Layout_ChangeZoom(z);
 }
 
-/** The point of the screen is over the viewport (zoomed or not). */
+
+/** The point of the screen is over the view (zoomed or not). */
 bool Layout_InView(int x, int y)
 {
-	return x >= 0 && x < s_fullTilesW * 16 && y >= 40 && y < 40 + s_fullTilesH * 16;
+	return x >= 0 && x < s_viewW && y >= 40 && y < 40 + s_viewH;
 }
 
-/** A point of the screen over the zoomed viewport -> the logical picture's pixel. */
+/** A point of the screen over the view -> the logical picture's pixel
+ * (through the zoom and the smooth scrolling's offset). */
 void Layout_ViewPoint(int16 *x, int16 *y)
 {
-	if (g_viewZoom <= 1) return;
-	if (*x < 0 || *x >= s_fullTilesW * 16 || *y < 40 || *y >= 40 + s_fullTilesH * 16) return;
-	*x = (int16)(*x / g_viewZoom);
-	*y = (int16)(40 + (*y - 40) / g_viewZoom);
+	if (!Layout_Transformed()) return;
+	if (!Layout_InView(*x, *y)) return;
+	*x = (int16)(s_offX + *x / g_viewZoom);
+	*y = (int16)(40 + s_offY + (*y - 40) / g_viewZoom);
 }
 
-/* Rows [y1, y2) of SCREEN_1's logical viewport, columns [x1, x2), stretched
- * into SCREEN_0. */
-static void Layout_Stretch(int x1, int y1, int x2, int y2)
+/* The rectangle [rx1, rx2) x [ry1, ry2) of the view on the screen (SCREEN_0)
+ * from SCREEN_1's logical picture: the offset, the zoom (each logical pixel
+ * z x z). */
+static void Layout_FillReal(int rx1, int ry1, int rx2, int ry2)
 {
 	const uint8 *src = GFX_Screen_Get_ByIndex(SCREEN_1);
 	uint8 *dst = GFX_Screen_Get_ByIndex(SCREEN_0);
-	int z = g_viewZoom, fw = s_fullTilesW * 16, fy2 = 40 + s_fullTilesH * 16;
-	int dx1 = x1 * z, dx2 = min(x2 * z, fw), dy1 = 40 + (y1 - 40) * z, dy2 = min(40 + (y2 - 40) * z, fy2);
-	int y;
+	int z = g_viewZoom, ty, lastLy = -1;
 
-	if (dx1 >= dx2 || dy1 >= dy2) return;
-	for (y = y1; y < y2; y++) {
-		const uint8 *s = src + y * SCREEN_WIDTH + x1;
-		int ty = 40 + (y - 40) * z, r, n = dx2 - dx1;
-		uint8 *d = dst + ty * SCREEN_WIDTH + dx1;
-		int x;
-		if (ty >= fy2) break;
-		if (z == 2) {
-			for (x = 0; x + 1 < n; x += 2) { uint8 p = *s++; d[x] = p; d[x + 1] = p; }
-			if (x < n) d[x] = *s;
-		} else {
-			for (x = 0; x < n; x++) d[x] = s[x / z];
+	rx1 = max(rx1, 0);
+	ry1 = max(ry1, 40);
+	rx2 = min(rx2, s_viewW);
+	ry2 = min(ry2, 40 + s_viewH);
+	if (rx1 >= rx2 || ry1 >= ry2) return;
+	for (ty = ry1; ty < ry2; ty++) {
+		int ly = 40 + s_offY + (ty - 40) / z;
+		const uint8 *s = src + ly * SCREEN_WIDTH;
+		uint8 *d = dst + ty * SCREEN_WIDTH;
+		if (ly == lastLy) {
+			memcpy(d + rx1, d - SCREEN_WIDTH + rx1, rx2 - rx1);	/* the same logical row */
+			continue;
 		}
-		for (r = 1; r < z && ty + r < fy2; r++) memcpy(d + r * SCREEN_WIDTH, d, n);
+		lastLy = ly;
+		if (z == 1) {
+			memcpy(d + rx1, s + s_offX + rx1, rx2 - rx1);
+		} else {
+			int x = rx1, lx = s_offX + rx1 / z, k = rx1 % z;
+			while (x < rx2) {
+				uint8 p = s[lx++];
+				for (; k < z && x < rx2; k++) d[x++] = p;
+				k = 0;
+			}
+		}
 	}
-	GFX_Screen_SetDirty(SCREEN_0, (uint16)dx1, (uint16)dy1, (uint16)dx2, (uint16)dy2);
+	GFX_Screen_SetDirty(SCREEN_0, (uint16)rx1, (uint16)ry1, (uint16)rx2, (uint16)ry2);
+}
+
+/* Columns [x1, x2), rows [y1, y2) of SCREEN_1's logical viewport onto the
+ * screen (where they show, if they do). */
+static void Layout_Stretch(int x1, int y1, int x2, int y2)
+{
+	int z = g_viewZoom;
+	Layout_FillReal((x1 - s_offX) * z, 40 + (y1 - 40 - s_offY) * z, (x2 - s_offX) * z, 40 + (y2 - 40 - s_offY) * z);
 }
 
 /**
  * GUI_Screen_Copy from SCREEN_1 to SCREEN_0, the same place, while the view is
- * zoomed (x, w in pixels): what of it is the logical viewport is stretched over
- * the real one, what is outside the real viewport copied 1:1, the rest of the
- * real viewport in SCREEN_1 (beyond the logical picture) left alone.
+ * transformed (zoom, smooth scrolling; x, w in pixels): what of it is the
+ * logical viewport goes onto the view through the offset and the zoom, what is
+ * outside the view's area copied 1:1, the strips right of and below the view
+ * (smooth scrolling) black, the rest (beyond the logical picture) left alone.
  */
 bool Layout_ZoomCopy(int x, int y, int w, int h)
 {
 	const uint8 *src;
 	uint8 *dst;
-	int fw = s_fullTilesW * 16, fy2 = 40 + s_fullTilesH * 16;
+	int fw = s_fullTilesW * 16, fy2 = 40 + s_fullTilesH * 16, vy2 = 40 + s_viewH;
 	int lw = g_viewportTilesW * 16, ly2 = 40 + g_viewportTilesH * 16;
 	int x2 = x + w, y2 = y + h, r;
 
-	if (g_viewZoom <= 1 || !s_big) return false;
+	if (!Layout_Transformed()) return false;
 	if (x2 <= 0 || y2 <= 40 || x >= fw || y >= fy2) return false;	/* not over the viewport: as always */
 
 	GUI_Mouse_Hide_Safe();
@@ -829,42 +928,175 @@ bool Layout_ZoomCopy(int x, int y, int w, int h)
 	dst = GFX_Screen_Get_ByIndex(SCREEN_0);
 	/* the logical viewport */
 	Layout_Stretch(max(x, 0), max(y, 40), min(x2, lw), min(y2, ly2));
-	/* 1:1 outside the real viewport: above, below, right of it */
+	/* 1:1 outside the view's area: above, below, right of it */
 	for (r = y; r < y2; r++) {
 		int a = x, b = x2;
 		if (r >= 40 && r < fy2) a = max(a, fw);
 		if (a >= b) continue;
 		memcpy(dst + r * SCREEN_WIDTH + a, src + r * SCREEN_WIDTH + a, b - a);
 	}
+	/* the strips between the view and the sidebar / below it: black */
+	for (r = max(y, 40); r < min(y2, fy2); r++) {
+		int a = r < vy2 ? max(x, s_viewW) : max(x, 0), b = min(x2, fw);
+		if (a < b) memset(dst + r * SCREEN_WIDTH + a, 0, b - a);
+	}
 	GFX_Screen_SetDirty(SCREEN_0, (uint16)max(x, 0), (uint16)max(y, 0), (uint16)min(x2, SCREEN_WIDTH), (uint16)min(y2, SCREEN_HEIGHT));
 	GUI_Mouse_Show_Safe();
 	return true;
 }
 
+/* The view's picture on the screen moved by dx, dy pixels (in SCREEN_0 and on
+ * the card by its blitter), what comes into view filled from SCREEN_1. */
+static void Layout_ShiftReal(int dx, int dy)
+{
+	int vw = s_viewW, vh = s_viewH;
+
+	GFX_ShiftScreenRect(SCREEN_0, (int16)dx, (int16)dy, 0, 40, (int16)vw, (int16)vh);
+	if (!Video_ScrollView((int16)dx, (int16)dy, 0, 40, (int16)vw, (int16)vh)) {
+		GFX_Screen_SetDirty(SCREEN_0, 0, 40, (uint16)vw, (uint16)(40 + vh));
+	} else {
+		/* the card moves the pointer it still shows too: send that place again */
+		int x1 = max(g_mouseX - 16 + dx, 0), y1 = max(g_mouseY - 16 + dy, 40);
+		int x2 = min(g_mouseX + 32 + dx, vw), y2 = min(g_mouseY + 32 + dy, 40 + vh);
+		if (x1 < x2 && y1 < y2) GFX_Screen_SetDirty(SCREEN_0, (uint16)x1, (uint16)y1, (uint16)x2, (uint16)y2);
+	}
+	if (dx < 0) Layout_FillReal(vw + dx, 40, vw, 40 + vh);
+	if (dx > 0) Layout_FillReal(0, 40, dx, 40 + vh);
+	if (dy < 0) Layout_FillReal(0, 40 + vh + dy, vw, 40 + vh);
+	if (dy > 0) Layout_FillReal(0, 40, vw, 40 + dy);
+}
+
 /**
- * The view moved by dx, dy logical pixels (GUI_DrawScreen): SCREEN_1's logical
- * viewport and SCREEN_0's real one each by their own amount, on the card by
- * the blitter; the edge tiles cut by the real viewport stretched again (their
- * cut part comes into view).
+ * The game's viewport moved by dx, dy logical pixels, whole tiles
+ * (GUI_DrawScreen): SCREEN_1's logical viewport by that, the view on the screen
+ * by that less the change of the offset that goes with it (smooth scrolling:
+ * often nothing), times the zoom.
  */
 void Layout_ZoomShift(int16 dx, int16 dy)
 {
-	int z = g_viewZoom, fw = s_fullTilesW * 16, fh = s_fullTilesH * 16;
-	int lw = g_viewportTilesW * 16, lh = g_viewportTilesH * 16;
+	int z = g_viewZoom, lw = g_viewportTilesW * 16, lh = g_viewportTilesH * 16;
+	int rdx = (dx - (s_nextX - s_offX)) * z, rdy = (dy - (s_nextY - s_offY)) * z;
 
 	GUI_Mouse_Hide_Safe();
 	GFX_ShiftScreenRect(SCREEN_1, dx, dy, 0, 40, (int16)lw, (int16)lh);
-	GFX_ShiftScreenRect(SCREEN_0, (int16)(dx * z), (int16)(dy * z), 0, 40, (int16)fw, (int16)fh);
-	if (!Video_ScrollView((int16)(dx * z), (int16)(dy * z), 0, 40, (int16)fw, (int16)fh)) {
-		GFX_Screen_SetDirty(SCREEN_0, 0, 40, (uint16)fw, (uint16)(40 + fh));
-	} else {
-		/* the card moves the pointer it still shows too: send that place again */
-		int x1 = max(g_mouseX - 16 + dx * z, 0), y1 = max(g_mouseY - 16 + dy * z, 40);
-		int x2 = min(g_mouseX + 32 + dx * z, fw), y2 = min(g_mouseY + 32 + dy * z, 40 + fh);
-		if (x1 < x2 && y1 < y2) GFX_Screen_SetDirty(SCREEN_0, (uint16)x1, (uint16)y1, (uint16)x2, (uint16)y2);
-	}
-	/* the last two columns and rows of tiles: partly outside before */
-	Layout_Stretch(max(lw - 32, 0), 40, lw, 40 + lh);
-	Layout_Stretch(0, max(40 + lh - 32, 40), lw, 40 + lh);
+	s_offX = s_nextX;
+	s_offY = s_nextY;
+	if (rdx != 0 || rdy != 0) Layout_ShiftReal(rdx, rdy);
 	GUI_Mouse_Show_Safe();
+}
+
+/** GUI_DrawScreen draws the whole viewport again: with the coming offset. */
+void Layout_SmoothForce(void)
+{
+	s_offX = s_nextX;
+	s_offY = s_nextY;
+}
+
+/* Another offset for the view on the screen (the game's viewport stays). */
+static void Layout_ApplyOffset(int nx, int ny)
+{
+	int z = g_viewZoom, dx = (s_offX - nx) * z, dy = (s_offY - ny) * z;
+
+	if (dx == 0 && dy == 0) {
+		s_nextX = nx;
+		s_nextY = ny;
+		return;
+	}
+	/* the LAN boxes off first (they come back from SCREEN_1 at the old offset) */
+	Lan_ChatHide();
+	Lan_InfoHide();
+	s_offX = s_nextX = nx;
+	s_offY = s_nextY = ny;
+	GUI_Mouse_Hide_Safe();
+	Layout_ShiftReal(dx, dy);
+	GUI_Mouse_Show_Safe();
+}
+
+/**
+ * Map_MoveDirection while scrolling smoothly: the target 16 pixels on in the
+ * direction (0 up, 1 up right ... 7 up left); Layout_ScrollTick moves the
+ * view there. False when not smooth (the game's own tile step).
+ */
+bool Layout_ScrollStep(uint16 direction)
+{
+	static const int8 step[8][2] = {
+		{ 0, -1 }, { 1, -1 }, { 1, 0 }, { 1, 1 }, { 0, 1 }, { -1, 1 }, { -1, 0 }, { -1, -1 }
+	};
+	int x1, x2, y1, y2;
+
+	if (!Layout_Smooth() || direction > 7) return false;
+	Layout_PosLimits(&x1, &x2, &y1, &y2);
+	s_tgtX = min(max(s_tgtX + step[direction][0] * 16, x1), x2);
+	s_tgtY = min(max(s_tgtY + step[direction][1] * 16, y1), y2);
+	return true;
+}
+
+#define SCROLL_FOLLOW   8	/* the view follows the target at 8 x the distance a second */
+#define SCROLL_SLOWEST  60	/* pixels a second at least */
+
+/** Every pass of the game loop on the map screen (RTS_Tick): the view moved to
+ * the target, pixel by pixel; a move of the viewport by the game (radar, a
+ * unit, the zoom) taken over without an offset. */
+static void Layout_ScrollTick_(void);
+
+void Layout_ScrollTick(void)
+{
+	PROF_BEGIN(PROF_PAN)
+	Layout_ScrollTick_();
+	PROF_END(PROF_PAN)
+}
+
+static void Layout_ScrollTick_(void)
+{
+	static uint32 frac;		/* pixel thousandths of the movement */
+	uint32 now = Timer_GetTime();
+	int dt = (int)(now - s_scrollTime);
+	int dist, speed, step, x1, x2, y1, y2, vx, vy, qx;
+	const MapInfo *mapInfo;
+	uint16 vp;
+
+	s_scrollTime = now;
+	if (!Layout_Smooth()) return;
+	if (g_viewportPosition != s_myVp) {
+		s_myVp = g_viewportPosition;
+		s_posX = s_tgtX = Tile_GetPackedX(g_viewportPosition) * 16;
+		s_posY = s_tgtY = Tile_GetPackedY(g_viewportPosition) * 16;
+		Layout_ApplyOffset(0, 0);
+		return;
+	}
+	if (s_posX == s_tgtX && s_posY == s_tgtY) {
+		frac = 0;
+		return;
+	}
+	if (dt <= 0) return;
+	if (dt > 100) dt = 100;
+
+	dist = max(abs(s_tgtX - s_posX), abs(s_tgtY - s_posY));
+	speed = max(dist * SCROLL_FOLLOW, SCROLL_SLOWEST);
+	frac += (uint32)(speed * dt);
+	step = (int)(frac / 1000);
+	frac %= 1000;
+	if (step == 0) return;
+	s_posX += min(max(s_tgtX - s_posX, -step), step);
+	s_posY += min(max(s_tgtY - s_posY, -step), step);
+
+	Layout_PosLimits(&x1, &x2, &y1, &y2);
+	s_posX = min(max(s_posX, x1), x2);
+	s_posY = min(max(s_posY, y1), y2);
+	qx = s_posX;
+	mapInfo = &g_mapInfos[g_scenario.mapScale];
+	vx = min(qx / 16, mapInfo->minX + mapInfo->sizeX - g_viewportTilesW);
+	vy = min(s_posY / 16, mapInfo->minY + mapInfo->sizeY - g_viewportTilesH);
+	vx = max(vx, mapInfo->minX);
+	vy = max(vy, mapInfo->minY);
+	vp = Tile_PackXY((uint16)vx, (uint16)vy);
+	if (vp != g_viewportPosition) {
+		/* a whole tile on: GUI_DrawScreen moves the viewport, the offset with it */
+		g_viewportPosition = vp;
+		s_myVp = vp;
+		s_nextX = qx - vx * 16;
+		s_nextY = s_posY - vy * 16;
+	} else {
+		Layout_ApplyOffset(qx - vx * 16, s_posY - vy * 16);
+	}
 }

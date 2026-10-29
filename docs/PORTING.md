@@ -521,6 +521,41 @@ Serwer Amiga 1 (Harkonnen, Warp1260X @ 100 MHz, 640×360, `lan_info=1`, `debug_s
   `77041303`) nie istnieje w Amiberry (32 bity jako RGBA, `77041302`); w kopii
   `screenmode.prefs` ID zmienione – Workbench w RTG 1024×768.
 
+### Płynne przewijanie co piksel (29.10.2026, decyzja użytkownika: widok o 1 kafel mniejszy)
+- `smooth_scroll=1` (domyślnie; 0 = jak dawniej, co kafel). Gra rysuje widok w całych kaflach do
+  SCREEN_1 (obraz logiczny, kafel więcej niż widać), ekran pokazuje go z przesunięciem 0..16
+  pikseli (na dalekich krawędziach mapy więcej) – tym samym mechanizmem co zoom (`Layout_FillReal`,
+  `Layout_ZoomCopy`, `Layout_ViewPoint`), także przy ×1. Widok na ekranie jest o 16 pikseli
+  węższy i niższy (640×480: 544×416), pas przy panelu i na dole czarny.
+- `Map_MoveDirection` (strzałki, krawędź ekranu, przyciski krawędzi) przesuwa tylko cel o 16
+  pikseli (`Layout_ScrollStep`); `Layout_ScrollTick` (RTS_Tick, każde przejście pętli) dociąga
+  widok do celu z prędkością 8 × odległość / s (min. 60 px/s): przesunięcie, a po przekroczeniu
+  kafla przesunięcie widoku gry o kafel (`Layout_ZoomShift`, przesunięcie obrazu = ruch kafla –
+  zmiana przesunięcia, zwykle 0). Ruch widoku przez grę (radar, jednostka, zoom) – przejęty bez
+  przesunięcia.
+- Koszt na prawdziwej Amidze (Amiga 1, Warp1260X 100 MHz, 640×360, misja 8, ciągłe przewijanie
+  przy krawędzi; `debug_stats`, nowe części `pan` = przesunięcie w SCREEN_0, `v.scroll`, `v.blit`):
+
+| | fps | pętla/s | wysyłanie (`video`) | `pan` | `v.scroll` / `v.blit` | wolne |
+|---|---|---|---|---|---|---|
+| postój | 44–47 | 120 | 9% (1,5 ms) | 0,4% | – | 73–76% |
+| pierwsza wersja | 34–40 | 64–84 | 38–41% (8,8–9,6 ms) | (w other 13–15%) | – | 24–27% |
+| + kopie wierszy długimi słowami (`GFX_MoveRow`) | 28–43 | 92 | 25–27% | 7–8% | 12 ms / 0,4 ms | 47–52% (poziomo) |
+| + kopia karty nie przesuwana, oznaczenia tylko zaznaczonych bloków | **43–55** | **94–109** | **15–18% (2,5–3,1 ms)** | 17–30% (2,6 ms) | 0,5 ms / 0,4 ms | **30–40%** |
+
+- Wnioski z pomiarów: blitter karty przesuwa widok w 0,4–0,5 ms (krok 1, 4 czy 8 pikseli – bez
+  różnicy); drogie było przesuwanie w pamięci kopii karty (~165 KB, kopia Fast→Fast na Warpie
+  ~42 MB/s) i przeliczanie oznaczeń bloku po bloku. Teraz kopia karty po przewinięciu nie jest
+  przesuwana: w obszarze widoku zmienione bloki idą bez porównania, 300 ms po ostatnim
+  przewinięciu raz cały obraz (`s_unsynced`); oznaczenia niewysłanych zmian przesuwane w chwili
+  przewinięcia, tylko zaznaczone bloki, o dowolną liczbę pikseli (`Video_DirtyMoved`).
+- Zostaje przesunięcie obrazu gry w SCREEN_0 (~4 ms na krok); usunąć je dałoby się tylko
+  przesunięciem obrazu w sterowniku (SCREEN_0 bez przesunięcia), ale wtedy okna, kursor i ramki LAN
+  rysowane w SCREEN_0 byłyby przesunięte – nie robione.
+- Sprawdzone w WinUAE (misja 8, ×1 i ×2): obraz po przewijaniu = pełne przerysowanie (różni się
+  tylko migająca ramka zaznaczenia), karta = obraz gry, w 6 zrzutach karty w trakcie przewijania
+  bez śladów kursora, klik po przewinięciu trafia w jednostkę.
+
 ### Wydanie 0.46, GitHub (29.10.2026, decyzje użytkownika)
 - Numer wydania w jednym miejscu: `port/VERSION` (0.46 = liczba commitów, beta); Makefile
   wstawia go do `rev.c` (`g_opendune_revision`, raporty F10) i `$VER` (`Version OpenDUNE`), menu

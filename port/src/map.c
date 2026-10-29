@@ -30,6 +30,9 @@
 #include "tile.h"
 #include "unit.h"
 #include "file.h"
+#if defined(__amigaos__)
+#include "gui/layout_amiga.h"
+#endif
 
 
 uint16 g_mapTileID[64 * 64];
@@ -75,6 +78,12 @@ uint16 Map_MoveDirection(uint16 direction)
 
 	uint16 x, y;
 	const MapInfo *mapInfo;
+
+#if defined(__amigaos__)
+	/* smooth scrolling: the target 16 pixels on, the view moves there pixel
+	 * by pixel (Layout_ScrollTick) */
+	if (Layout_ScrollStep(direction)) return g_viewportPosition;
+#endif
 
 	x = Tile_GetPackedX(g_minimapPosition) + mapScrollOffset[direction].x;
 	y = Tile_GetPackedY(g_minimapPosition) + mapScrollOffset[direction].y;

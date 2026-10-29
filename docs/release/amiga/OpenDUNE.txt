@@ -132,6 +132,8 @@ OPCJE (opendune.ini)
   skip_intro=1       bez intro na starcie (bez INTRO.PAK musi byc 1)
   show_fps=1         licznik klatek (tez F8 i Options)
   smooth_units=0     ruch jednostek jak w oryginale (skokami)
+  smooth_scroll=0    przewijanie mapy co kafel jak w oryginale (domyslnie
+                     plynne co piksel, widok o kafel mniejszy)
   rts_controls=0     sterowanie jak w oryginale (bez prostokata i
                      prawego przycisku)
   vram_scroll=0      przewijanie bez blittera karty

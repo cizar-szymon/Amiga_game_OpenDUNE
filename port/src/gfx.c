@@ -191,6 +191,42 @@ struct dirty_area * GFX_Screen_GetDirtyArea(Screen screenID)
 
 #if defined(__amigaos__)
 /**
+ * Moves n bytes of one row (dst and src may overlap). Long words, the target
+ * aligned: the 68060 reads a misaligned long in hardware, many times quicker
+ * than the byte loop memmove takes for a shift by 1..3 pixels (smooth
+ * scrolling moves the view by any number of pixels).
+ */
+void GFX_MoveRow(uint8 *dst, const uint8 *src, int n)
+{
+	if (dst == src || n <= 0) return;
+	if (dst < src) {
+		uint32 *d;
+		const uint32 *s;
+		while (n > 0 && ((uint32)dst & 3) != 0) { *dst++ = *src++; n--; }
+		d = (uint32 *)dst;
+		s = (const uint32 *)src;
+		while (n >= 16) { d[0] = s[0]; d[1] = s[1]; d[2] = s[2]; d[3] = s[3]; d += 4; s += 4; n -= 16; }
+		while (n >= 4) { *d++ = *s++; n -= 4; }
+		dst = (uint8 *)d;
+		src = (const uint8 *)s;
+		while (n-- > 0) *dst++ = *src++;
+	} else {
+		uint32 *d;
+		const uint32 *s;
+		dst += n;
+		src += n;
+		while (n > 0 && ((uint32)dst & 3) != 0) { *--dst = *--src; n--; }
+		d = (uint32 *)dst;
+		s = (const uint32 *)src;
+		while (n >= 16) { d -= 4; s -= 4; d[3] = s[3]; d[2] = s[2]; d[1] = s[1]; d[0] = s[0]; n -= 16; }
+		while (n >= 4) { *--d = *--s; n -= 4; }
+		dst = (uint8 *)d;
+		src = (const uint8 *)s;
+		while (n-- > 0) *--dst = *--src;
+	}
+}
+
+/**
  * A map scroll in one pass: the viewport's picture (x, y, w, h) moved by
  * dx, dy pixels in place in SCREEN_0, each moved row copied into SCREEN_1
  * at once (still in the cache). Replaces the copy SCREEN_0 -> SCREEN_1 and
@@ -209,7 +245,7 @@ void GFX_ShiftViewport(int16 dx, int16 dy, int16 x, int16 y, int16 w, int16 h)
 	for (r = 0; r < ch; r++) {
 		int16 row = (dy > 0) ? ch - 1 - r : r;	/* moving down: from the bottom */
 		uint8 *d = s0 + (ty + row) * SCREEN_WIDTH + tx;
-		memmove(d, s0 + (sy + row) * SCREEN_WIDTH + sx, cw);
+		GFX_MoveRow(d, s0 + (sy + row) * SCREEN_WIDTH + sx, cw);
 		memcpy(s1 + (ty + row) * SCREEN_WIDTH + tx, d, cw);
 	}
 }
@@ -226,7 +262,7 @@ void GFX_ShiftScreenRect(int screenID, int16 dx, int16 dy, int16 x, int16 y, int
 	if (cw <= 0 || ch <= 0) return;
 	for (r = 0; r < ch; r++) {
 		int16 row = (dy > 0) ? ch - 1 - r : r;
-		memmove(s + (ty + row) * SCREEN_WIDTH + tx, s + (sy + row) * SCREEN_WIDTH + sx, cw);
+		GFX_MoveRow(s + (ty + row) * SCREEN_WIDTH + tx, s + (sy + row) * SCREEN_WIDTH + sx, cw);
 	}
 }
 

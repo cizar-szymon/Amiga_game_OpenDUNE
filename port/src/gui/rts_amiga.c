@@ -496,7 +496,10 @@ void RTS_Tick(void)
 	if (s_enabled < 0) s_enabled = IniFile_GetInteger("rts_controls", 1) != 0 ? 1 : 0;
 	s_lastMain = Timer_GetTime();
 	RTS_Pause();		/* also with rts_controls=0 */
-	if (g_gameMode == GM_NORMAL && g_selectionType != SELECTIONTYPE_MENTAT) Layout_ZoomTick();
+	if (g_gameMode == GM_NORMAL && g_selectionType != SELECTIONTYPE_MENTAT) {
+		Layout_ZoomTick();
+		Layout_ScrollTick();	/* smooth scrolling: the view on towards its target */
+	}
 	if (s_enabled == 0) return;
 
 	if (g_gameMode != GM_NORMAL) {

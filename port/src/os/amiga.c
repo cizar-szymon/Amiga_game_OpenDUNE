@@ -188,7 +188,7 @@ void AmigaProf_Tick(void)
 {
 	static int s_enabled = -1;
 	static uint32 s_last, s_lastMs, s_t0;
-	static const char *names[PROF_COUNT] = { "logic", "draw", "ui", "video", "sleep", "v.events", "v.areas", "v.send", "v.lock" };
+	static const char *names[PROF_COUNT] = { "logic", "draw", "ui", "video", "sleep", "pan", "v.events", "v.areas", "v.send", "v.lock", "v.scroll", "v.blit" };
 	uint32 now, wall, sum = 0;
 	FILE *f;
 	int i;

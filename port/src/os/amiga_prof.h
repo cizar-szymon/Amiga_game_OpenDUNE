@@ -15,10 +15,13 @@ enum {
 	PROF_UI,	/* widgets, action panel, credits */
 	PROF_VIDEO,	/* Video_Tick: changed blocks to the card */
 	PROF_SLEEP,	/* waiting for the next 120 Hz tick */
+	PROF_PAN,	/* smooth scrolling: the view moved in SCREEN_0 (Layout_ScrollTick) */
 	PROF_V_EVENTS,	/* in video: IDCMP, test commands */
 	PROF_V_AREAS,	/* in video: which parts changed (stats) */
 	PROF_V_SEND,	/* in video: lock, compare, write, unlock */
 	PROF_V_LOCK,	/* in video: p96LockBitMap alone */
+	PROF_V_SCROLL,	/* in video: the blitter's scroll and the copy moved */
+	PROF_V_BLIT,	/* in video: BltBitMap + WaitBlit of the scroll alone */
 	PROF_COUNT
 };
 

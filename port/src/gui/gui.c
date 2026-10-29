@@ -2705,7 +2705,7 @@ void GUI_Screen_Copy(int16 xSrc, int16 ySrc, int16 xDst, int16 yDst, int16 width
 {
 #if defined(__amigaos__)
 	/* the zoomed viewport: stretched (layout_amiga.c) */
-	if (g_viewZoom > 1 && g_zoomCopy > 0 && (screenSrc == SCREEN_1 || (screenSrc == SCREEN_ACTIVE && GFX_Screen_IsActive(SCREEN_1))) && screenDst == SCREEN_0 && xSrc == xDst && ySrc == yDst
+	if (Layout_Transformed() && g_zoomCopy > 0 && (screenSrc == SCREEN_1 || (screenSrc == SCREEN_ACTIVE && GFX_Screen_IsActive(SCREEN_1))) && screenDst == SCREEN_0 && xSrc == xDst && ySrc == yDst
 	    && Layout_ZoomCopy(xSrc * 8, ySrc, width * 8, height)) return;
 #endif
 	if (width  > SCREEN_WIDTH / 8) width  = SCREEN_WIDTH / 8;
@@ -4739,7 +4739,8 @@ void GUI_DrawScreen(Screen screenID)
 			 * first the LAN boxes drawn over it off (they would move along) */
 			Lan_ChatHide();
 			Lan_InfoHide();
-			if (g_viewZoom > 1) {
+			if (Layout_Transformed()) {
+				/* zoomed or scrolling smoothly: through the layout */
 				Layout_ZoomShift(xOffset << 4, yOffset << 4);
 			} else {
 				GFX_ShiftViewport(xOffset << 4, yOffset << 4, 0, 40, VIEWPORT_TILES_W * 16, VIEWPORT_TILES_H * 16);
@@ -4767,6 +4768,12 @@ void GUI_DrawScreen(Screen screenID)
 			}
 		}
 	}
+
+#if defined(__amigaos__)
+	/* the whole viewport drawn again: at the offset of the smooth scrolling
+	 * that goes with its new position */
+	if (g_viewport_forceRedraw) Layout_SmoothForce();
+#endif
 
 	if (hasScrolled) {
 		Map_SetSelectionObjectPosition(0xFFFF);

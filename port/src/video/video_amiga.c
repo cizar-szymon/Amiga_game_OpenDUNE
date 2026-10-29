@@ -121,6 +121,14 @@ static bool s_vramScroll;
 static int16 s_scrollDX, s_scrollDY;	/* pixels the viewport's picture moved */
 static int16 s_scrollRect[4];		/* x, y, w, h in game pixels */
 static bool s_scrollPending;
+/* After a blitter scroll the copy is not moved with the card (a copy of the
+ * whole viewport per step of the smooth scrolling cost 4-11 ms on the Warp):
+ * in this rectangle (game pixels) the copy does not match the card, the
+ * changed blocks there are sent without comparing; 300 ms after the last
+ * scroll the whole picture is sent once and the copy matches again. */
+static bool s_unsynced;
+static int16 s_unRect[4];
+static uint32 s_lastScroll;
 
 /* the selection rectangle (rts_amiga.c), drawn over the picture in VRAM */
 static bool s_rectShown;
@@ -627,6 +635,8 @@ static void Video_DrawFPS(uint8 *base, int bpr)
  * it then cannot, the whole screen is sent), false when the caller must mark
  * the viewport changed.
  */
+static void Video_DirtyMoved(int gx, int gy, int gw, int gh, int dx, int dy);
+
 bool Video_ScrollView(int16 dx, int16 dy, int16 x, int16 y, int16 w, int16 h)
 {
 	if (!s_vramScroll || s_shadow == NULL || !s_shadowValid || s_sx2 != 2 || s_sy != 1 || s_screenOffset != 0) return false;
@@ -641,6 +651,9 @@ bool Video_ScrollView(int16 dx, int16 dy, int16 x, int16 y, int16 w, int16 h)
 	s_scrollDX += dx;
 	s_scrollDY += dy;
 	s_scrollPending = true;
+	/* the changes not sent yet move with the picture: their marks too, now
+	 * (marks made after this are at their place already) */
+	Video_DirtyMoved(x, y, w, h, dx, dy);
 	return true;
 }
 
@@ -656,24 +669,33 @@ static void Video_DirtyMoved(int gx, int gy, int gw, int gh, int dx, int dy)
 	static uint32 old[SCREEN_HEIGHT_MAX][GFX_DIRTY_WORDS];
 	int x0 = gx + (dx > 0 ? dx : 0), x1 = gx + gw + (dx < 0 ? dx : 0);
 	int y0 = gy + (dy > 0 ? dy : 0), y1 = gy + gh + (dy < 0 ? dy : 0);
-	int bdx = dx / 16, y, b, top = -1, bottom = -1;
+	int sy0 = y0 - dy, sy1 = y1 - dy, b1 = gx >> 4, b2 = (gx + gw + 15) >> 4;
+	int t1 = x0 >> 4, t2 = (x1 + 15) >> 4;
+	int ys, w, top = -1, bottom = -1;
 
 	if (y1 > SCREEN_HEIGHT) y1 = SCREEN_HEIGHT;
 	if (x0 >= x1 || y0 >= y1) return;
-	if ((dx & 15) != 0) {
-		/* (not whole blocks: never for whole tiles) all of it */
-		GFX_Screen_SetDirty(SCREEN_0, (uint16)x0, (uint16)y0, (uint16)x1, (uint16)y1);
-		return;
-	}
-	memcpy(old[y0 - dy], g_dirty_blocks[y0 - dy], (y1 - y0) * sizeof(old[0]));
-	for (y = y0; y < y1; y++) {
-		const uint32 *src = old[y - dy];
-		for (b = x0 >> 4; b < (x1 + 15) >> 4; b++) {
-			int s = b - bdx;
-			if ((src[s >> 5] & (1UL << (s & 31))) == 0) continue;
-			g_dirty_blocks[y][b >> 5] |= 1UL << (b & 31);
-			if (top < 0) top = y;
-			bottom = y;
+	/* the marks as they are (the moved ones are added to the same rows) */
+	memcpy(old[sy0], g_dirty_blocks[sy0], (sy1 - sy0) * sizeof(old[0]));
+	for (ys = sy0; ys < sy1; ys++) {
+		int ty = ys + dy;
+		if (ty < y0 || ty >= y1) continue;
+		for (w = 0; w < GFX_DIRTY_WORDS; w++) {
+			uint32 bits = old[ys][w];
+			while (bits != 0) {
+				/* a marked block s: its pixels s * 16 .. + 15 are now at + dx,
+				 * one or two blocks (any number of pixels) */
+				int s = w * 32 + __builtin_ctz(bits), a, c;
+				bits &= bits - 1;
+				if (s < b1 || s >= b2) continue;
+				a = (s * 16 + dx) >> 4;
+				c = (s * 16 + 15 + dx) >> 4;
+				if (a < t1) a = t1;
+				if (c >= t2) c = t2 - 1;
+				for (; a <= c; a++) g_dirty_blocks[ty][a >> 5] |= 1UL << (a & 31);
+				if (top < 0 || ty < top) top = ty;
+				if (ty > bottom) bottom = ty;
+			}
 		}
 	}
 	/* the dirty area (the rows the sending looks at) */
@@ -710,15 +732,19 @@ static bool Video_DoScroll(void)
 	sy = dy < 0 ? y - dy : y;
 	ty = dy < 0 ? y : y + dy;
 
+	PROF_BEGIN(PROF_V_BLIT)
 	BltBitMap(s_window->RPort->BitMap, sx, sy, s_window->RPort->BitMap, tx, ty, cw, ch, 0xC0, 0xFF, NULL);
 	WaitBlit();
+	PROF_END(PROF_V_BLIT)
 	g_profBlits++;
-	if (dy > 0) {
-		for (r = ch - 1; r >= 0; r--) memmove(s_shadow + (ty + r) * s_width + tx, s_shadow + (sy + r) * s_width + sx, cw);
-	} else {
-		for (r = 0; r < ch; r++) memmove(s_shadow + (ty + r) * s_width + tx, s_shadow + (sy + r) * s_width + sx, cw);
+	(void)r;
+	if (s_unsynced && (s_unRect[0] != s_scrollRect[0] || s_unRect[1] != s_scrollRect[1] ||
+	                   s_unRect[2] != s_scrollRect[2] || s_unRect[3] != s_scrollRect[3])) {
+		s_needRepaint = true;	/* (two different areas: everything again) */
 	}
-	Video_DirtyMoved(s_scrollRect[0], s_scrollRect[1], s_scrollRect[2], s_scrollRect[3], dx, dy);
+	s_unsynced = true;
+	memcpy(s_unRect, s_scrollRect, sizeof(s_unRect));
+	s_lastScroll = Timer_GetTime();
 	return true;
 }
 
@@ -729,10 +755,18 @@ static void Video_SendRowCompared(uint8 *base, int bpr, const uint8 *row, int y,
 	uint8 *dst = base + (s_y0 + y) * bpr + s_x0;
 	int x;
 
+	/* the columns where the copy does not match the card (after a scroll) */
+	int u1 = 0, u2 = 0;
+
+	if (s_unsynced && y >= s_unRect[1] && y < s_unRect[1] + s_unRect[3]) {
+		u1 = s_unRect[0];
+		u2 = s_unRect[0] + s_unRect[2];
+	}
 	for (x = x1; x < x2; x += 16) {
 		const uint32 *a = (const uint32 *)(row + x);
 		uint32 *b = (uint32 *)(sh + x);
-		if (a[0] == b[0] && a[1] == b[1] && a[2] == b[2] && a[3] == b[3]) continue;
+		bool blind = x + 16 > u1 && x < u2;
+		if (!blind && a[0] == b[0] && a[1] == b[1] && a[2] == b[2] && a[3] == b[3]) continue;
 		b[0] = a[0]; b[1] = a[1]; b[2] = a[2]; b[3] = a[3];
 		Video_CopyLongs((uint32 *)(dst + x), a, 16);
 		g_profBytes += 16;
@@ -842,7 +876,11 @@ static void Video_Tick_(void)
 	if (!compare) s_shadowValid = false;
 	if (s_scrollPending) {
 		int16 dx = s_scrollDX, dy = s_scrollDY;
-		if (!compare || !s_shadowValid || s_needRepaint || !Video_DoScroll()) {
+		bool scrolled;
+		PROF_BEGIN(PROF_V_SCROLL)
+		scrolled = compare && s_shadowValid && !s_needRepaint && Video_DoScroll();
+		PROF_END(PROF_V_SCROLL)
+		if (!scrolled) {
 			s_scrollPending = false;
 			s_scrollDX = s_scrollDY = 0;
 			s_shadowValid = false;
@@ -854,6 +892,7 @@ static void Video_Tick_(void)
 		}
 	}
 	if (compare && !s_shadowValid) s_needRepaint = true;
+	if (s_unsynced && Timer_GetTime() - s_lastScroll > 300) s_needRepaint = true;	/* the copy right again */
 
 	if (!GFX_Screen_IsDirty(SCREEN_0) && !s_needRepaint && !s_showFPS && !(rectShow && !s_rectShown)) return;
 
@@ -915,7 +954,10 @@ static void Video_Tick_(void)
 			g_profBytes += n * s_sy;
 		}
 		GFX_Screen_SetClean(SCREEN_0);
-		if (compare && s_needRepaint) s_shadowValid = true;
+		if (compare && s_needRepaint) {
+			s_shadowValid = true;
+			s_unsynced = false;
+		}
 		s_needRepaint = false;
 		drawn = true;
 		g_profFrames++;

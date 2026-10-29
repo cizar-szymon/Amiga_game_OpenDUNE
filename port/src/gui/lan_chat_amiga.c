@@ -262,7 +262,7 @@ void Lan_ChatDraw(void)
 	for (i = 0; i < LAN_MAX_PLAYERS; i++) nameW = max(nameW, (int)strlen(g_lanPlayers[i].name));
 	nameW = min(nameW, 10);
 	w = 20 + (nameW + 2 + LAN_CHAT_LENGTH + 1) * 6;
-	w = min(w, g_viewportTilesW * 16 * g_viewZoom - 8);
+	w = min(w, Layout_ViewWidth() - 8);
 	rows = s_open ? LAN_CHAT_LINES : s_lineCount;
 	h = BAR_TOP + 3 + rows * 8 + (s_open ? 11 : 0) + BAR_BOTTOM;
 
