@@ -175,6 +175,50 @@ bool Lan_ChatOpen(void)
 	return s_open;
 }
 
+/* The box looks like the message bar of the top of the screen (the user's
+ * wish): its ends, its top and bottom edge (rows BAR_Y.., taken once from the
+ * map screen) around a fill of its colour. */
+#define BAR_Y      17	/* the bar's first row */
+#define BAR_TOP    6	/* rows of its top edge */
+#define BAR_MIDDLE 26	/* a row of its inside */
+#define BAR_BOTTOM 8	/* rows of its bottom edge (31..38) */
+#define BAR_ROWS   22
+#define BAR_CAP    8	/* columns of each end */
+#define CHAT_TEXT  12	/* dark text */
+static uint8 s_barEnd[2][BAR_ROWS][BAR_CAP];	/* left, right end */
+static uint8 s_barEdge[BAR_ROWS];		/* a column of the middle */
+static bool s_barTaken;
+
+static void Chat_TakeBar(void)
+{
+	const uint8 *src = GFX_Screen_Get_ByIndex(SCREEN_0);
+	int r;
+	for (r = 0; r < BAR_ROWS; r++) {
+		const uint8 *row = src + (BAR_Y + r) * SCREEN_WIDTH;
+		memcpy(s_barEnd[0][r], row, BAR_CAP);
+		memcpy(s_barEnd[1][r], row + SCREEN_WIDTH - BAR_CAP, BAR_CAP);
+		s_barEdge[r] = row[40];
+	}
+	/* the fill: inside the left end (no message text there) */
+	s_barEdge[BAR_MIDDLE - BAR_Y] = s_barEnd[0][BAR_MIDDLE - BAR_Y][6];
+	s_barTaken = true;
+}
+
+static void Chat_DrawFrame(int x, int y, int w, int h)
+{
+	uint8 *dst = GFX_Screen_Get_ByIndex(SCREEN_0);
+	int r;
+	if (!s_barTaken) Chat_TakeBar();
+	for (r = 0; r < h; r++) {
+		uint8 *d = dst + (y + r) * SCREEN_WIDTH + x;
+		int b = r < BAR_TOP ? r : r >= h - BAR_BOTTOM ? BAR_ROWS - (h - r) : BAR_MIDDLE - BAR_Y;
+		memcpy(d, s_barEnd[0][b], BAR_CAP);
+		memset(d + BAR_CAP, s_barEdge[b], w - 2 * BAR_CAP);
+		memcpy(d + w - BAR_CAP, s_barEnd[1][b], BAR_CAP);
+	}
+	GFX_Screen_SetDirty(SCREEN_0, (uint16)x, (uint16)y, (uint16)(x + w), (uint16)(y + h));
+}
+
 /** After each frame of the map screen: the box over SCREEN_0, or the viewport again where it was. */
 void Lan_ChatDraw(void)
 {
@@ -198,38 +242,33 @@ void Lan_ChatDraw(void)
 
 	for (i = 0; i < LAN_MAX_PLAYERS; i++) nameW = max(nameW, (int)strlen(g_lanPlayers[i].name));
 	nameW = min(nameW, 10);
-	w = 8 + (nameW + 2 + LAN_CHAT_LENGTH + 1) * 6;
+	w = 20 + (nameW + 2 + LAN_CHAT_LENGTH + 1) * 6;
 	w = min(w, g_viewportTilesW * 16 * g_viewZoom - 8);
 	rows = s_open ? LAN_CHAT_LINES : s_lineCount;
-	h = 6 + rows * 8 + (s_open ? 12 : 0);
+	h = BAR_TOP + 3 + rows * 8 + (s_open ? 11 : 0) + BAR_BOTTOM;
 
 	old = GFX_Screen_SetActive(SCREEN_0);
 	GUI_Mouse_Hide_Safe();
-	GUI_DrawFilledRectangle((int16)x, (int16)y, (int16)(x + w - 1), (int16)(y + h - 1), 12);
-	GUI_DrawFilledRectangle((int16)x, (int16)y, (int16)(x + w - 1), (int16)y, 15);
-	GUI_DrawFilledRectangle((int16)x, (int16)(y + h - 1), (int16)(x + w - 1), (int16)(y + h - 1), 15);
-	GUI_DrawFilledRectangle((int16)x, (int16)y, (int16)x, (int16)(y + h - 1), 15);
-	GUI_DrawFilledRectangle((int16)(x + w - 1), (int16)y, (int16)(x + w - 1), (int16)(y + h - 1), 15);
+	Chat_DrawFrame(x, y, w, h);
 
-	/* the history, bottom aligned */
+	/* the history, bottom aligned; dark text as on the message bar */
 	for (i = 0; i < s_lineCount; i++) {
 		const ChatLine *l = &s_lines[i];
-		int ty = y + 4 + (rows - s_lineCount + i) * 8;
+		int ty = y + BAR_TOP + 2 + (rows - s_lineCount + i) * 8;
 		if (l->slot < 0) {
-			GUI_DrawText_Wrapper("%s", (int16)(x + 4), (int16)ty, 15, 0, 0x22, l->text);	/* a note of the game */
+			GUI_DrawText_Wrapper("%s", (int16)(x + 10), (int16)ty, CHAT_TEXT, 0, 0x22, l->text);	/* a note of the game */
 			continue;
 		}
-		GUI_DrawText_Wrapper("%.10s:", (int16)(x + 4), (int16)ty, (uint8)g_table_houseInfo[g_lanPlayers[l->slot].house].minimapColor, 0, 0x22,
+		GUI_DrawText_Wrapper("%.10s:", (int16)(x + 10), (int16)ty, (uint8)g_table_houseInfo[g_lanPlayers[l->slot].house].minimapColor, 0, 0x22,
 		                     g_lanPlayers[l->slot].name);
-		GUI_DrawText_Wrapper("%s", (int16)(x + 4 + (nameW + 2) * 6), (int16)ty, 15, 0, 0x22, l->text);
+		GUI_DrawText_Wrapper("%s", (int16)(x + 10 + (nameW + 2) * 6), (int16)ty, CHAT_TEXT, 0, 0x22, l->text);
 	}
 	if (s_open) {
-		int ty = y + 4 + rows * 8 + 3;
-		GUI_DrawFilledRectangle((int16)(x + 2), (int16)(ty - 2), (int16)(x + w - 3), (int16)(ty - 2),
-		                        (uint8)g_table_houseInfo[g_lanPlayers[g_lanMe].house].minimapColor);
-		GUI_DrawText_Wrapper("%.10s:", (int16)(x + 4), (int16)ty, (uint8)g_table_houseInfo[g_lanPlayers[g_lanMe].house].minimapColor, 0, 0x22,
-		                     g_lanPlayers[g_lanMe].name);
-		GUI_DrawText_Wrapper("%s%s", (int16)(x + 4 + (nameW + 2) * 6), (int16)ty, 15, 0, 0x22, s_typed,
+		int ty = y + BAR_TOP + 2 + rows * 8 + 3;
+		uint8 colour = (uint8)g_table_houseInfo[g_lanPlayers[g_lanMe].house].minimapColor;
+		GUI_DrawFilledRectangle((int16)(x + 8), (int16)(ty - 2), (int16)(x + w - 9), (int16)(ty - 2), colour);
+		GUI_DrawText_Wrapper("%.10s:", (int16)(x + 10), (int16)ty, colour, 0, 0x22, g_lanPlayers[g_lanMe].name);
+		GUI_DrawText_Wrapper("%s%s", (int16)(x + 10 + (nameW + 2) * 6), (int16)ty, CHAT_TEXT, 0, 0x22, s_typed,
 		                     strlen(s_typed) < LAN_CHAT_LENGTH ? "_" : "");
 	}
 	GUI_Mouse_Show_Safe();

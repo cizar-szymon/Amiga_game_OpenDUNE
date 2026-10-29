@@ -427,6 +427,8 @@ ostatni. Gra może ruszyć już przy 2 graczach. Bez gracza komputerowego. Drugi
   okienku gra nie dostaje żadnego (Z nie zmienia zoomu, litery nie są skrótami).
 - Sieć: `MT_CHAT` = [slot][tekst], od razu, poza turami (nie zmienia gry); serwer ustawia
   nadawcę i przekazuje dalej; bez połączenia notka „NOT SENT - NO CONNECTION”.
+- Wygląd (życzenie użytkownika): jak pasek komunikatów u góry ekranu – jego końce, górny i dolny
+  brzeg (wiersze 17–38, wzięte raz z ekranu mapy) wokół złotego wypełnienia; tekst ciemny.
 - Okienko rysowane na SCREEN_0 po każdej klatce mapy (`Lan_ChatDraw` po `GUI_DrawScreen`); po
   zniknięciu widok rysuje się od nowa. Sprawdzone w WinUAE z `tools/lan_peer.py` (odpowiada „got
   …” po 3 s): wysłanie, odebranie, pokazanie na 10 s, zamknięcie.
