@@ -392,6 +392,9 @@ void Video_Uninit(void)
 		s_inputReq = NULL;
 	}
 	if (s_inputPort != NULL) { DeleteMsgPort(s_inputPort); s_inputPort = NULL; }
+	/* the end: the screen behind the Workbench first - without its window
+	 * Intuition shows the screen's title bar for a moment */
+	if (s_screen != NULL) ScreenToBack(s_screen);
 	Video_CloseScreen();
 	if (s_blankPointer != NULL) { FreeVec(s_blankPointer); s_blankPointer = NULL; }
 	if (s_line != NULL) { FreeVec(s_line); s_line = NULL; }
@@ -730,8 +733,13 @@ static void Video_Tick_(void)
 		static bool front = true;
 		bool now = IntuitionBase->FirstScreen == s_screen;
 		if (now && !front) {
-			ShowTitle(s_screen, FALSE);
 			ActivateWindow(s_window);
+			s_needRepaint = true;
+		}
+		if (now && (s_screen->Flags & SHOWTITLE) != 0) {
+			/* (Intuition may show it again after the screen came to the
+			 * front; the bar takes the clicks on the top bar's buttons) */
+			ShowTitle(s_screen, FALSE);
 			s_needRepaint = true;
 		}
 		front = now;

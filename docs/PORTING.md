@@ -360,6 +360,12 @@ w zrzutach co ~0,6 s (wcześniej co 6,25%).
   pasek tytułu ekranu u góry, a okno nie było aktywne (BUG010): gdy ekran gry wraca na wierzch
   (`IntuitionBase->FirstScreen`), `ShowTitle(FALSE)`, `ActivateWindow` i cały obraz od nowa.
   Test: `inject key 0x37 0x40` (Lewa Amiga + M; `inject key` ma teraz kwalifikator).
+  Samo `ShowTitle` przy powrocie nie wystarczało: pasek, zamalowany obrazem gry, zostawał na wierzchu
+  i brał kliknięcia w górne ~11 wierszy – MENTAT / OPTIONS / LOAD / SAVE działały „raz na jakiś
+  czas” (WinUAE: y=4 nie, y=13 tak). Teraz w każdej klatce: ekran z przodu i flaga `SHOWTITLE` →
+  `ShowTitle(FALSE)` i obraz od nowa. Amiga 2: 3× róg → Amiga+M → OPTIONS przy y=3 otwiera się.
+  Przy wyjściu z gry ekran najpierw za Workbench (`ScreenToBack`), bo po zamknięciu okna Intuition
+  na chwilę pokazywała pasek.
 - Sprawdzone: WinUAE (bez Warpa: „No Warp”), Amiga 2 (Warp7060, firmware 3.058, 105 → 100 → 105 MHz
   potwierdzone przez `WarpTool Diag`; róg → Workbench na wierzchu).
 
