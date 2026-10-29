@@ -244,6 +244,29 @@ void GUI_DrawFilledRectangle(int16 left, int16 top, int16 right, int16 bottom, u
 	GFX_Screen_SetDirty(SCREEN_ACTIVE, left, top, right + 1, bottom + 1);
 }
 
+#if defined(__amigaos__)
+/**
+ * Removes the text of the message line from the screen too (GUI_DisplayText
+ * with -1 forgets the lines, but what is shown stays until another message
+ * comes: "LAN: WAITING for ..." stayed when the game went on).
+ */
+void GUI_ClearTextLine(void)
+{
+	uint16 oldWidgetId;
+	Screen oldScreenID;
+
+	GUI_DisplayText(NULL, -1);
+	oldWidgetId = Widget_SetCurrentWidget(7);
+	oldScreenID = GFX_Screen_SetActive(SCREEN_0);
+	GUI_Mouse_Hide_InWidget(7);
+	GUI_DrawFilledRectangle(g_curWidgetXBase << 3, g_curWidgetYBase, ((g_curWidgetXBase + g_curWidgetWidth) << 3) - 1,
+	                        g_curWidgetYBase + g_curWidgetHeight - 1, g_curWidgetFGColourNormal);
+	GUI_Mouse_Show_InWidget();
+	GFX_Screen_SetActive(oldScreenID);
+	Widget_SetCurrentWidget(oldWidgetId);
+}
+#endif
+
 /**
  * Display a text.
  * @param str The text to display. If \c NULL, update the text display (scroll text, and/or remove it on time out).

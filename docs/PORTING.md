@@ -490,6 +490,11 @@ proces (priorytet 1) kręcił się dalej, gra czekała na niego bez końca. Na A
 sygnał dochodził. Poprawka: `Net_Quit` ustawia też flagę `s_quitRequest`, którą pętla procesu
 sprawdza po każdym obudzeniu. Sprawdzone na Amidze 2: wyjście czyste, wszystkie kroki w dzienniku.
 
+Napis „LAN: WAITING for …” zostawał na pasku komunikatów, choć gra szła dalej:
+`GUI_DisplayText(NULL, -1)` zapomina linie, ale nie zmazuje pokazanej. `GUI_ClearTextLine()`
+zamalowuje też pasek; wołane, gdy czekanie się skończy (pod oknem – po jego zamknięciu).
+Sprawdzone na Amidze 2 (400×300) z WinUAE.
+
 ### Znane ograniczenia / dalej
 
 - Test z trzema Amigami (Amiga 2) – gdy będzie dostępna.

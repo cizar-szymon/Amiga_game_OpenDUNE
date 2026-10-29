@@ -160,6 +160,7 @@ extern void GUI_SetPaletteAnimated(uint8 *palette, int16 ticksOfAnimation);
 extern void GUI_PaletteAnimate(void);
 
 extern void GUI_DisplayText(const char *str, int importance, ...);
+extern void GUI_ClearTextLine(void);
 extern void GUI_DrawText(const char *string, int16 left, int16 top, uint8 fgColour, uint8 bgColour);
 extern void GUI_DrawText_Wrapper(const char *string, int16 left, int16 top, uint8 fgColour, uint8 bgColour, int flags, ...);
 extern uint16 GUI_DisplayModalMessage(const char *str, unsigned int stringID, ...);

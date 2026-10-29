@@ -851,6 +851,8 @@ static bool Lan_HouseAlive(uint8 houseID)
 }
 
 /** The game's steps that are due (in the main loop instead of GameLoop_Team..House). */
+static bool s_waitShown;	/* "LAN: WAITING for ..." is on the message line */
+
 void Lan_Run(void)
 {
 	uint32 now, due;
@@ -877,17 +879,24 @@ void Lan_Run(void)
 				}
 				break;
 			}
-			if (s_waiting && now - s_waitSince > 300) GUI_DisplayText(NULL, -1);
+			if (s_waiting && now - s_waitSince > 300) s_waitShown = true;	/* its text off the screen (below) */
 			s_waiting = false;
 		}
 		Lan_Step();
 		n++;
 	}
 	if (n > 0) Lan_UpdateSeen(false);
+	if (s_waitShown && !s_waiting && g_lanModal == 0) {
+		/* the game goes on: "LAN: WAITING for ..." off the message line (not
+		 * under a window: there when it is closed) */
+		GUI_ClearTextLine();
+		s_waitShown = false;
+	}
 	if (s_waiting && now - s_waitSince > 300) {
 		static uint32 shown;
 		if (now - shown > 1000) {
 			int slot;
+			s_waitShown = true;
 			for (slot = 0; slot < LAN_MAX_PLAYERS; slot++) {
 				if (slot != g_lanMe && g_lanPlayers[slot].used && !g_lanPlayers[slot].gone) break;
 			}
