@@ -7,6 +7,18 @@ OpenDUNE/saves - F10 writes bugNNN.txt, bugNNN.dat and bugNNN-*.bmp.
 Reports: github.com/cizar-szymon/Amiga_game_OpenDUNE (Issues).
 
 
+0.48 (29.10.2026)
+-----------------
+
+- Smooth map scrolling pixel by pixel (cursor keys, screen edge): the view
+  glides instead of jumping 16 pixels. The map view is one tile smaller
+  (black strips beside the panel and below). The old scrolling by whole
+  tiles: smooth_scroll=0 in opendune.ini.
+- Quicker upload of the picture to the card while scrolling (Warp 1260,
+  100 MHz: 43-55 frames a second, 30-40% of the CPU free while scrolling
+  all the time).
+
+
 0.46 (29.10.2026) - the first release
 -------------------------------------
 

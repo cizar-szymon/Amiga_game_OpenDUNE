@@ -133,6 +133,8 @@ OPTIONS (opendune.ini)
   skip_intro=1       no intro at the start (must be 1 without INTRO.PAK)
   show_fps=1         frame counter (also F8 and Options)
   smooth_units=0     unit movement as the original (in steps)
+  smooth_scroll=0    map scrolling by whole tiles as the original (the
+                     default: smooth, pixel by pixel, the view a tile smaller)
   rts_controls=0     controls as the original (no rubber band, no right
                      button orders)
   vram_scroll=0      scrolling without the card's blitter

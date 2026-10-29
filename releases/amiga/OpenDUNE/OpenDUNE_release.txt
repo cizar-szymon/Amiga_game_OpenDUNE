@@ -7,6 +7,18 @@ z OpenDUNE/saves - F10 zapisuje bugNNN.txt, bugNNN.dat i bugNNN-*.bmp.
 Zgloszenia: github.com/cizar-szymon/Amiga_game_OpenDUNE (Issues).
 
 
+0.48 (29.10.2026)
+-----------------
+
+- Plynne przewijanie mapy co piksel (strzalki, krawedz ekranu): widok
+  przesuwa sie plynnie zamiast skokami po 16 pikseli. Widok mapy jest o
+  jeden kafel mniejszy (pas przy panelu i na dole czarny). Dawne
+  przewijanie co kafel: smooth_scroll=0 w opendune.ini.
+- Szybsze wysylanie obrazu na karte podczas przewijania (Warp 1260,
+  100 MHz: 43-55 klatek/s, 30-40% procesora wolne przy ciaglym
+  przewijaniu).
+
+
 0.46 (29.10.2026) - pierwsze wydanie
 ------------------------------------
 
