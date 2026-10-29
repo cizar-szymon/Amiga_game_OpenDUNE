@@ -10,7 +10,7 @@ struct Structure;
 struct House;
 
 #define LAN_MAX_PLAYERS 3
-#define LAN_VERSION "0.01"
+#define LAN_VERSION "0.02"
 
 extern uint32 AmigaTimer_GetMs(void);
 
@@ -26,6 +26,7 @@ typedef struct LanPlayer {
 extern LanPlayer g_lanPlayers[LAN_MAX_PLAYERS];
 extern int g_lanMe;		/* this Amiga's slot (0 the server) */
 extern int g_lanMap;
+extern int g_lanLevel;	/* 1..Lan_LevelCount() */
 extern bool g_lanServer;
 
 /* how a unit's order uses its target (Lan_UnitOrder) */
@@ -54,6 +55,8 @@ extern const char *Lan_ScenarioText(void);
 extern bool Lan_Menu(void);		/* gui/lan_menu_amiga.c: true = a game was started */
 extern int Lan_MapCount(void);
 extern const char *Lan_MapName(int i);
+extern int Lan_MapPlayers(int i);
+extern int Lan_LevelCount(void);
 extern void Lan_SendLobby(void);
 extern void Lan_TakeLobby(const uint8 *d, int len);
 extern bool Lan_HouseFree(uint8 house);

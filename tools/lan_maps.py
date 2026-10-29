@@ -83,10 +83,55 @@ def bases(sections):
     return {h: b for h, b in out.items() if 'cy' in b}
 
 
+# Structures that stand on a 2x2 (or bigger) piece of rock: where one stood, a
+# Construction Yard can stand (a base's place when the base has no yard).
+SITE_STRUCTURES = ('Const Yard', 'Windtrap', 'Barracks', 'Light Fctry', 'Outpost', 'Spice Silo', 'Hi-Tech',
+                   'IX', 'WOR', 'Refinery', 'Heavy Fctry', 'Repair', 'Palace', 'Starport')
+
+
+def sites(sections):
+    """The bases of a scenario: one place (packed) for each house's base."""
+    out = {}
+    for k, v in sections.get('STRUCTURES', []):
+        if not k.upper().startswith('ID'):
+            continue
+        f = [x.strip() for x in v.split(',')]
+        if len(f) < 4 or f[1] not in SITE_STRUCTURES:
+            continue
+        rank = SITE_STRUCTURES.index(f[1])
+        if f[0] not in out or rank < out[f[0]][0]:
+            out[f[0]] = (rank, int(f[3]))
+    return [p for r, p in out.values()]
+
+
+def dist(a, b):
+    return max(abs(a % 64 - b % 64), abs(a // 64 - b // 64))
+
+
+def best(places, n):
+    """n places as far from each other as possible (the smallest distance largest)."""
+    from itertools import combinations
+    pick, far = None, -1
+    for c in combinations(places, n):
+        d = min(dist(a, b) for a, b in combinations(c, 2))
+        if d > far:
+            pick, far = c, d
+    return pick, far
+
+
+# The start of each mission level (1-9) for each house: the first scenario of the level.
+LEVEL_SCENARIO = (1, 2, 5, 8, 11, 14, 17, 20, 22)
+HOUSES = (('Harkonnen', 'H'), ('Atreides', 'A'), ('Ordos', 'O'))	# HOUSE_HARKONNEN = 0, ATREIDES, ORDOS
+UNIT_ENUM = {'Infantry': 'UNIT_INFANTRY', 'Troopers': 'UNIT_TROOPERS', 'Soldier': 'UNIT_SOLDIER',
+             'Trooper': 'UNIT_TROOPER', 'Launcher': 'UNIT_LAUNCHER', 'Deviator': 'UNIT_DEVIATOR', 'Tank': 'UNIT_TANK',
+             'Siege Tank': 'UNIT_SIEGE_TANK', 'Devastator': 'UNIT_DEVASTATOR', 'Sonic Tank': 'UNIT_SONIC_TANK',
+             'Trike': 'UNIT_TRIKE', 'Raider Trike': 'UNIT_RAIDER_TRIKE', 'Quad': 'UNIT_QUAD'}
+LEVEL_UNITS_MAX = 12
+
+
 def main():
     files = pak_files(open(sys.argv[1], 'rb').read())
-    maps = []
-    seen = set()
+    by_seed = {}
     for name in sorted(files):
         if not name.upper().startswith('SCEN') or not name.upper().endswith('.INI'):
             continue
@@ -94,41 +139,56 @@ def main():
         if value(s.get('BASIC', []), 'MapScale', '0') != '0':
             continue
         seed = value(s.get('MAP', []), 'Seed')
-        if seed is None or seed in seen:
+        if seed is None:
             continue
-        b = bases(s)
-        if len(b) < 3:
-            continue
-        seen.add(seed)
-        # the three largest bases
-        three = sorted(b.items(), key=lambda kv: -kv[1]['count'])[:3]
-        maps.append((name, seed, value(s['MAP'], 'Field', ''), value(s['MAP'], 'Bloom', ''), three))
+        m = by_seed.setdefault(seed, {'name': name[:8], 'field': value(s['MAP'], 'Field', ''),
+                                      'bloom': value(s['MAP'], 'Bloom', ''), 'places': []})
+        # the bases of every mission on this landscape (they differ between missions)
+        for p in sites(s):
+            if all(dist(p, q) >= 10 for q in m['places']):
+                m['places'].append(p)
 
-    # bases at least 20 tiles apart (one map of each landscape)
-    good = []
-    for name, seed, field, bloom, three in maps:
-        pts = [(b['cy'] % 64, b['cy'] // 64) for h, b in three]
-        d = min(abs(p[0] - q[0]) + abs(p[1] - q[1]) for i, p in enumerate(pts) for q in pts[i + 1:])
-        if d >= 20:
-            good.append((name, seed, field, bloom, three))
+    maps = []
+    for seed, m in by_seed.items():
+        if len(m['places']) >= 3:
+            three, far = best(m['places'], 3)
+            if far >= 16:
+                maps.append((3, m, seed, three))
+                continue
+        two, far = best(m['places'], 2)
+        if two is not None and far >= 16:
+            maps.append((2, m, seed, two + (two[0],)))
+    maps.sort(key=lambda t: (-t[0], t[1]['name']))
 
-    print('/* LAN maps from SCENARIO.PAK (tools/lan_maps.py): the landscape of a')
-    print(' * scenario and three of its bases far apart; each player starts at one with')
-    print(' * a Construction Yard and units where the base had units (else next to it). */')
-    print('typedef struct LanMap { const char *name; uint16 seed; const char *field, *bloom; uint16 cy[3]; uint16 units[3][4]; } LanMap;')
+    print('/* LAN maps and levels from SCENARIO.PAK (tools/lan_maps.py).')
+    print(' * A map: the landscape of the missions on one 64x64 map and two or three')
+    print(' * places of bases (of all those missions) far apart; each player starts at one')
+    print(' * with a Construction Yard, its units around it (lan_amiga.c). */')
+    print('typedef struct LanMap { const char *name; uint16 seed; const char *field, *bloom; uint8 players; uint16 cy[3]; } LanMap;')
     print('static const LanMap s_lanMaps[] = {')
-    for name, seed, field, bloom, three in good:
-        cys, units = [], []
-        for house, b in three:
-            cys.append(str(b['cy']))
-            pos = [p for t, p in b['units']][:4]
-            # next to the yard (two rows below it, and right of it)
-            for off in (130, 132, 2 + 64, 2):
-                if len(pos) >= 4:
-                    break
-                pos.append(b['cy'] + off)
-            units.append('{ %s }' % ', '.join(str(p) for p in pos))
-        print('	{ "%s", %s, "%s", "%s", { %s }, { %s } },' % (name[:8], seed, field, bloom, ', '.join(cys), ', '.join(units)))
+    for players, m, seed, cy in maps:
+        print('	{ "%s", %s, "%s", "%s", %d, { %s } },' % (m['name'], seed, m['field'], m['bloom'], players,
+                                                     ', '.join(str(p) for p in cy)))
+    print('};')
+    print()
+    print('/* A level: the start of mission 1..9 of each house (its first scenario):')
+    print(' * credits and units; the game knows what mission N knows (g_campaignID). */')
+    print('#define LAN_LEVEL_UNITS %d' % LEVEL_UNITS_MAX)
+    print('typedef struct LanLevel { uint16 credits; uint8 count; uint8 units[LAN_LEVEL_UNITS]; } LanLevel;')
+    print('static const LanLevel s_lanLevels[%d][3] = {' % len(LEVEL_SCENARIO))
+    for level, number in enumerate(LEVEL_SCENARIO, 1):
+        row = []
+        for house, letter in HOUSES:
+            s = ini(files['SCEN%s%03d.INI' % (letter, number)].decode('latin-1'))
+            credits = int(value(s.get(house.upper(), []), 'Credits', '1000'))
+            units = []
+            for k, v in s.get('UNITS', []):
+                f = [x.strip() for x in v.split(',')]
+                if len(f) >= 2 and f[0] == house and f[1] in UNIT_ENUM:
+                    units.append(UNIT_ENUM[f[1]])
+            units = units[:LEVEL_UNITS_MAX]
+            row.append('{ %d, %d, { %s } }' % (credits, len(units), ', '.join(units)))
+        print('	/* %d */ { %s },' % (level, ', '.join(row)))
     print('};')
 
 

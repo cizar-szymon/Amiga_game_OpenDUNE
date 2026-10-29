@@ -204,14 +204,22 @@ static void Lan_Draw(void)
 			Lan_DrawField(110, 28, 100, s_serverName, s_field == FIELD_NAME);
 			Lan_Text("Server address", 26, 44, COL_TEXT);
 			Lan_Text(s_myAddress, 112, 44, COL_TEXT);
-			Lan_Text("Map", 26, 58, COL_TEXT);
+			Lan_Text("Map", 26, 56, COL_TEXT);
 			snprintf(line, sizeof(line), "< %s >", Lan_MapName(g_lanMap));
-			Lan_Text(line, 112, 58, Lan_Over(110, 56, 150, 11) ? COL_HOVER : COL_TEXT);
-			Lan_DrawPlayers(74);
+			Lan_Text(line, 112, 56, Lan_Over(110, 54, 170, 10) ? COL_HOVER : COL_TEXT);
+			Lan_Text("Level", 26, 66, COL_TEXT);
+			snprintf(line, sizeof(line), "< %d >  (as mission %d)", g_lanLevel, g_lanLevel);
+			Lan_Text(line, 112, 66, Lan_Over(110, 64, 170, 10) ? COL_HOVER : COL_TEXT);
+			Lan_DrawPlayers(78);
 			Lan_DrawHouses(118);
-			Lan_TextCentre(s_status, 152, COL_HOVER);
+			if (s_serving && Lan_PlayerCount() > Lan_MapPlayers(g_lanMap)) {
+				Lan_TextCentre("This map is for 2 players.", 152, COL_HOVER);
+			} else {
+				Lan_TextCentre(s_status, 152, COL_HOVER);
+			}
 			Lan_SetButtons(3, s_serving ? "STOP SERVER" : "RUN SERVER", true,
-			               "START GAME", s_serving && Lan_PlayerCount() >= 2 && g_lanPlayers[0].house != HOUSE_INVALID, "CANCEL", true);
+			               "START GAME", s_serving && Lan_PlayerCount() >= 2 && Lan_PlayerCount() <= Lan_MapPlayers(g_lanMap)
+			               && g_lanPlayers[0].house != HOUSE_INVALID, "CANCEL", true);
 			break;
 
 		case VIEW_JOIN:
@@ -241,6 +249,8 @@ static void Lan_Draw(void)
 			Lan_Text(line, 26, 30, COL_TEXT);
 			snprintf(line, sizeof(line), "Map  %s", Lan_MapName(g_lanMap));
 			Lan_Text(line, 26, 44, COL_TEXT);
+			snprintf(line, sizeof(line), "Level  %d  (as mission %d)", g_lanLevel, g_lanLevel);
+			Lan_Text(line, 26, 54, COL_TEXT);
 			Lan_DrawPlayers(74);
 			Lan_DrawHouses(118);
 			Lan_TextCentre(g_lanPlayers[0].house == HOUSE_INVALID ? "The server chooses its house first." : "Waiting for the server to start the game.", 140, COL_TEXT);
@@ -400,10 +410,11 @@ static bool Lan_Events(void)
 					Lan_SendLobby();
 				} else if (!g_lanServer && ev.value == Lan_MsgType(0)) {
 					Lan_TakeLobby(ev.data, ev.length);
-				} else if (!g_lanServer && ev.value == Lan_MsgType(2) && ev.length >= 6) {
+				} else if (!g_lanServer && ev.value == Lan_MsgType(2) && ev.length >= 7) {
 					s_startSeed = ((uint32)ev.data[0] << 24) | ((uint32)ev.data[1] << 16) | ((uint32)ev.data[2] << 8) | ev.data[3];
 					s_startDelay = ev.data[4];
 					g_lanMap = ev.data[5];
+					g_lanLevel = ev.data[6];
 					return true;
 				}
 				break;
@@ -481,8 +492,14 @@ static bool Lan_Click(int x, int y, bool *leave)
 				return false;
 			}
 			s_field = FIELD_NONE;
-			if (Lan_Over(110, 56, 150, 11)) {
-				g_lanMap = (g_lanMap + 1) % Lan_MapCount();
+			/* map and level: the left half back, the right half on */
+			if (Lan_Over(110, 54, 170, 10)) {
+				g_lanMap = (g_lanMap + (g_mouseX < 195 ? Lan_MapCount() - 1 : 1)) % Lan_MapCount();
+				if (s_serving) Lan_SendLobby();
+				return false;
+			}
+			if (Lan_Over(110, 64, 170, 10)) {
+				g_lanLevel = (g_lanLevel - 1 + (g_mouseX < 195 ? Lan_LevelCount() - 1 : 1)) % Lan_LevelCount() + 1;
 				if (s_serving) Lan_SendLobby();
 				return false;
 			}

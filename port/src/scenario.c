@@ -208,6 +208,15 @@ static void Scenario_Load_Unit(const char *key, char *settings)
 	Unit_SetSpeed(u, 0);
 }
 
+/** A unit as a scenario's [UNITS] line gives it ("House,Type,hp,pos,orientation,action"; LAN game starts). */
+void Scenario_AddUnit(const char *line)
+{
+	char buffer[80];
+	strncpy(buffer, line, sizeof(buffer) - 1);
+	buffer[sizeof(buffer) - 1] = 0;
+	Scenario_Load_Unit(NULL, buffer);
+}
+
 static void Scenario_Load_Structure(const char *key, char *settings)
 {
 	uint8 index, houseType, structureType;

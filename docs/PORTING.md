@@ -330,7 +330,8 @@ ostatni. Gra może ruszyć już przy 2 graczach. Bez gracza komputerowego. Drugi
 | Proces sieciowy (`os/net_amiga.c`): serwer + 2 graczy, UDP 6820 ogłoszenie / szukanie, TCP ramki, HELLO/BYE/PING | ✅ |
 | Okna LAN w menu (`gui/lan_menu_amiga.c`): START SERVER / JOIN SERVER, gracze, rody, mapa, START GAME | ✅ |
 | Lockstep (`lan_amiga.c`): rozkazy przez sieć, tury, suma kontrolna | ✅ 2 Amigi (Amiga 1 + WinUAE) + 3. gracz z PC (`tools/lan_peer.py`) – sumy równe do 75 s gry z rozkazami, budową, oknami |
-| Mapy z bazami trzech rodów (`tools/lan_maps.py` → `lan_maps.h`) | ✅ 3 mapy (SCENA020, SCENA022, SCENH021) |
+| Mapy (`tools/lan_maps.py` → `lan_maps.h`) | ✅ 36 map 64×64 z misji: 7 dla 3 graczy, 29 dla 2 |
+| Poziom 1–9 (start i technika jak w misji N) | ✅ sprawdzone poziomy 1 i 5 (Amiga 1 + WinUAE) |
 | Koniec gry: przegrana / wygrana / wyjście (Options → Quit) / serwer zamknięty | ✅ |
 | Gra toczy się pod oknami (fabryka, Options, Mentat) | ✅ |
 | Walka: czołgi Atreidów niszczą Construction Yard Harkonnenów (wybuchy, piechota z budynku) | ✅ sumy równe do kroku 16800 (4,5 min) |
@@ -380,7 +381,14 @@ ostatni. Gra może ruszyć już przy 2 graczach. Bez gracza komputerowego. Drugi
   sumie). Testy: `debug_lan_trace=1` (stan generatora co krok), `debug_lan_trace_from/_to`
   (kto losuje, adresy – `nm` z `build/amiga/OpenDUNE`).
 - **Scenariusz** budowany w pamięci (`Lan_ScenarioText`): teren mapy (Seed, Field, Bloom),
-  każdy gracz: Construction Yard, 2 Tank, Quad, Trike, 1500 kredytów; kampania 8 (pełna technika).
+  każdy gracz Construction Yard i kredyty poziomu. **Mapy:** każda z 36 map 64×64 misji; miejsca
+  baz z wszystkich misji na tej mapie (różne misje stawiają bazy gdzie indziej), wybrane jak
+  najdalej od siebie (≥ 16 pól): 7 map ma 3 miejsca, reszta 2 (START GAME tylko, gdy graczy nie
+  więcej niż miejsc). **Poziom N (1–9):** jak początek misji N rodu gracza (pierwszy scenariusz
+  poziomu: 001, 002, 005, 008, 011, 014, 017, 020, 022): jego kredyty i jednostki, technika
+  `g_campaignID = N − 1`. Jednostki stawia `Lan_PlaceStartUnits()` po wczytaniu (teren już jest):
+  pierścienie wokół Construction Yard od drugiego (pierwszy wolny do budowy), najpierw skała,
+  pole, po którym jednostka jeździ/chodzi – w symulacji, tak samo na każdej Amidze.
   W grze LAN nie ma Pałacu (jeden pocisk rodu na grę) ani Starportu (jego okno losuje z generatora
   symulacji), zapisu/wczytania (LOAD/SAVE ukryte), pauzy, Restart / Pick another house;
   szybkość gry stała (normalna).
@@ -391,7 +399,8 @@ ostatni. Gra może ruszyć już przy 2 graczach. Bez gracza komputerowego. Drugi
 ### Okna (320×200, `gui/lan_menu_amiga.c`)
 
 - „Play on LAN”: START SERVER / JOIN SERVER / BACK (bez bsdsocket.library: komunikat).
-- Serwer: Server name (MASTER), Server address, Map (`< Arrakis 1 (A020) >` – klik zmienia),
+- Serwer: Server name (MASTER), Server address, Map (`< Arrakis 1 (A014) 3P >`), Level
+  (`< 1 > (as mission 1)`) – klik w lewą połowę cofa, w prawą dalej; gracze widzą mapę i poziom,
   Players 1..3 (nazwa, ród, ping), Your house (3 przyciski, zajęte wygaszone), RUN SERVER /
   STOP SERVER, START GAME (≥ 2 graczy i ród serwera wybrany), CANCEL.
 - Dołącz: Servers found (SEARCH, 3 s nasłuchu UDP; klik wpisuje adres), Your name (SLAVE), Server

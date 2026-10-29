@@ -61,6 +61,7 @@
 #include "inifile.h"
 
 #include "lan_maps.h"
+#define LAN_LEVELS ((int)(sizeof(s_lanLevels) / sizeof(s_lanLevels[0])))
 
 extern uint32 AmigaTimer_GetMs(void);
 extern uint8 g_validateHouseID;
@@ -87,18 +88,27 @@ uint16 g_lanSimViewPos = 0;
 LanPlayer g_lanPlayers[LAN_MAX_PLAYERS];
 int g_lanMe = 0;		/* my slot: 0 server */
 int g_lanMap = 0;
+int g_lanLevel = 1;	/* 1..LAN_LEVELS: the start and the knowledge of that mission */
 bool g_lanServer = false;
 
 static const uint8 s_lanHouses[3] = { HOUSE_ATREIDES, HOUSE_HARKONNEN, HOUSE_ORDOS };
 
+int Lan_LevelCount(void) { return LAN_LEVELS; }
+
 int Lan_MapCount(void) { return (int)(sizeof(s_lanMaps) / sizeof(s_lanMaps[0])); }
+
+/** How many players a map has places for (2 or 3). */
+int Lan_MapPlayers(int i)
+{
+	return i >= 0 && i < Lan_MapCount() ? s_lanMaps[i].players : 0;
+}
 
 const char *Lan_MapName(int i)
 {
-	static char name[24];
+	static char name[32];
 	if (i < 0 || i >= Lan_MapCount()) return "";
-	/* "SCENA020" -> "Arrakis 1" .. by its place in the list */
-	snprintf(name, sizeof(name), "Arrakis %d (%s)", i + 1, s_lanMaps[i].name + 4);
+	/* "SCENA020" -> "Arrakis 3 (A020) 3P" by its place in the list */
+	snprintf(name, sizeof(name), "Arrakis %d (%s) %dP", i + 1, s_lanMaps[i].name + 4, s_lanMaps[i].players);
 	return name;
 }
 
@@ -388,10 +398,70 @@ void Lan_TraceTag(const char *tag, uint32 value, void *caller)
 
 static char s_scenario[2048];
 
-static const char *Lan_UnitName(int i)
+static const LanLevel *Lan_Level(uint8 house)
 {
-	static const char *names[4] = { "Tank", "Tank", "Quad", "Trike" };
-	return names[i & 3];
+	int level = g_lanLevel < 1 ? 1 : g_lanLevel > LAN_LEVELS ? LAN_LEVELS : g_lanLevel;
+	return &s_lanLevels[level - 1][house < 3 ? house : 0];
+}
+
+/* Can a unit of this type start on the tile? Not on a structure or another
+ * starting unit, and on ground it drives (walks) on; rock first. */
+static bool Lan_StartTileFree(uint16 packed, uint8 type, const uint16 *used, int usedCount, bool rockOnly)
+{
+	uint16 lst;
+	int i;
+	if (!Map_IsValidPosition(packed) || g_map[packed].hasStructure) return false;
+	for (i = 0; i < usedCount; i++) if (used[i] == packed) return false;
+	lst = Map_GetLandscapeType(packed);
+	if (g_table_landscapeInfo[lst].movementSpeed[g_table_unitInfo[type].movementType] == 0) return false;
+	if (rockOnly && g_table_landscapeInfo[lst].isSand) return false;
+	return true;
+}
+
+/**
+ * The starting units of every player (the level's), around its Construction
+ * Yard: ring after ring (from the second ring, the first stays free for
+ * building), rock before sand. In the simulation, the same on every Amiga.
+ */
+static void Lan_PlaceStartUnits(void)
+{
+	const LanMap *m = &s_lanMaps[g_lanMap];
+	int slot;
+	for (slot = 0; slot < LAN_MAX_PLAYERS; slot++) {
+		const LanLevel *lv;
+		uint16 used[LAN_LEVEL_UNITS];
+		int k, n = 0;
+		int x0, y0;
+		if (!g_lanPlayers[slot].used) continue;
+		lv = Lan_Level(g_lanPlayers[slot].house);
+		x0 = Tile_GetPackedX(m->cy[slot]);
+		y0 = Tile_GetPackedY(m->cy[slot]);
+		for (k = 0; k < lv->count; k++) {
+			uint8 type = lv->units[k];
+			uint16 found = 0xFFFF;
+			int pass, r, x, y;
+			for (pass = 0; pass < 2 && found == 0xFFFF; pass++) {
+				/* the yard is x0..x0+1, y0..y0+1; ring r around it: -r..1+r */
+				for (r = 2; r <= (pass == 0 ? 6 : 12) && found == 0xFFFF; r++) {
+					for (y = -r; y <= 1 + r && found == 0xFFFF; y++) {
+						for (x = -r; x <= 1 + r && found == 0xFFFF; x++) {
+							if (x != -r && x != 1 + r && y != -r && y != 1 + r) continue;
+							if (x0 + x < 0 || x0 + x >= 64 || y0 + y < 0 || y0 + y >= 64) continue;
+							if (Lan_StartTileFree(Tile_PackXY(x0 + x, y0 + y), type, used, n, pass == 0)) found = Tile_PackXY(x0 + x, y0 + y);
+						}
+					}
+				}
+			}
+			if (found == 0xFFFF) continue;
+			used[n++] = found;
+			{
+				char line[64];
+				snprintf(line, sizeof(line), "%s,%s,256,%u,64,Guard", g_table_houseInfo[g_lanPlayers[slot].house].name,
+				         g_table_unitInfo[type].o.name, found);
+				Scenario_AddUnit(line);
+			}
+		}
+	}
 }
 
 const char *Lan_ScenarioText(void)
@@ -399,7 +469,7 @@ const char *Lan_ScenarioText(void)
 	const LanMap *m = &s_lanMaps[g_lanMap];
 	char *p = s_scenario;
 	char *end = s_scenario + sizeof(s_scenario);
-	int i, j, unit = 0, slot;
+	int slot;
 	int serverStart = 0;
 
 	p += snprintf(p, end - p, "[BASIC]\nLosePicture=LOSTBILD.WSA\nWinPicture=WIN1.WSA\nBriefPicture=HARVEST.WSA\n"
@@ -410,21 +480,15 @@ const char *Lan_ScenarioText(void)
 	if (m->bloom[0] != '\0') p += snprintf(p, end - p, "Bloom=%s\n", m->bloom);
 	for (slot = 0; slot < LAN_MAX_PLAYERS; slot++) {
 		if (!g_lanPlayers[slot].used) continue;
-		p += snprintf(p, end - p, "[%s]\nQuota=0\nCredits=1500\nBrain=Human\nMaxUnit=30\n", g_table_houseInfo[g_lanPlayers[slot].house].name);
+		p += snprintf(p, end - p, "[%s]\nQuota=0\nCredits=%u\nBrain=Human\nMaxUnit=30\n", g_table_houseInfo[g_lanPlayers[slot].house].name,
+		              (unsigned)Lan_Level(g_lanPlayers[slot].house)->credits);
 	}
 	p += snprintf(p, end - p, "[STRUCTURES]\n");
 	for (slot = 0; slot < LAN_MAX_PLAYERS; slot++) {
 		if (!g_lanPlayers[slot].used) continue;
 		p += snprintf(p, end - p, "ID%03d=%s,Const Yard,256,%u\n", slot, g_table_houseInfo[g_lanPlayers[slot].house].name, m->cy[slot]);
 	}
-	p += snprintf(p, end - p, "[UNITS]\n");
-	for (slot = 0; slot < LAN_MAX_PLAYERS; slot++) {
-		if (!g_lanPlayers[slot].used) continue;
-		for (j = 0; j < 4; j++) {
-			p += snprintf(p, end - p, "ID%03d=%s,%s,256,%u,64,Guard\n", unit++, g_table_houseInfo[g_lanPlayers[slot].house].name, Lan_UnitName(j), m->units[slot][j]);
-		}
-	}
-	(void)i;
+	/* the units: Lan_PlaceStartUnits(), when the landscape is there */
 	return s_scenario;
 }
 
@@ -879,6 +943,7 @@ void Lan_StartGame(void)
 	g_lanLocalHouse = g_lanPlayers[g_lanMe].house;
 	s_logNew = true;
 	Lan_Log("base Lan_TraceRandom %08lx\n", (unsigned long)&Lan_TraceRandom);
+	Lan_Log("level %d\n", g_lanLevel);
 	Lan_Log("start: map %d seed %lu delay %d me %d house %d\n", g_lanMap, (unsigned long)seed, delay, g_lanMe, g_lanLocalHouse);
 
 	s_savedSpeed = g_gameConfig.gameSpeed;
@@ -887,7 +952,8 @@ void Lan_StartGame(void)
 	g_gameConfig.hints = 0;
 
 	g_scenarioID = 22;
-	g_campaignID = 8;
+	if (g_lanLevel < 1 || g_lanLevel > LAN_LEVELS) g_lanLevel = 1;
+	g_campaignID = (uint16)(g_lanLevel - 1);	/* what the houses know: as in mission <level> */
 	g_strategicRegionBits = 0;
 	Tools_RandomLCG_Seed((uint16)seed);
 	Tools_Random_Seed(seed);
@@ -903,6 +969,7 @@ void Lan_StartGame(void)
 	Sprites_LoadTiles();
 	g_lanSim = true;
 	Game_LoadScenario(g_lanPlayers[0].house, 22);
+	Lan_PlaceStartUnits();
 	g_lanSim = false;
 	Lan_Log("loaded %08lx\n", (unsigned long)Tools_Random_State());
 
@@ -1066,6 +1133,7 @@ void Lan_SendLobby(void)
 		if (!g_lanPlayers[peer + 1].used) continue;
 		b[n++] = (uint8)(peer + 1);
 		b[n++] = (uint8)g_lanMap;
+		b[n++] = (uint8)g_lanLevel;
 		for (slot = 0; slot < LAN_MAX_PLAYERS; slot++) {
 			int len = (int)strlen(g_lanPlayers[slot].name);
 			b[n++] = (uint8)g_lanPlayers[slot].used;
@@ -1081,10 +1149,12 @@ void Lan_SendLobby(void)
 void Lan_TakeLobby(const uint8 *d, int len)
 {
 	int n = 0, slot;
-	if (len < 2) return;
+	if (len < 3) return;
 	g_lanMe = d[n++];
 	g_lanMap = d[n++];
 	if (g_lanMap >= Lan_MapCount()) g_lanMap = 0;
+	g_lanLevel = d[n++];
+	if (g_lanLevel < 1 || g_lanLevel > LAN_LEVELS) g_lanLevel = 1;
 	for (slot = 0; slot < LAN_MAX_PLAYERS && n + 2 <= len; slot++) {
 		int k = 0;
 		g_lanPlayers[slot].used = d[n++] != 0;
@@ -1132,7 +1202,8 @@ void Lan_SendStart(uint32 seed, int delay)
 		Put32(b, seed);
 		b[4] = (uint8)delay;
 		b[5] = (uint8)g_lanMap;
-		Net_Send(peer, MT_START, b, 6);
+		b[6] = (uint8)g_lanLevel;
+		Net_Send(peer, MT_START, b, 7);
 	}
 }
 
