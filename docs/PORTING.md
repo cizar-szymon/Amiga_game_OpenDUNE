@@ -355,6 +355,14 @@ w zrzutach co ~0,6 s (wcześniej co 6,25%).
 - Sprawdzone: WinUAE (bez Warpa: „No Warp”), Amiga 2 (Warp7060, firmware 3.058, 105 → 100 → 105 MHz
   potwierdzone przez `WarpTool Diag`; róg → Workbench na wierzchu).
 
+### Resztki ramki zaznaczania po przewinięciu (29.10.2026, raport BUG007 z Amigi 2)
+
+Ramka przeciągania jest rysowana prosto na karcie i w kopii ekranu. Gdy w trakcie przeciągania mapa
+przewinęła się przy krawędzi ekranu, blitter przesunął ramkę razem z obrazem, a zmazywane było tylko
+jej stare miejsce – przesunięta górna krawędź i kawałki boków zostawały. Teraz po przewinięciu
+(`Video_DoScroll`) odświeżane jest też przesunięte miejsce (`Video_RectDirty`), a ramka rysowana od
+nowa. WinUAE, misja 8, przeciągnięcie do dolnej krawędzi: stara wersja zostawia kreski, nowa nic.
+
 ### Zoom widoku mapy (29.10.2026, jak w Settlers, decyzja użytkownika)
 
 - **Z** – po kolei ×1 → ×2 → ×3 → ×1; **kółko myszy** – stopień bliżej / dalej (RAWKEY 0x7A/0x7B,

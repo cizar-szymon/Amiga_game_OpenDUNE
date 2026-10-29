@@ -671,6 +671,22 @@ static void Video_SendRowCompared(uint8 *base, int bpr, const uint8 *row, int y,
 	}
 }
 
+/* Sends again the picture under the edges of a drag rectangle r moved by
+ * dx, dy (the blitter scroll moves a drawn rectangle with the picture). */
+static void Video_RectDirty(const int16 *r, int dx, int dy)
+{
+	int x0 = r[0] + dx, y0 = r[1] + dy, x1 = r[2] + dx, y1 = r[3] + dy;
+	if (x0 < 0) x0 = 0;
+	if (y0 < 0) y0 = 0;
+	if (x1 > SCREEN_WIDTH - 1) x1 = SCREEN_WIDTH - 1;
+	if (y1 > SCREEN_HEIGHT - 1) y1 = SCREEN_HEIGHT - 1;
+	if (x0 > x1 || y0 > y1) return;
+	GFX_Screen_SetDirty(SCREEN_0, x0, y0, x1 + 1, y0 + 1);
+	GFX_Screen_SetDirty(SCREEN_0, x0, y1, x1 + 1, y1 + 1);
+	GFX_Screen_SetDirty(SCREEN_0, x0, y0, x0 + 1, y1 + 1);
+	GFX_Screen_SetDirty(SCREEN_0, x1, y0, x1 + 1, y1 + 1);
+}
+
 static void Video_Tick_(void);
 
 void Video_Tick(void)
@@ -690,6 +706,8 @@ static void Video_Tick_(void)
 	bool drawn = false;
 	bool rectShow;
 	bool compare;
+	bool rectWasShown = s_rectShown;
+	int16 rectOld[4];
 	uint32 sendT0;
 
 	if (SetSignal(0, 0) & SIGBREAKF_CTRL_C) {
@@ -713,12 +731,10 @@ static void Video_Tick_(void)
 	{
 		int16 r[4];
 		rectShow = RTS_GetDragRect(&r[0], &r[1], &r[2], &r[3]);
+		memcpy(rectOld, s_rect, sizeof(rectOld));
 		if (s_rectShown && (!rectShow || memcmp(r, s_rect, sizeof(r)) != 0)) {
 			/* send the picture under the old rectangle's edges again */
-			GFX_Screen_SetDirty(SCREEN_0, s_rect[0], s_rect[1], s_rect[2] + 1, s_rect[1] + 1);
-			GFX_Screen_SetDirty(SCREEN_0, s_rect[0], s_rect[3], s_rect[2] + 1, s_rect[3] + 1);
-			GFX_Screen_SetDirty(SCREEN_0, s_rect[0], s_rect[1], s_rect[0] + 1, s_rect[3] + 1);
-			GFX_Screen_SetDirty(SCREEN_0, s_rect[2], s_rect[1], s_rect[2] + 1, s_rect[3] + 1);
+			Video_RectDirty(s_rect, 0, 0);
 			s_rectShown = false;
 		}
 		if (rectShow) memcpy(s_rect, r, sizeof(r));
@@ -728,10 +744,16 @@ static void Video_Tick_(void)
 	compare = s_shadow != NULL && s_sx2 == 2 && s_sy == 1 && s_screenOffset == 0;
 	if (!compare) s_shadowValid = false;
 	if (s_scrollPending) {
+		int16 dx = s_scrollDX, dy = s_scrollDY;
 		if (!compare || !s_shadowValid || s_needRepaint || !Video_DoScroll()) {
 			s_scrollPending = false;
 			s_scrollDX = s_scrollDY = 0;
 			s_shadowValid = false;
+		} else if (rectWasShown) {
+			/* the blitter moved the drawn rectangle with the map (an edge
+			 * scroll while dragging): send that place again, draw it anew */
+			Video_RectDirty(rectOld, dx, dy);
+			s_rectShown = false;
 		}
 	}
 	if (compare && !s_shadowValid) s_needRepaint = true;
