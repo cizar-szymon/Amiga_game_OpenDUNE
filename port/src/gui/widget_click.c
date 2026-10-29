@@ -802,7 +802,23 @@ static int GUI_Amiga_ResolutionWindow(void)
 }
 #endif
 
+#if defined(__amigaos__)
+static bool GUI_Widget_Options_Click_Modal(Widget *w);
+
+/* (a LAN game: the game goes on while the window is open - lan_amiga.c) */
 bool GUI_Widget_Options_Click(Widget *w)
+{
+	bool r;
+	g_lanModal++;
+	r = GUI_Widget_Options_Click_Modal(w);
+	g_lanModal--;
+	return r;
+}
+
+static bool GUI_Widget_Options_Click_Modal(Widget *w)
+#else
+bool GUI_Widget_Options_Click(Widget *w)
+#endif
 {
 #if defined(__amigaos__)
 	WindowDesc *desc = Amiga_OptionsDesc();

@@ -410,6 +410,9 @@ bool House_UpdateRadarState(House *h)
 	bool activate;
 
 	if (h == NULL || h->index != LOCAL_HOUSE_ID) return false;
+#if defined(__amigaos__)
+	if (LAN_UNDER_WINDOW) return false;
+#endif
 
 	wsa = NULL;
 

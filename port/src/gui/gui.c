@@ -2301,6 +2301,7 @@ static void GUI_ChangeSelectionType_Inner(uint16 selectionType);
 /* (a LAN game: always the interface, also when the simulation calls it) */
 void GUI_ChangeSelectionType(uint16 selectionType)
 {
+	if (LAN_UNDER_WINDOW) return;	/* the window sets it when closed */
 	g_lanUI++;
 	GUI_ChangeSelectionType_Inner(selectionType);
 	g_lanUI--;
@@ -2928,7 +2929,23 @@ static void GUI_FactoryWindow_Init(void)
  * @param upgradeCost Cost of upgrading the structure.
  * @return Unknown value.
  */
+#if defined(__amigaos__)
+static FactoryResult GUI_DisplayFactoryWindow_Modal(bool isConstructionYard, bool isStarPort, uint16 upgradeCost);
+
+/* (a LAN game: the game goes on while the window is open - lan_amiga.c) */
 FactoryResult GUI_DisplayFactoryWindow(bool isConstructionYard, bool isStarPort, uint16 upgradeCost)
+{
+	FactoryResult r;
+	g_lanModal++;
+	r = GUI_DisplayFactoryWindow_Modal(isConstructionYard, isStarPort, upgradeCost);
+	g_lanModal--;
+	return r;
+}
+
+static FactoryResult GUI_DisplayFactoryWindow_Modal(bool isConstructionYard, bool isStarPort, uint16 upgradeCost)
+#else
+FactoryResult GUI_DisplayFactoryWindow(bool isConstructionYard, bool isStarPort, uint16 upgradeCost)
+#endif
 {
 	Screen oldScreenID;
 	uint8 backup[3];

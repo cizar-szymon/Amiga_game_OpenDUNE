@@ -370,7 +370,23 @@ static void GUI_Mentat_ShowHelpList(bool proceed)
  * Handle clicks on the Mentat widget.
  * @return True, always.
  */
+#if defined(__amigaos__)
+static bool GUI_Widget_Mentat_Click_Modal(Widget *w);
+
+/* (a LAN game: the game goes on while the window is open - lan_amiga.c) */
 bool GUI_Widget_Mentat_Click(Widget *w)
+{
+	bool r;
+	g_lanModal++;
+	r = GUI_Widget_Mentat_Click_Modal(w);
+	g_lanModal--;
+	return r;
+}
+
+static bool GUI_Widget_Mentat_Click_Modal(Widget *w)
+#else
+bool GUI_Widget_Mentat_Click(Widget *w)
+#endif
 {
 	VARIABLE_NOT_USED(w);
 

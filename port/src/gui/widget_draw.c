@@ -554,6 +554,7 @@ static void GUI_Widget_ActionPanel_Draw_Inner(bool forceDraw);
 /* (a LAN game: always the interface, also when the simulation calls it) */
 void GUI_Widget_ActionPanel_Draw(bool forceDraw)
 {
+	if (LAN_UNDER_WINDOW) return;
 	g_lanUI++;
 	GUI_Widget_ActionPanel_Draw_Inner(forceDraw);
 	g_lanUI--;

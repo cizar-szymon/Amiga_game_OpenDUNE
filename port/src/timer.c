@@ -157,6 +157,10 @@ void SleepAndProcessBackgroundTasks(void)
 		s_ticks -= 3 * 120;
 	}
 	Timer_InterruptRun(0);
+	if (g_lanGame && g_lanModal > 0) {
+		extern void Lan_Run(void);
+		Lan_Run();	/* a LAN game goes on under a window */
+	}
 }
 
 #elif defined(TOS) || defined(DOS)

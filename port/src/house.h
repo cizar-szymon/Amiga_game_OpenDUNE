@@ -195,6 +195,9 @@ extern uint16 g_lanSimViewPos;	/* the scenario's view, for "visible" places */
  * Amiga; outside it the interface must not change the game */
 extern bool g_lanSim;
 extern int g_lanUI;	/* > 0: in the interface's code (also called by the simulation) */
+extern int g_lanModal;	/* > 0: a window over the game; the game goes on in sleepIdle() */
+/* the simulation runs under a window: nothing may be drawn on the map screen */
+#define LAN_UNDER_WINDOW (g_lanGame && g_lanSim && g_lanModal > 0)
 #define LAN_UI (g_lanGame && (!g_lanSim || g_lanUI > 0))
 #define LAN_GAME g_lanGame
 #define LOCAL_HOUSE_ID ((HouseType)(g_lanGame ? g_lanLocalHouse : g_playerHouseID))

@@ -792,6 +792,7 @@ static void GameLoop_GameIntroAnimationMenu(void)
 				g_lanStarting = true;
 				g_gameMode = GM_RESTART;
 				drawMenu = true;
+				stringID = 0xFFFF;	/* back in the main menu after the game */
 				return;
 			}
 			drawMenu = true;

@@ -77,6 +77,7 @@ extern void Animation_ResetTicks(void);
 bool g_lanGame = false;
 bool g_lanSim = false;
 int g_lanUI = 0;
+int g_lanModal = 0;
 uint8 g_lanLocalHouse = HOUSE_INVALID;
 uint16 g_lanSimViewPos = 0;
 
@@ -755,8 +756,11 @@ void Lan_Run(void)
 {
 	uint32 now, due;
 	int n = 0;
+	int savedUI;
 
 	if (!g_lanGame || s_inStep) return;
+	savedUI = g_lanUI;
+	g_lanUI = 0;	/* (called in the interface's code: the steps are the simulation) */
 	Lan_Receive();
 	now = AmigaTimer_GetMs();
 	due = (now - s_stepBase) * 60 / 1000;
@@ -791,6 +795,7 @@ void Lan_Run(void)
 			shown = now;
 		}
 	}
+	g_lanUI = savedUI;
 }
 
 /** The game's end for this player: lost, won, the server gone. 0 none, 1 lost, 2 won, 3 server gone. */
