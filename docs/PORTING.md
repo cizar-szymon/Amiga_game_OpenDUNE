@@ -95,6 +95,10 @@ na krok). Przed każdym `inject` sprawdzić, że nikt inny nie gra.
 - Własny ekran 8-bit CLUT (P96), `screenmode=` w ini: **800x600 (domyślnie) = 2,5×3, cały ekran,
   proporcje 4:3 oryginału** (kolumny na przemian 3 i 2 px), 640x400 = 2×2, 640x480 i 1024x768 –
   największa taka skala, wyśrodkowana.
+  **Od 29.10.2026 (życzenie użytkownika): menu i inne ekrany 320×200 zawsze w tej samej całkowitej
+  skali w obu kierunkach, na środku z czarną ramką** – ×2 na 640×400 / 640×480 / 800×600 / 960×540,
+  ×3 na 1024×768 / 1280×720; bez nierównych kolumn 2,5× (`Video_SetGeometry`). Sprawdzone w WinUAE
+  800×600: menu 640×400 w (80,100), kliknięcie myszą trafia.
 - Wysyłane tylko bloki 16 px oznaczone przez grę (`g_dirty_blocks`), wiersz rozszerzany raz w Fast
   RAM i zapisywany longami do zablokowanej bitmapy (tylko zapis), lock tylko w `Video_Tick`.
 - Paleta przez `LoadRGB32` (fade za darmo). F8: licznik klatek wysłanych / s w prawym górnym rogu.

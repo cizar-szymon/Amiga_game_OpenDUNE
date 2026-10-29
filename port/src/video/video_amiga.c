@@ -178,13 +178,13 @@ static void Video_SetGeometry(void)
 
 	s_lw = SCREEN_WIDTH;
 	s_lh = SCREEN_HEIGHT;
-	s_sx2 = (2 * w) / SCREEN_WIDTH;
-	s_sy = h / SCREEN_HEIGHT;
-	if (s_sx2 < 2) s_sx2 = 2;
+	/* the same whole scale both ways, centred with a black border (the
+	 * menus 320x200: x2 on 640x480, 800x600, 960x540, x3 on 1024x768 and
+	 * 1280x720) - no uneven columns of 2.5x or rows of 2.4x */
+	s_sy = w / SCREEN_WIDTH;
+	if (h / SCREEN_HEIGHT < s_sy) s_sy = h / SCREEN_HEIGHT;
 	if (s_sy < 1) s_sy = 1;
-	/* not wider than the vertical scale allows (keeps 2.5x3, 2x2, 3x3) */
-	if (s_sx2 > 2 * s_sy) s_sx2 = 2 * s_sy;
-	if (s_sy * 2 > s_sx2 + 1) s_sy = (s_sx2 + 1) / 2;
+	s_sx2 = 2 * s_sy;
 	s_x0 = ((w - SCREEN_WIDTH * s_sx2 / 2) / 2) & ~3;
 	s_y0 = (h - SCREEN_HEIGHT * s_sy) / 2;
 	for (x = 0; x <= SCREEN_WIDTH; x++) s_colX[x] = (uint16)((x * s_sx2) / 2);
