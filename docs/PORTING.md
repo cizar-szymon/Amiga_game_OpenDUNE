@@ -921,6 +921,19 @@ repozytorium ani w historii `main`, gałąź `lang-pl-de` tylko na tym PC), `mak
 `lang/POLISH.PAK` wyłącznie do pełnej paczki w `private/`. Publiczne są litery (`font_polish.c`),
 teksty portu (`port_strings.txt`) i narzędzia.
 
+### Sprawdzone w WinUAE (30.10.2026, main po scaleniu, 0.49)
+
+- Game controls: nowy wiersz Język / Language, okno wyższe o wiersz mieści się; kolejne kliknięcia
+  Polski → English → Deutsch, wybór zapisany w `saves/LANGUAGE.CFG`.
+- Zmiana po Options → Main menu: menu główne po polsku („Nowa gra”, „Gra w sieci”, „Galeria
+  sławy”, „Koniec gry”) i po niemiecku („Spielen”, „Spiel im Netzwerk”, „Ruhmeshalle”).
+- Polski: tytuł rodu, odprawa mentata, misja (WCZYTAJ / ZAPISZ, „Plac budowy”, „Uszk”,
+  „Buduj”), Options, Ustawienia gry, O Amidze, pytanie przy wyjściu – polskie litery czytelne.
+- Niemiecki z plików `.GER` wersji Amigi: opis rodu, odprawa („Willkommen.”), misja (LADEN /
+  SICHERN, „Bauanlage”, „Schad”).
+- Po angielsku (obrazki z napisami, jak zapowiedziano): MENTAT, OPTIONS, Credits, „Do you wish
+  to join House …?”, Yes / No, Proceed / Repeat.
+
 ### Do sprawdzenia na Amidze
 
 - Wybór języka w Game controls, zmiana w menu głównym, start z `LANGUAGE.CFG`.
