@@ -231,10 +231,7 @@ void Lan_ChatHide(void)
 {
 	if (!s_shown) return;
 	GUI_Mouse_Hide_Safe();
-	g_zoomCopy++;
-	GUI_Screen_Copy((int16)(s_boxX / 8), (int16)s_boxY, (int16)(s_boxX / 8), (int16)s_boxY,
-	                (int16)((s_boxX + s_boxW + 7) / 8 - s_boxX / 8), (int16)s_boxH, SCREEN_1, SCREEN_0);
-	g_zoomCopy--;
+	Layout_RestoreReal(s_boxX, s_boxY, s_boxW, s_boxH);	/* (through the zoom and the smooth scrolling's offset) */
 	GUI_Mouse_Show_Safe();
 	s_shown = false;
 }

@@ -27,6 +27,7 @@ extern void Layout_ZoomTick(void);
 extern void Layout_ViewPoint(int16 *x, int16 *y);
 extern bool Layout_InView(int x, int y);
 extern bool Layout_ZoomCopy(int x, int y, int w, int h);
+extern void Layout_RestoreReal(int x, int y, int w, int h);
 extern void Layout_ZoomShift(int16 dx, int16 dy);
 extern bool Layout_Transformed(void);
 extern int Layout_ViewWidth(void);

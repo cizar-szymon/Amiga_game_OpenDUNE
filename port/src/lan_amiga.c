@@ -1456,17 +1456,16 @@ bool Lan_SendChat(const uint8 *data, int length)
 static int s_infoW;	/* the width of the line drawn in SCREEN_0 (0: none) */
 
 /**
- * The LAN line off SCREEN_0: the map under it again from SCREEN_1 (stretched
- * when zoomed). Before the view is moved in SCREEN_0 (the line would move with
- * it, also into SCREEN_1) and before a shorter line.
+ * The LAN line off SCREEN_0: the map under it again from SCREEN_1 (through
+ * the zoom and the smooth scrolling's offset, Layout_RestoreReal). Before the
+ * view is moved in SCREEN_0 (the line would move with it, also into SCREEN_1)
+ * and before a shorter line.
  */
 void Lan_InfoHide(void)
 {
 	if (s_infoW == 0) return;
 	GUI_Mouse_Hide_Safe();
-	g_zoomCopy++;
-	GUI_Screen_Copy(0, (int16)(SCREEN_HEIGHT - 26), 0, (int16)(SCREEN_HEIGHT - 26), (int16)((s_infoW + 7) / 8), 10, SCREEN_1, SCREEN_0);
-	g_zoomCopy--;
+	Layout_RestoreReal(0, SCREEN_HEIGHT - 26, s_infoW, 12);
 	GUI_Mouse_Show_Safe();
 	s_infoW = 0;
 }
@@ -1508,7 +1507,8 @@ void Lan_InfoDraw(void)
 	if (w < s_infoW) Lan_InfoHide();	/* no end of the longer line left */
 	s_infoW = w;
 	GUI_Mouse_Hide_Safe();
-	GUI_DrawFilledRectangle(0, (int16)(SCREEN_HEIGHT - 26), (int16)(w - 1), (int16)(SCREEN_HEIGHT - 17), 12);
+	/* (12 rows: the font's 11, the descenders of g, j, p ... included; the FPS counter below) */
+	GUI_DrawFilledRectangle(0, (int16)(SCREEN_HEIGHT - 26), (int16)(w - 1), (int16)(SCREEN_HEIGHT - 15), 12);
 	GUI_DrawText_Wrapper("%s", 2, (int16)(SCREEN_HEIGHT - 25), (uint8)(s_outOfStep ? g_table_houseInfo[HOUSE_HARKONNEN].minimapColor
 	                     : g_table_houseInfo[HOUSE_ORDOS].minimapColor), 0, 0x22, text);
 	GUI_Mouse_Show_Safe();

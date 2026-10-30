@@ -468,6 +468,24 @@ Ten sam program na wszystkich (md5 sprawdzone na Pi). Okresy po 5 s:
 - Pełne tempo 60 fps wszędzie (limit `framerate=60`); najmniej wolnego CPU ma serwer przy ruchu
   jednostek (~58%).
 
+### Gra LAN w trzech językach i rozdzielczościach (31.10.2026, życzenie użytkownika)
+
+Serwer Amiga 1 (Harkonnen, polski, 400×300), WinUAE (Atreides, niemiecki, 800×600), Pi400
+(Ordos, angielski, 640×480); ten sam program (md5), `debug_stats=1`, `lan_info=1`. Lobby i linia
+LAN w językach graczy („zgodne” / „gleich” / „same”). ~6 min gry (jednostki tam i z powrotem,
+przewijanie na serwerze), dwa razy: sumy zgodne do końca (krok 13 200–14 400), żadnego OUT OF
+STEP, 56–60 fps (WinUAE chwilami 52), wolne CPU najmniej: Amiga 1 36–46%, Pi 64%.
+
+Znalezione i poprawione:
+- Pasek w grze LAN (i na małym ekranie) po polsku / niemiecku: obok węższych MENTAT / OPTIONS
+  resztki oryginalnych napisów („AT”, „ONS”) – zamalowanie deseniem było tylko przy LOAD / SAVE.
+  Teraz zawsze (`Layout_BarPattern`), MENTAT i OPTIONS obok siebie co 5 pikseli.
+- Linia `lan_info`: przy płynnym przewijaniu (`smooth_scroll`, domyślnie) jej chowanie kopiowało
+  tło przez `Layout_ZoomCopy`, która bierze piksele logiczne – wracało przesunięte o offset,
+  zostawały końce liter („SLAVEE WARTE”). Nowe `Layout_RestoreReal` (piksele ekranu, przez offset
+  i zoom) dla linii i okna czatu. Pas linii 12 wierszy zamiast 10 (czcionka ma 11: ogonki „g”
+  zostawały jako „ms_gleich”). 16 zrzutów linii na każdej maszynie po poprawce – czyste.
+
 ### Ślady po przewijaniu blitterem, linia `lan_info` (29.10.2026, poprawione)
 - Przyczyna śladów na karcie (kursor, przez chwilę licznik FPS o kafel obok): blitter przesuwa
   w VRAM to, co karta pokazywała – także kursor, który gra właśnie zdjęła (miejsce oznaczone jako

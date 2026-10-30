@@ -654,6 +654,19 @@ static void Layout_DrawWord(uint8 *buf, int w, int x, int y)
  * colours; where the top bar has room for one button only (400x300) one
  * LOAD/SAVE in the 8 pixel font, which opens the small window.
  */
+/* The bar's picture has the original MENTAT and OPTIONS in it: under the
+ * narrower lettered ones, up to "Credits", the bar's plain part after OPTIONS
+ * (184..191, as Layout_ComposeBackground widens the bar; OPTIONS' right edge
+ * and the widened bar's seam gone too). */
+static void Layout_BarPattern(uint8 *buf)
+{
+	int x, y;
+	for (y = 1; y < 17; y++) {
+		uint8 *row = buf + y * SCREEN_WIDTH;
+		for (x = 9; x < BAR_PATTERN_END; x++) row[x] = row[184 + (x & 7)];
+	}
+}
+
 void Layout_DrawLoadSaveButton(Screen screenID)
 {
 	uint16 count[256];
@@ -663,6 +676,17 @@ void Layout_DrawLoadSaveButton(Screen screenID)
 	Screen old;
 
 	s_bar = &s_barLayouts[0];
+	if ((!s_big || LAN_GAME) && !Lang_OwnPictures()) {
+		/* no LOAD and SAVE (a LAN game: no saving; the small screen): the
+		 * lettered MENTAT and OPTIONS side by side, 5 pixels apart as below */
+		s_langBar.mentatX = 16;
+		s_langBar.optionsX = (int16)(16 + Sprite_GetWidth(g_sprites[7]) + 3);
+		s_bar = &s_langBar;
+		Layout_BarPattern(GFX_Screen_Get_ByIndex(screenID));
+		Layout_PlaceBarWidgets();
+		GFX_Screen_SetDirty(screenID, 0, 1, BAR_PATTERN_END, 17);
+		return;
+	}
 	if (!s_big || LAN_GAME) return;	/* (a LAN game: no saving) */
 	buf = GFX_Screen_Get_ByIndex(screenID);
 	scratch = GFX_Screen_Get_ByIndex(SCREEN_3);	/* credits and intro only */
@@ -727,16 +751,7 @@ void Layout_DrawLoadSaveButton(Screen screenID)
 				s_buttonStyle = 1;
 			}
 		}
-		if (!Lang_OwnPictures()) {
-			/* the bar's picture has the original MENTAT and OPTIONS in it:
-			 * under the narrower ones, up to "Credits", the bar's plain part
-			 * after OPTIONS (184..191, as Layout_ComposeBackground widens the
-			 * bar; OPTIONS' right edge and the widened bar's seam gone too) */
-			for (y = 1; y < 17; y++) {
-				uint8 *row = buf + y * SCREEN_WIDTH;
-				for (x = 9; x < BAR_PATTERN_END; x++) row[x] = row[184 + (x & 7)];
-			}
-		}
+		if (!Lang_OwnPictures()) Layout_BarPattern(buf);
 		if (s_buttonStyle >= 1) {
 		} else if (BUTTON_X0 + ws[0] + 4 + ws[1] <= room) {
 			s_buttonStyle = 1;
@@ -985,6 +1000,33 @@ bool Layout_ZoomCopy(int x, int y, int w, int h)
 	GFX_Screen_SetDirty(SCREEN_0, (uint16)max(x, 0), (uint16)max(y, 0), (uint16)min(x2, SCREEN_WIDTH), (uint16)min(y2, SCREEN_HEIGHT));
 	GUI_Mouse_Show_Safe();
 	return true;
+}
+
+/**
+ * A rectangle of the screen over the map (real pixels: the LAN line, the chat
+ * box, drawn into SCREEN_0 only) back from SCREEN_1. While the view is
+ * transformed through the offset and the zoom (Layout_ZoomCopy takes logical
+ * pixels: with smooth scrolling the rectangle came back shifted, the ends of
+ * the letters left), the strips beside the view black; else a plain copy.
+ */
+void Layout_RestoreReal(int x, int y, int w, int h)
+{
+	uint8 *dst;
+	int fw = s_fullTilesW * 16, fy2 = 40 + s_fullTilesH * 16, r;
+
+	if (!Layout_Transformed()) {
+		GUI_Screen_Copy((int16)(x / 8), (int16)y, (int16)(x / 8), (int16)y, (int16)((x + w + 7) / 8 - x / 8), (int16)h, SCREEN_1, SCREEN_0);
+		return;
+	}
+	GUI_Mouse_Hide_Safe();
+	dst = GFX_Screen_Get_ByIndex(SCREEN_0);
+	for (r = max(y, 40); r < min(y + h, fy2); r++) {
+		int a = max(x, 0), b = min(x + w, fw);
+		if (a < b) memset(dst + r * SCREEN_WIDTH + a, 0, b - a);
+	}
+	Layout_FillReal(x, y, x + w, y + h);
+	GFX_Screen_SetDirty(SCREEN_0, (uint16)max(x, 0), (uint16)max(y, 0), (uint16)min(x + w, SCREEN_WIDTH), (uint16)min(y + h, SCREEN_HEIGHT));
+	GUI_Mouse_Show_Safe();
 }
 
 /* The view's picture on the screen moved by dx, dy pixels (in SCREEN_0 and on
