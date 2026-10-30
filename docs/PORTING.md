@@ -448,6 +448,26 @@ Serwer Amiga 1 (Harkonnen, Warp1260X @ 100 MHz, 640×360, `lan_info=1`, `debug_s
   - „WAITING” widać na serwerze prawie stale, choć tempo gry jest pełne – to krótkie czekanie na
     turę w każdym kroku, napis nie odróżnia go od prawdziwego zatrzymania.
 
+### Gra LAN 3 graczy: Amiga 1 + WinUAE + Amiberry (30.10.2026, `main` 9455e0c)
+
+Trzech prawdziwych graczy (wcześniej trzeci był `lan_peer.py` z PC): serwer Amiga 1 (Harkonnen,
+Warp1260X 68060 @ 100 MHz, ekran 400×300), WinUAE na PC (Atreides, 640×480), Amiberry na Pi400
+(Ordos, 640×480, 192.168.5.237, dołącza po adresie 192.168.5.115). Mapa „Arrakis 1 (A014) 3P”,
+poziom 2. Na czas testu `debug_stats=1` (i `lan_info=1` na Amidze 1), potem ini przywrócone.
+Ten sam program na wszystkich (md5 sprawdzone na Pi). Okresy po 5 s:
+
+| Scena | Amiga 1 (serwer) | WinUAE | Amiberry (Pi400) |
+|---|---|---|---|
+| postój | 59–60 fps, wolne 71% | 59–60 fps, wolne 80% | 59–60 fps, wolne 74–75% |
+| przewijanie strzałkami na serwerze | 59–60 fps, wolne 60–65% (`pan` do 6%) | – | – |
+| ruch jednostek wszystkich trzech | 59–60 fps, wolne 58–69% (rysowanie do 1,9 ms) | 58–60 fps, wolne 62–66% | 59–60 fps, wolne 61–70% |
+
+- Rozkazy z każdej maszyny (zaznaczenie ramką, prawy przycisk) widoczne u pozostałych.
+- Sumy stanu zgodne co 300 kroków od początku do końca (krok 11 100, ~3 min gry), żadnego
+  OUT OF STEP; czasy odpowiedzi w linii LAN 7–44 ms (Pi przez sieć domową 7–18 ms).
+- Pełne tempo 60 fps wszędzie (limit `framerate=60`); najmniej wolnego CPU ma serwer przy ruchu
+  jednostek (~58%).
+
 ### Ślady po przewijaniu blitterem, linia `lan_info` (29.10.2026, poprawione)
 - Przyczyna śladów na karcie (kursor, przez chwilę licznik FPS o kafel obok): blitter przesuwa
   w VRAM to, co karta pokazywała – także kursor, który gra właśnie zdjęła (miejsce oznaczone jako
