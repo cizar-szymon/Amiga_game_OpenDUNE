@@ -10,5 +10,8 @@ extern void Lang_Choose(uint8 language);
 extern uint8 Lang_Next(uint8 language);
 extern void Lang_Init(void);
 extern bool Lang_ApplyChosen(void);
+extern void Lang_LetterButtons(void);
+extern const uint8 *Lang_OriginalSprite(uint16 sprite);
+extern bool Lang_OwnPictures(void);
 
 #endif /* LANG_AMIGA_H */

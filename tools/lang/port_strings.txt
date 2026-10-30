@@ -44,6 +44,30 @@ de: Hauptmenü
 pl: Menu główne
 px: 200 8
 
+# ---- the words of the button pictures without a translation in the game's
+# texts (lang_amiga.c, Lang_LetterButtons: MENTAT / OPTIONS on the top bar,
+# Credits next to the money)
+
+en: Mentat
+de: Mentat
+pl: Mentat
+px: 74 8
+
+en: Options
+de: Optionen
+pl: Opcje
+px: 74 8
+
+en: Credits
+de: Credits
+pl: Kredyty
+px: 60 8
+
+en: Do you wish to join House %s?
+de: Möchtest du dem Haus %s beitreten?
+pl: Czy chcesz dołączyć do rodu %s?
+px: 300 8
+
 en: Play on LAN
 de: Spiel im Netzwerk
 pl: Gra w sieci

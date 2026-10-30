@@ -135,10 +135,13 @@ version (e.g. from GERMAN.PAK) and those of the Amiga version both work.
 The port's own texts (LAN menus, Amiga info ...) are translated in the
 program.
 
-Pictures with lettering (buttons, the title screen) and the voices stay
-English: the Amiga .GER pictures are in another format than the PC ones,
-and German voices are only in the PC version's GERMAN.PAK (the game
-uses them when they are there).
+The buttons with words (MENTAT, OPTIONS, Credits, Yes / No, Proceed /
+Repeat, the build and starport windows) are lettered by the game in the
+chosen language, and the question which House to join is written as the
+mentat's lines. The title screen and the voices stay English: the Amiga
+.GER pictures are in another format than the PC ones, and German voices
+are only in the PC version's GERMAN.PAK (the game uses them when they
+are there).
 
 
 LAN GAME (up to 3 players)

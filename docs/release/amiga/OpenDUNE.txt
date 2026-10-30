@@ -133,9 +133,11 @@ CREDITS.GER) skopiuj do OpenDUNE/data obok plikow .PAK - pasuja i z
 wersji PC (np. z GERMAN.PAK), i z wersji na Amige. Teksty portu (menu
 LAN, Amiga info ...) sa przetlumaczone w programie.
 
-Obrazki z napisami (przyciski, ekran tytulowy) i glosy zostaja
-angielskie: grafiki .GER z Amigi maja inny format niz PC, a glosy
-niemieckie sa tylko w GERMAN.PAK wersji PC (wtedy gra ich uzywa).
+Przyciski z napisami (MENTAT, OPTIONS, Credits, Yes / No, Proceed /
+Repeat, okno budowy i portu) gra podpisuje sama w wybranym jezyku, a
+pytanie o wybor rodu pisze jak zdania mentata. Ekran tytulowy i glosy
+zostaja angielskie: grafiki .GER z Amigi maja inny format niz PC, a
+glosy niemieckie sa tylko w GERMAN.PAK wersji PC (wtedy gra ich uzywa).
 
 
 GRA W SIECI LAN (do 3 graczy)

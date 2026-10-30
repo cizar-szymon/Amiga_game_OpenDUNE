@@ -848,7 +848,7 @@ Wcześniej przy `language=german` gra szukała głosów `G*.VOC`, których w dan
 
 Nie przetłumaczone (świadomie): pytania zabezpieczenia przed kopiowaniem (`PROTECT`, tylko z
 `copy_protection=1`; odpowiedzi są w angielskiej instrukcji) – gra bierze `PROTECT.ENG`.
-Obrazki z napisami (przyciski MENTAT/OPTIONS, ekran tytułowy) zostają angielskie.
+Ekran tytułowy zostaje angielski. Przyciski z napisami – patrz „Napisy na przyciskach” niżej.
 
 Kolejność słów: po polsku nazwa przed rodem, jak po francusku („Czołg Atreides”, trzy miejsca:
 `script/structure.c`, `script/unit.c`, `unit.c`); komunikaty bez rodzaju gramatycznego
@@ -931,8 +931,32 @@ teksty portu (`port_strings.txt`) i narzędzia.
   „Buduj”), Options, Ustawienia gry, O Amidze, pytanie przy wyjściu – polskie litery czytelne.
 - Niemiecki z plików `.GER` wersji Amigi: opis rodu, odprawa („Willkommen.”), misja (LADEN /
   SICHERN, „Bauanlage”, „Schad”).
-- Po angielsku (obrazki z napisami, jak zapowiedziano): MENTAT, OPTIONS, Credits, „Do you wish
-  to join House …?”, Yes / No, Proceed / Repeat.
+- Po angielsku zostały obrazki z napisami: MENTAT, OPTIONS, Credits, „Do you wish to join
+  House …?”, Yes / No, Proceed / Repeat – zgłoszenie użytkownika, poprawione niżej.
+
+### Napisy na przyciskach (30.10.2026, zgłoszenie użytkownika)
+
+Przyciski z napisami to obrazki: BTTN (MENTAT, OPTIONS, Credits), CHOAM (Upgrade, Send Order,
+Build This, Resume Game, Invoice), MENTAT (Yes, No, Exit, Proceed, Repeat), po dwa (zwykły i
+wciśnięty), razem 25. Język bez własnych obrazków (polski; niemiecki z Amigi – planarne `.GER`)
+dostaje angielskie z nowym napisem: `Lang_LetterButtons` (`lang_amiga.c`) rysuje oryginał w
+SCREEN_3, zamalowuje środek kolorem tła przycisku (złote: wnętrze ramki, wiersze 2–12; mentata:
+wiersze 2–21; „Credits”: litery zastąpione deseniem paska z lewego końca), pisze tekst gry
+(`STR_YES`, `STR_PROCEED`, `STR_UPGRADE` …; MENTAT / OPTIONS / Credits z `port_strings.txt`)
+czcionką 8 px (6 px, gdy się nie mieści, np. „ABBRECHEN”), złote wielkimi literami (z polskimi i
+niemieckimi), kolorem liter oryginału (0x93 / 0x91 – kolory rodu, więc jak oryginał niebieskie,
+czerwone, zielone) z cieniem czcionki; i koduje z powrotem jako sprite bez kompresji (serie zer
+w wierszu). Sprite'y są przebudowywane **w miejscu** (bufor na 2 bajty na piksel), bo widżety
+trzymają ich adresy – po zmianie języka w menu głównym (`Lang_ApplyChosen`) przyciski zmieniają
+się też tam; powrót do języka obrazków kopiuje oryginały. `layout_amiga.c` (LOAD / SAVE) bierze
+litery i kolory z oryginałów (`Lang_OriginalSprite`), a słowa LOAD / SAVE w innych językach
+pisze tym samym stylem co MENTAT / OPTIONS. Pytanie „Do you wish to join House X?” (dwa kawałki
+obrazka MISC) w innym języku pisane jak zdania mentata (`gui.c`, tekst portu z `%s`).
+
+Sprawdzone w WinUAE: polski (Atreides, Harkonnen, Ordos – kolory rodów; pasek, Tak / Nie, Dalej /
+Powtórz, pytanie o ród, okno budowy „ZBUDUJ TO” / „WRÓĆ DO GRY”), niemiecki (MENTAT, OPTIONEN,
+LADEN, SICHERN, Credits, „ABBRECHEN” w oknie mentata), powrót na angielski w menu głównym –
+oryginalne obrazki. Okno portu (Send Order / Invoice) nie oglądane – ten sam kod.
 
 ### Do sprawdzenia na Amidze
 

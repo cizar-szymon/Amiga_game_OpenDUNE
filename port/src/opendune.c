@@ -1034,6 +1034,9 @@ static void GameLoop_Main(void)
 
 	String_Init();
 	Sprites_Init();
+#if defined(__amigaos__)
+	Lang_LetterButtons();	/* the words of the buttons in the language of the game */
+#endif
 
 #ifdef MUNT
 	if (IniFile_GetInteger("mt32midi", 1) != 0) Music_InitMT32();

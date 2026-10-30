@@ -647,7 +647,7 @@ void Layout_DrawLoadSaveButton(Screen screenID)
 {
 	uint16 count[256];
 	uint8 *buf, *scratch;
-	uint8 bg = 0, fg = 0, shade = 0;
+	uint8 bg = 0, fg = 0;
 	int x, y, i, n, room;
 	Screen old;
 
@@ -658,12 +658,12 @@ void Layout_DrawLoadSaveButton(Screen screenID)
 
 	/* both original buttons in the scratch screen, for their letters */
 	for (y = 0; y < 40; y++) memset(scratch + y * SCREEN_WIDTH, 0, 80);
-	GUI_DrawSprite(SCREEN_3, g_sprites[7], 0, 0, 0, 0);
-	GUI_DrawSprite(SCREEN_3, g_sprites[9], 0, 20, 0, 0);
+	GUI_DrawSprite(SCREEN_3, Lang_OriginalSprite(7), 0, 0, 0, 0);	/* (not lettered anew) */
+	GUI_DrawSprite(SCREEN_3, Lang_OriginalSprite(9), 0, 20, 0, 0);
 	/* the colours from the OPTIONS button drawn where ours go, the top bar
 	 * there put back afterwards */
 	for (y = 0; y < 16; y++) memcpy(s_barSave[y], buf + (1 + y) * SCREEN_WIDTH + BUTTON_X0, BUTTON_W);
-	GUI_DrawSprite(screenID, g_sprites[9], BUTTON_X0, 1, 0, 0);
+	GUI_DrawSprite(screenID, Lang_OriginalSprite(9), BUTTON_X0, 1, 0, 0);
 	memset(count, 0, sizeof(count));
 	for (y = 3; y < 15; y++) {
 		for (x = BUTTON_X0 + 3; x < BUTTON_X0 + 75; x++) count[buf[y * SCREEN_WIDTH + x]]++;
@@ -672,8 +672,6 @@ void Layout_DrawLoadSaveButton(Screen screenID)
 	for (i = 0; i < 256; i++) if (count[i] > count[bg]) bg = (uint8)i;
 	fg = (bg == 0) ? 1 : 0;
 	for (i = 0; i < 256; i++) if (i != bg && count[i] > count[fg]) fg = (uint8)i;
-	/* the third colour: the lettering's dark gold edge (the small font's shadow) */
-	for (i = 0; i < 256; i++) if (i != bg && i != fg && (shade == bg || shade == fg || count[i] > count[shade])) shade = (uint8)i;
 	s_glyphBg = bg;
 
 	room = 192 + g_sidebarDX - 4;	/* "Credits" */
@@ -736,11 +734,10 @@ void Layout_DrawLoadSaveButton(Screen screenID)
 				if (s_buttonStyle == 2) {
 					Layout_DrawWord(buf, lw, bx + s_bar->margin, GLYPH_TOP);
 				} else {
-					/* as the OPTIONS lettering: its colour, a dark gold edge
-					 * (not the font's black outline), at the top of the button */
+					/* as the lettered MENTAT and OPTIONS (lang_amiga.c): the
+					 * OPTIONS lettering's colour, the font's dark shadow */
 					const char *word = Lang_T(s_buttonStyle == 1 ? s_buttons[i].word : "LOAD/SAVE");
-					GUI_DrawText_Wrapper(word, bx + w / 2 + 1, 4, shade, 0, 0x112);
-					GUI_DrawText_Wrapper(word, bx + w / 2, 3, fg, 0, 0x112);
+					GUI_DrawText_Wrapper(word, bx + w / 2, 3, fg, 0, 0x122);
 				}
 				bx += w + (s_buttonStyle == 2 ? s_bar->gap : 4);
 			}

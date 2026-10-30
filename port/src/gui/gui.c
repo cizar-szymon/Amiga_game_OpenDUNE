@@ -1904,9 +1904,17 @@ uint8 GUI_PickHouse(void)
 
 		GUI_Mouse_Hide_Safe();
 
+#if defined(__amigaos__)
+		if (!Lang_OwnPictures()) {
+			/* the question of MISC's picture as text, as the mentat's lines */
+			GUI_DrawText_Wrapper(Lang_T("Do you wish to join House %s?"), 4, 1, g_curWidgetFGColourBlink, 0, 0x32, g_table_houseInfo[houseID].name);
+		} else
+#endif
+		{
 		GUI_Screen_Copy(0, 0, 0, 0, 26, 24, SCREEN_1, SCREEN_0);
 
 		GUI_Screen_Copy(0, 24 * (houseID + 1), 26, 0, 13, 24, SCREEN_1, SCREEN_0);
+		}
 
 		GUI_Widget_DrawAll(w);
 
