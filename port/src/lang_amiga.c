@@ -262,6 +262,7 @@ static void Lang_EncodeSprite(uint8 *dst, const uint8 *orig, const uint8 *src, u
 	}
 	memcpy(dst, orig, 10);
 	dst[0] = (uint8)((orig[0] & ~0x1) | 0x2);	/* no palette, not Format80 */
+	WRITE_LE_UINT16(dst + 3, w);			/* (MENTAT and OPTIONS narrower) */
 	WRITE_LE_UINT16(dst + 6, (uint16)(p - dst));
 	WRITE_LE_UINT16(dst + 8, (uint16)(w * h));
 }
@@ -373,7 +374,24 @@ static void Lang_LetterButton(const LangButton *b, const uint8 *orig, uint8 *dst
 		font = 1;
 		GUI_DrawText_Wrapper(NULL, 0, 0, b->fg, 0, style | font);
 	}
-	y = (b->kind == 1) ? (h - g_fontCurrent->height) / 2 : 3;
+	if (b->word == 1 || b->word == 2) {
+		/* MENTAT and OPTIONS as narrow as their word (layout_amiga.c puts
+		 * LOAD and SAVE next to them): the middle of the button cut out */
+		int rightEnd = w - 1 - right;
+		int nw = left + Font_GetStringWidth(text) + 10 + rightEnd;
+		if (nw < (int)w) {
+			int cut = w - nw;
+			for (y = 0; y < h; y++) {
+				uint8 *row = scr + y * SCREEN_WIDTH;
+				memmove(row + w / 2 - cut, row + w / 2, w - w / 2);
+				memset(row + nw, 0, cut);
+			}
+			w = (uint16)nw;
+			right -= cut;
+		}
+	}
+	/* (MENTAT and OPTIONS a row higher: as high as LOAD and SAVE beside them) */
+	y = (b->kind == 1) ? (h - g_fontCurrent->height) / 2 : (b->word == 1 || b->word == 2) ? 2 : 3;
 	x = (left + right + 1) / 2;
 	if (b->kind == 1) GUI_DrawText_Wrapper(text, x + 1, y + 1, b->shade, 0, 0x100 | style | font);
 	GUI_DrawText_Wrapper(text, x, y, b->fg, 0, 0x100 | style | font);
@@ -382,6 +400,7 @@ static void Lang_LetterButton(const LangButton *b, const uint8 *orig, uint8 *dst
 	if (oldFont != NULL) Font_Select(oldFont);
 
 	Lang_EncodeSprite(dst, orig, scr, w, h);
+	Lang_SpriteSize(orig, &w, &h);
 	for (y = 0; y < h; y++) memcpy(scr + y * SCREEN_WIDTH, save[y], w);
 }
 

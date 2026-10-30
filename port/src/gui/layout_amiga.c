@@ -448,6 +448,7 @@ static int s_buttonStyle = 2;		/* 2 large lettering, 1 small (8 pixel font), 0 o
 static int16 s_btnX[2] = { BUTTON_X0, BUTTON_X0 + BUTTON_W + BUTTON_GAP };	/* as drawn */
 static int16 s_btnW[2] = { BUTTON_W, BUTTON_W };
 #define BUTTON_MARGIN 7	/* lettering to the button's ends */
+#define BAR_PATTERN_END (196 + g_sidebarDX)	/* the top bar's plain part ends: "Credits" (the original's 200) */
 static uint8 s_barSave[16][BUTTON_W];	/* the top bar under the sampled button */
 
 /* Places on the top bar: MENTAT, OPTIONS, LOAD, the gap between LOAD and SAVE,
@@ -462,14 +463,24 @@ static const BarLayout s_barLayouts[] = {
 	{  1,  81, 161, 2, 4 }
 };
 static const BarLayout *s_bar = &s_barLayouts[0];
+/* the other languages: MENTAT and OPTIONS as narrow as their word
+ * (lang_amiga.c), LOAD and SAVE right after them */
+static BarLayout s_langBar;
 
-/* MENTAT and OPTIONS where the bar's layout puts them. */
+/* MENTAT and OPTIONS where the bar's layout puts them (and as wide as
+ * their lettered pictures in the other languages). */
 static void Layout_PlaceBarWidgets(void)
 {
 	Widget *w = GUI_Widget_Get_ByIndex(g_widgetLinkedListHead, 1);
-	if (w != NULL && w->index == 1) w->offsetX = s_bar->mentatX;
+	if (w != NULL && w->index == 1) {
+		w->offsetX = s_bar->mentatX;
+		if (!Lang_OwnPictures()) w->width = Sprite_GetWidth(g_sprites[7]);
+	}
 	w = GUI_Widget_Get_ByIndex(g_widgetLinkedListHead, 2);
-	if (w != NULL && w->index == 2) w->offsetX = s_bar->optionsX;
+	if (w != NULL && w->index == 2) {
+		w->offsetX = s_bar->optionsX;
+		if (!Lang_OwnPictures()) w->width = Sprite_GetWidth(g_sprites[9]);
+	}
 }
 
 static Widget *Layout_ButtonWidget(uint16 index)
@@ -697,7 +708,36 @@ void Layout_DrawLoadSaveButton(Screen screenID)
 				break;
 			}
 		}
-		if (s_buttonStyle == 2) {
+		if (s_buttonStyle != 2 && !Lang_OwnPictures()) {
+			/* lettered MENTAT and OPTIONS: in the original's place, or on
+			 * the left if LOAD and SAVE do not fit; 5 pixels between the
+			 * buttons (the sprites' 2 empty columns + 3) */
+			int mw = Sprite_GetWidth(g_sprites[7]), ow = Sprite_GetWidth(g_sprites[9]);
+			int gap = 3;
+			s_langBar.mentatX = 16;
+			if (16 + mw + ow + ws[0] + ws[1] + 3 * gap + 2 > room) s_langBar.mentatX = 2;
+			s_langBar.optionsX = (int16)(s_langBar.mentatX + mw + gap);
+			s_langBar.loadX = (int16)(s_langBar.optionsX + ow + gap);
+			/* LOAD to SAVE as far apart as the buttons before them (the
+			 * lettered sprites end in 2 empty columns, ours in none) */
+			s_langBar.gap = (int16)(gap + 2);
+			s_langBar.margin = BUTTON_MARGIN;
+			if (s_langBar.loadX + ws[0] + s_langBar.gap + ws[1] <= room) {
+				s_bar = &s_langBar;
+				s_buttonStyle = 1;
+			}
+		}
+		if (!Lang_OwnPictures()) {
+			/* the bar's picture has the original MENTAT and OPTIONS in it:
+			 * under the narrower ones, up to "Credits", the bar's plain part
+			 * after OPTIONS (184..191, as Layout_ComposeBackground widens the
+			 * bar; OPTIONS' right edge and the widened bar's seam gone too) */
+			for (y = 1; y < 17; y++) {
+				uint8 *row = buf + y * SCREEN_WIDTH;
+				for (x = 9; x < BAR_PATTERN_END; x++) row[x] = row[184 + (x & 7)];
+			}
+		}
+		if (s_buttonStyle >= 1) {
 		} else if (BUTTON_X0 + ws[0] + 4 + ws[1] <= room) {
 			s_buttonStyle = 1;
 		} else {
@@ -739,13 +779,13 @@ void Layout_DrawLoadSaveButton(Screen screenID)
 					const char *word = Lang_T(s_buttonStyle == 1 ? s_buttons[i].word : "LOAD/SAVE");
 					GUI_DrawText_Wrapper(word, bx + w / 2, 3, fg, 0, 0x122);
 				}
-				bx += w + (s_buttonStyle == 2 ? s_bar->gap : 4);
+				bx += w + ((s_buttonStyle == 2 || s_bar == &s_langBar) ? s_bar->gap : 4);
 			}
 		}
 	}
 	GFX_Screen_SetActive(old);
 	Layout_PlaceBarWidgets();	/* drawn next by GUI_DrawInterfaceAndRadar */
-	GFX_Screen_SetDirty(screenID, 0, 1, s_btnX[n - 1] + s_btnW[n - 1], 17);
+	GFX_Screen_SetDirty(screenID, 0, 1, max(s_btnX[n - 1] + s_btnW[n - 1], Lang_OwnPictures() ? 104 + BUTTON_W : BAR_PATTERN_END), 17);
 }
 
 /**

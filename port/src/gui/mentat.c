@@ -40,6 +40,12 @@
 #define Tools_RandomLCG_Range(a, b) (g_lanGame ? Tools_RandomUI_Range(a, b) : (Tools_RandomLCG_Range)(a, b))
 #define Tools_RandomLCG_Seed(a) do { if (!g_lanGame) (Tools_RandomLCG_Seed)(a); } while (0)
 #endif
+#include "../inifile.h"
+
+/* opendune.ini modern=1: the mentat's screen MODERNx.CPS (PROGDIR:lang/GFX.PAK,
+ * tools/make_modern.py) where there is one, the film in its monitor; the
+ * original's eyes, mouth and shoulder not drawn on it */
+static bool s_mentatModern = false;
 #endif
 
 /**
@@ -521,6 +527,17 @@ void GUI_Mentat_Display(const char *wsaFilename, uint8 houseID)
 	int i;
 
 	snprintf(textBuffer, sizeof(textBuffer), "MENTAT%c.CPS", g_table_houseInfo[houseID].name[0]);
+#if defined(__amigaos__)
+	s_mentatModern = false;
+	if (IniFile_GetInteger("modern", 0) != 0) {
+		char modern[16];
+		snprintf(modern, sizeof(modern), "MODERN%c.CPS", g_table_houseInfo[houseID].name[0]);
+		if (File_Exists(modern)) {
+			memcpy(textBuffer, modern, sizeof(modern));
+			s_mentatModern = true;
+		}
+	}
+#endif
 	Sprites_LoadImage(textBuffer, SCREEN_1, g_palette_998A);
 
 	oldScreenID = GFX_Screen_SetActive(SCREEN_1);
@@ -571,6 +588,9 @@ void GUI_Mentat_Display(const char *wsaFilename, uint8 houseID)
 		WSA_Unload(wsa);
 	}
 
+#if defined(__amigaos__)
+	if (!s_mentatModern)
+#endif
 	GUI_DrawSprite(SCREEN_1, g_sprites[397 + houseID * 15], g_shoulderLeft, g_shoulderTop, 0, 0);
 	GFX_Screen_SetActive(oldScreenID);
 }
@@ -594,6 +614,9 @@ void GUI_Mentat_Animation(uint16 speakingMode)
 	bool partNeedsRedraw;
 	uint16 i;
 
+#if defined(__amigaos__)
+	if (s_mentatModern) return;
+#endif
 	if (movingOtherTimer < g_timerGUI && !g_disableOtherMovement) {
 		if (movingOtherTimer != 0) {
 			uint8 *sprite;
@@ -1113,6 +1136,26 @@ uint16 GUI_Mentat_Loop(const char *wsaFilename, char *pictureDetails, char *text
 	textTick = 0;
 	textDelay = 0;
 
+#if defined(__amigaos__)
+	if (s_mentatModern && text != NULL) {
+		/* the modern mentats' names (Cyrila -> Cizara, Ammona -> Sellena, Radnora -> NineXa ...), the text copied when the length changes */
+		static const char *const names[][2] = { { "Cyril", "Cizar" }, { "Ammon", "Sellen" }, { "Radnor", "NineX" } };
+		static char renamed[2048];
+		uint16 i;
+		for (i = 0; i < sizeof(names) / sizeof(names[0]); i++) {
+			size_t lo = strlen(names[i][0]), ln = strlen(names[i][1]);
+			char *p;
+			for (p = strstr(text, names[i][0]); p != NULL; p = strstr(p + ln, names[i][0])) {
+				if (ln != lo) {
+					if (strlen(text) + ln - lo >= sizeof(renamed)) break;
+					if (text != renamed) { strcpy(renamed, text); p = renamed + (p - text); text = renamed; }
+					memmove(p + ln, p + lo, strlen(p + lo) + 1);
+				}
+				memcpy(p, names[i][1], ln);
+			}
+		}
+	}
+#endif
 	oldWidgetID = Widget_SetCurrentWidget(8);
 	oldScreenID = GFX_Screen_SetActive(SCREEN_2);
 

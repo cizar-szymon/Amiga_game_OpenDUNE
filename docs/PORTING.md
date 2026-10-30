@@ -978,6 +978,36 @@ Powtórz, pytanie o ród, okno budowy „ZBUDUJ TO” / „WRÓĆ DO GRY”), ni
 LADEN, SICHERN, Credits, „ABBRECHEN” w oknie mentata), powrót na angielski w menu głównym –
 oryginalne obrazki. Okno portu (Send Order / Invoice) nie oglądane – ten sam kod.
 
+### Górny pasek w innych językach (30–31.10.2026, życzenie użytkownika)
+
+W języku bez własnych obrazków MENTAT i OPTIONS (po polsku INDEKS, OPCJE) są węższe – tak
+szerokie jak ich słowo (`Lang_LetterButton` wycina środek przycisku) – a obok nich osobne
+LOAD i SAVE (ODCZYT, ZAPIS; `s_langBar` w `layout_amiga.c`). Odstęp między wszystkimi czterema
+5 pikseli (sprite'y z napisem kończą się 2 pustymi kolumnami, więc ich odstęp to 3), napisy
+na tej samej wysokości (MENTAT / OPTIONS o wiersz wyżej niż inne złote przyciski). Pod
+przyciskami, aż do „Credits”, deseń gładkiej części paska za OPTIONS (kolumny 184–191, ten sam,
+którym `Layout_ComposeBackground` poszerza pasek): bez krawędzi oryginalnego OPTIONS i szwu
+poszerzenia. Sprawdzone w WinUAE (400×300, 640×480, 800×600) i na Amidze 2 (640×480), kliknięcia
+wszystkich czterech.
+
+### Mentat jako nowoczesny obrazek: `modern=1` (30–31.10.2026, życzenie użytkownika)
+
+`opendune.ini` `modern=1`: gdy w `PROGDIR:lang/GFX.PAK` jest `MODERNx.CPS` (x = litera rodu:
+A, H, O, M – M to ekran wyboru rodu z postacią Bene Gesserit), `GUI_Mentat_Display` bierze go
+zamiast `MENTATx.CPS`; film odprawy gra w monitorze obrazka (widżet 8: 128,48, 184×112), oczy,
+usta i ramię oryginału nie są rysowane. Imiona w tekstach mentata zamienione
+(`GUI_Mentat_Loop`: Cyril → Cizar, Ammon → Sellen, Radnor → NineX, też odmienione; tekst
+kopiowany, gdy zmienia się jego długość). Bez `modern=1` albo bez pliku – oryginał.
+
+`tools/make_modern.py OBRAZEK RÓD X0 Y0 X1 Y1` (ekran monitora na obrazku): skalowanie na
+miejsce filmu, wycięcie 320×200, brakujące wiersze z krawędzi obrazka (u góry ciemniej pod tekst,
+w dół do czerni), kolory palety gry z ditheringiem – tylko te, których używa oryginalny ekran
+(żaden nie miga); dla M paleta `BENE.PAL` (ładowana przez grę na tym ekranie), dla reszty
+`IBM.PAL`. Zapis do `build/gfx/GFX.PAK` (inne rody w nim zostają). Napisy i przyciski wypalone
+w obrazku (pytanie, Yes / No, Exit, tekst mentata) trzeba najpierw zamalować – gra rysuje własne.
+Obrazki (`tools/gfx/`) i `GFX.PAK` tylko na tym PC (`.gitignore`). Sprawdzone w WinUAE (wszystkie
+cztery ekrany) i na Amidze 2 (Atreides, Ordos).
+
 ### Do sprawdzenia na Amidze
 
 - Wybór języka w Game controls, zmiana w menu głównym, start z `LANGUAGE.CFG`.

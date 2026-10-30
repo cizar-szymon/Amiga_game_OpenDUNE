@@ -14,3 +14,6 @@ private/
 __pycache__/
 # The Polish translation of the game texts (Westwood) - only on this PC, not public
 /tools/lang/polish/
+
+# Pictures replacing the game's ones (tools/gfx -> lang/GFX.PAK) - only on this PC
+/tools/gfx/

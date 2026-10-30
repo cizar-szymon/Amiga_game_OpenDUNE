@@ -50,7 +50,7 @@ px: 200 8
 
 en: Mentat
 de: Mentat
-pl: Mentat
+pl: Indeks
 px: 74 8
 
 en: Options
@@ -157,11 +157,11 @@ px: 210 8
 
 en: LOAD
 de: LADEN
-pl: WCZYTAJ
+pl: ODCZYT
 
 en: SAVE
 de: SICHERN
-pl: ZAPISZ
+pl: ZAPIS
 
 en: LOAD/SAVE
 de: SPIELSTAND
