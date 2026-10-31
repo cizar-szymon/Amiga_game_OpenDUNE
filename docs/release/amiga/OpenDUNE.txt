@@ -80,6 +80,9 @@ ffmpeg, Docker), pliki .RAW z build/music do OpenDUNE/MUSIC.
 INSTALACJA
 ----------
 
+Krok po kroku (po angielsku, polsku i niemiecku): Install.txt.
+W skrocie:
+
 1. Rozpakuj OpenDUNE-0.xx.zip w dowolnym miejscu (np. Work:Games),
    programem UnZip (Aminet: util/arc/UnZip):
      UnZip OpenDUNE-0.xx.zip -d Work:Games

@@ -299,7 +299,7 @@ static void Lan_Draw(void)
 			snprintf(line, sizeof(line), s_saveSel < 0 ? "< %s >" : "%s", Lan_MapName(g_lanMap));
 			Lan_Text(line, 112, 64, Lan_Over(110, 62, 170, 10) && s_saveSel < 0 ? COL_HOVER : COL_TEXT);
 			Lan_Text(Lang_T("Level"), 26, 74, COL_TEXT);
-			snprintf(line, sizeof(line), s_saveSel < 0 ? Lang_T("< %d >  (as mission %d)") : Lang_T("%d  (as mission %d)"), g_lanLevel, g_lanLevel);
+			snprintf(line, sizeof(line), s_saveSel < 0 ? "< %d >" : "%d", g_lanLevel);
 			Lan_Text(line, 112, 74, Lan_Over(110, 72, 170, 10) && s_saveSel < 0 ? COL_HOVER : COL_TEXT);
 			Lan_DrawPlayers(86);
 			Lan_DrawHouses(124);
@@ -346,7 +346,7 @@ static void Lan_Draw(void)
 			Lan_Text(line, 26, 30, COL_TEXT);
 			snprintf(line, sizeof(line), Lang_T("Map  %s"), Lan_MapName(g_lanMap));
 			Lan_Text(line, 26, 44, COL_TEXT);
-			snprintf(line, sizeof(line), Lang_T("Level  %d  (as mission %d)"), g_lanLevel, g_lanLevel);
+			snprintf(line, sizeof(line), Lang_T("Level  %d"), g_lanLevel);
 			Lan_Text(line, 26, 54, COL_TEXT);
 			if (g_lanSaveMask != 0) {
 				snprintf(line, sizeof(line), Lang_T("Saved game: %.20s"), g_lanSaveDesc);
@@ -508,7 +508,7 @@ static bool Lan_Events(void)
 				strncpy(s_myAddress, ev.text1, sizeof(s_myAddress) - 1);
 				break;
 			case NEV_ERROR:
-				Lan_Status(ev.text1);
+				Lan_Status(Lang_T(ev.text1));	/* net_amiga.c's texts: INDIRECT in make_port_strings.py */
 				if (ev.value) {
 					s_serving = s_searching = s_connecting = false;
 				}
@@ -538,6 +538,7 @@ static bool Lan_Events(void)
 					if (slot >= LAN_MAX_PLAYERS) break;
 					g_lanPlayers[slot].used = true;
 					g_lanPlayers[slot].gone = false;
+					g_lanPlayers[slot].lost = false;
 					g_lanPlayers[slot].house = HOUSE_INVALID;
 					g_lanPlayers[slot].ping = -1;
 					strncpy(g_lanPlayers[slot].name, ev.text1, 15);
@@ -567,7 +568,7 @@ static bool Lan_Events(void)
 					Lan_Status(Lang_T("A player has left."));
 				} else {
 					s_view = VIEW_JOIN;
-					Lan_Status(ev.text1);
+					Lan_Status(Lang_T(ev.text1));
 				}
 				break;
 			case NEV_PING:

@@ -7,6 +7,45 @@ OpenDUNE/saves - F10 writes bugNNN.txt, bugNNN.dat and bugNNN-*.bmp.
 Reports: github.com/cizar-szymon/Amiga_game_OpenDUNE (Issues).
 
 
+0.50 (31.10.2026)
+-----------------
+
+- Languages: German (Westwood's original texts from your own Dune II) and
+  Polish, chosen in Options -> Game controls -> Language. The words on the
+  buttons and on the top bar in the chosen language.
+- LAN game: the messages at the end of a game and the network's errors in
+  the chosen language; a player who left is shown so on every Amiga
+  (lan_info=1); the top bar and the LAN line without leftovers of old text.
+- LAN game: the server saves with the SAVE button on the top bar beside
+  OPTIONS (the others have none); a rare OUT OF STEP after closing the save
+  or Options window fixed; the lobby shows just the map's name and the
+  level's number.
+- Pause (P): a large white PAUSE in the middle of the map.
+- LAN game: when a player's Amiga hangs, resets or loses the network
+  (no answer for 10 s), the game pauses for everyone with "No contact
+  with ...". The server can then save it (SAVE) - that player stays in
+  the save, so when they are back all load it in the lobby and play
+  on - or play on without them (P). Before, the game waited forever,
+  and with two players the server won at once. A player who loses the
+  server gets "The connection to the server is lost."
+- Small maps (missions 1 and 2) in the middle of the view at the larger
+  resolutions.
+- Step by step installation in Polish, English and German
+  in one file, Install.txt.
+- The game's drawer has a plain drawer icon, MakeMusic a loudspeaker with
+  notes.
+- Missing data files: the game shows a window with the missing .PAK
+  files and the directory it looks in (in English, Polish and German)
+  instead of quitting without a word. MakeMusic without SOUND.PAK says
+  the same in three languages, and Return closes its window.
+- The letter P in a save's name no longer pauses the game.
+- Started from the icon: no console window opens when the game ends.
+- The F10 report gives the program's real build date.
+- Checked: a LAN game of three players for 67 minutes (all sums the
+  same), the heaviest missions 7-9, saves loaded in another language,
+  players and the server dropping out.
+
+
 0.49 (30.10.2026)
 -----------------
 

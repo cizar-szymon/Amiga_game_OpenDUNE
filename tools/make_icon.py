@@ -57,15 +57,17 @@ def chunk(name, data):
     return name + struct.pack(">I", len(data)) + data + pad
 
 
-def color_icon(images, w, h, colors):
-    """FORM ICON: FACE and one IMAG per image (normal, selected), one palette"""
+def color_icon(images, w, h, colors, transparent=None):
+    """FORM ICON: FACE and one IMAG per image (normal, selected), one palette;
+    transparent: the colour index not drawn (the window shows through)"""
     depth = max(1, (len(colors) - 1).bit_length())
     palette = b"".join(struct.pack(">BBB", *c) for c in colors)
     face = struct.pack(">BBBBH", w - 1, h - 1, 0, 0x11, len(palette) - 1)
     body = b"ICON" + chunk(b"FACE", face)
     for idx in images:
         pixels = rle_pack(idx, depth)
-        imag = struct.pack(">BBBBBBHH", 0, len(colors) - 1, 0x02, 1, 0, depth, len(pixels) - 1,
+        imag = struct.pack(">BBBBBBHH", transparent or 0, len(colors) - 1, 0x03 if transparent is not None else 0x02,
+                           1, 0, depth, len(pixels) - 1,
                            len(palette) - 1) + pixels + palette
         body += chunk(b"IMAG", imag)
     return b"FORM" + struct.pack(">I", len(body)) + body
@@ -75,7 +77,13 @@ def color_icon(images, w, h, colors):
 WB4 = [(0xAA, 0xAA, 0xAA), (0x00, 0x00, 0x00), (0xFF, 0xFF, 0xFF), (0x66, 0x88, 0xBB)]
 
 
+# the colour of a picture's transparent pixels (--transparent)
+CLEAR = (255, 0, 255)
+
+
 def nearest_wb(c):
+    if c == CLEAR:
+        return 0
     return min(range(4), key=lambda i: sum((c[k] - WB4[i][k]) ** 2 for k in range(3)))
 
 
@@ -109,19 +117,24 @@ def drawer_data():
                        90, 40, 0xFFFF, 0xFFFF, 1, 0, 0)
 
 
-def disk_object(rgb, w, h, types, selected=None, drawer=False):
+def disk_object(rgb, w, h, types, selected=None, drawer=False, project=None, pos=None):
     """selected: the image shown when the icon is selected (else the colours inverted);
     drawer: a drawer's icon (WBDRAWER, the window's data) instead of a tool's"""
     flags = 0x0006 if selected else 0x0004	# GADGIMAGE | GADGHIMAGE (two images)
     gadget = struct.pack(">IhhhhHHHIIIIIHI", 0, 0, 0, w, h + 1, flags, 0x0003, 0x0001,
                          1, 1 if selected else 0, 0, 0, 0, 0, 1)
+    px, py = pos if pos else (-0x80000000, -0x80000000)	# the place in the drawer's window (or none)
     if drawer:
         head = struct.pack(">HH", 0xE310, 1) + gadget + struct.pack(
-            ">BBIIiiIII", 2, 0, 0, 0, -0x80000000, -0x80000000, 1, 0, 0) + drawer_data()
+            ">BBIIiiIII", 2, 0, 0, 0, px, py, 1, 0, 0) + drawer_data()
         types = []
+    elif project:
+        # a project (a text): double-click opens it with its default tool
+        head = struct.pack(">HH", 0xE310, 1) + gadget + struct.pack(
+            ">BBIIiiIII", 4, 0, 1, 1 if types else 0, px, py, 0, 0, 16384)
     else:
         head = struct.pack(">HH", 0xE310, 1) + gadget + struct.pack(
-            ">BBIIiiIII", 3, 0, 0, 1 if types else 0, -0x80000000, -0x80000000, 0, 0, 16384)
+            ">BBIIiiIII", 3, 0, 0, 1 if types else 0, px, py, 0, 0, 16384)
     image = struct.pack(">hhhhhIBBI", 0, 0, w, h, 2, 1, 3, 0, 0) + planar(rgb, w, h)
     if selected:
         image += struct.pack(">hhhhhIBBI", 0, 0, w, h, 2, 1, 3, 0, 0) + planar(selected, w, h)
@@ -132,7 +145,12 @@ def disk_object(rgb, w, h, types, selected=None, drawer=False):
     images = [[remap[c] for c in rgb]] + ([[remap[c] for c in selected]] if selected else [])
     # a drawer of an OS 2+ icon (gadget UserData 1): DrawerData2 (flags: show icons, view by icon)
     extra = struct.pack(">IH", 1, 1) if drawer else b""
-    return head + image + (tool_types(types) if types else b"") + extra + color_icon(images, w, h, colors)
+    transparent = remap.get(CLEAR)
+    tool = b""
+    if project:
+        t = project.encode("latin-1") + b"\0"
+        tool = struct.pack(">I", len(t)) + t
+    return head + image + tool + (tool_types(types) if types else b"") + extra + color_icon(images, w, h, colors, transparent)
 
 
 def lit_frame(rgb, w, h, width=3):
@@ -147,6 +165,11 @@ def lit_frame(rgb, w, h, width=3):
     return out
 
 
+def dark(rgb, factor=0.65):
+    """the selected image: the picture darker (its transparent pixels kept)"""
+    return [c if c == CLEAR else tuple(int(v * factor) for v in c) for c in rgb]
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("out")
@@ -156,12 +179,15 @@ def main():
     ap.add_argument("--tooltypes", nargs="*", default=[])
     ap.add_argument("--lit-frame", action="store_true", help="selected image: a lit frame round the picture")
     ap.add_argument("--drawer", action="store_true", help="a drawer's icon (the game's directory) instead of the program's")
+    ap.add_argument("--project", metavar="TOOL", help="a project's icon (a text) opened by TOOL, e.g. SYS:Utilities/MultiView")
+    ap.add_argument("--pos", nargs=2, type=int, metavar=("X", "Y"), help="the icon's place in its drawer's window")
+    ap.add_argument("--transparent", action="store_true", help="magenta (255,0,255) pixels transparent, the selected image darker")
     args = ap.parse_args()
     x, y, w, h = args.crop
     img = Image.open(args.frame).convert("RGB").crop((x, y, x + w, y + h))
     rgb = list(img.getdata())
-    selected = lit_frame(rgb, w, h) if args.lit_frame else None
-    open(args.out, "wb").write(disk_object(rgb, w, h, args.tooltypes, selected, args.drawer))
+    selected = lit_frame(rgb, w, h) if args.lit_frame else dark(rgb) if args.transparent else None
+    open(args.out, "wb").write(disk_object(rgb, w, h, args.tooltypes, selected, args.drawer, args.project, args.pos))
     if args.preview:
         img.resize((w * 6, h * 6), Image.NEAREST).save(args.preview)
         if selected:

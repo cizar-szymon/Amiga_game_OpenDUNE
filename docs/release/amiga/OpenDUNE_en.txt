@@ -80,6 +80,8 @@ numpy, ffmpeg, Docker), the .RAW files from build/music to OpenDUNE/MUSIC.
 INSTALLATION
 ------------
 
+Step by step (in English, Polish and German): Install.txt. In short:
+
 1. Unpack OpenDUNE-0.xx.zip anywhere (e.g. Work:Games) with UnZip
    (Aminet: util/arc/UnZip):
      UnZip OpenDUNE-0.xx.zip -d Work:Games

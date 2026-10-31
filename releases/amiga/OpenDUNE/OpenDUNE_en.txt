@@ -80,6 +80,8 @@ numpy, ffmpeg, Docker), the .RAW files from build/music to OpenDUNE/MUSIC.
 INSTALLATION
 ------------
 
+Step by step (in English, Polish and German): Install.txt. In short:
+
 1. Unpack OpenDUNE-0.xx.zip anywhere (e.g. Work:Games) with UnZip
    (Aminet: util/arc/UnZip):
      UnZip OpenDUNE-0.xx.zip -d Work:Games
@@ -105,9 +107,43 @@ CONTROLS
 The top right corner of the screen (2x2 pixels): a click goes to the
 Workbench, the game goes on; back: Left Amiga + M.
 
-Options in the game: Game controls (music, sounds, speed, Show FPS),
-Resolution (screen size, kept), Amiga info (the computer, the Warp
-card's clock), LOAD / SAVE on the top bar.
+Options in the game: Game controls (music, sounds, speed, Show FPS,
+language), Resolution (screen size, kept), Amiga info (the computer, the
+Warp card's clock), LOAD / SAVE on the top bar.
+
+
+LANGUAGE: ENGLISH, GERMAN, POLISH
+---------------------------------
+
+Options -> Game controls -> Language: each click chooses the next
+language (English, Deutsch, Polski - only those whose files are there).
+The language changes back in the main menu (Options -> Main menu) or at
+the next start; the choice is kept (saves/LANGUAGE.CFG). Without a choice
+in the game language= of opendune.ini decides.
+
+Polish: a translation of all the game's texts (the mentats' briefings,
+messages, names and descriptions of units and buildings, menus, the
+subtitles of the intro and the endings) and the port's texts, with the
+Polish letters drawn into the game's fonts. The file:
+OpenDUNE/lang/POLISH.PAK (not part of the public release). The copy
+protection's questions (copy_protection=1) stay English - the answers
+are in the English manual.
+
+German: Westwood's original German texts from your own Dune II. Copy the
+.GER files (DUNE.GER, MESSAGE.GER, INTRO.GER, TEXTA.GER, TEXTH.GER,
+TEXTO.GER, PROTECT.GER, MENTATA.GER, MENTATH.GER, MENTATO.GER,
+CREDITS.GER) to OpenDUNE/data next to the .PAK files - those of the PC
+version (e.g. from GERMAN.PAK) and those of the Amiga version both work.
+The port's own texts (LAN menus, Amiga info ...) are translated in the
+program.
+
+The buttons with words (MENTAT, OPTIONS, Credits, Yes / No, Proceed /
+Repeat, the build and starport windows) are lettered by the game in the
+chosen language, and the question which House to join is written as the
+mentat's lines. The title screen and the voices stay English: the Amiga
+.GER pictures are in another format than the PC ones, and German voices
+are only in the PC version's GERMAN.PAK (the game uses them when they
+are there).
 
 
 LAN GAME (up to 3 players)
@@ -152,8 +188,9 @@ OPTIONS (opendune.ini)
   music_dir=         music directory (default PROGDIR:MUSIC)
   music_volume=0..64 music volume (default 40)
   lan_info=1         in a LAN game a line with the players' response time
-  language=          english / french / german (the language of the
-                     game data; ENGLISH.PAK - English is the default)
+  language=          english / german / polish (the language when none
+                     was chosen in Options; german: the .GER files in
+                     data, polish: lang/POLISH.PAK)
 
 
 ABOUT THE PORT

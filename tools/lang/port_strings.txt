@@ -174,6 +174,10 @@ en: Squad of %d units.
 de: Trupp aus %d Einheiten.
 pl: Oddział: %d jednostek.
 
+en: PAUSE
+de: PAUSE
+pl: PAUZA
+
 en: Game paused - press P to continue.
 de: Spiel angehalten - weiter mit P.
 pl: Gra wstrzymana - P, aby kontynuować.
@@ -201,6 +205,14 @@ en: %s left the game.
 de: %s hat das Spiel verlassen.
 pl: %s opuścił grę.
 
+en: No contact with %s. SAVE saves, P plays on.
+de: Keine Verbindung zu %s. SICHERN oder weiter mit P.
+pl: Brak połączenia z %s. ZAPIS zapisuje, P gra dalej.
+
+en: No contact with %s. Game paused.
+de: Keine Verbindung zu %s. Spiel angehalten.
+pl: Brak połączenia z %s. Gra wstrzymana.
+
 en: Game paused by %s - press P to continue.
 de: Von %s angehalten - weiter mit P.
 pl: %s wstrzymał grę - P, aby kontynuować.
@@ -212,6 +224,27 @@ pl: LAN: CZEKAM na %s
 en: the others
 de: die anderen
 pl: pozostałych
+
+# the end of a LAN game for this player (opendune.c GameLoop_LanEnd)
+en: Your house is defeated.
+de: Dein Haus ist besiegt.
+pl: Twój ród został pokonany.
+
+en: You have won the battle!
+de: Du hast die Schlacht gewonnen!
+pl: Bitwa wygrana!
+
+en: The server ended the game.
+de: Der Server hat das Spiel beendet.
+pl: Serwer zakończył grę.
+
+en: You have left the game.
+de: Du hast das Spiel verlassen.
+pl: Opuszczono grę.
+
+en: The connection to the server is lost.
+de: Die Verbindung zum Server ist abgebrochen.
+pl: Utracono połączenie z serwerem.
 
 en:  %s gone
 de:  %s weg
@@ -358,16 +391,6 @@ de: Stufe
 pl: Poziom
 px: 84 8
 
-en: < %d >  (as mission %d)
-de: < %d >  (wie Mission %d)
-pl: < %d >  (jak misja %d)
-max: 47
-
-en: %d  (as mission %d)
-de: %d  (wie Mission %d)
-pl: %d  (jak misja %d)
-max: 47
-
 en: The saved game is for %d players.
 de: Der Spielstand ist für %d Spieler.
 pl: Zapis jest dla %d graczy.
@@ -453,9 +476,9 @@ de: Karte  %s
 pl: Mapa  %s
 max: 47
 
-en: Level  %d  (as mission %d)
-de: Stufe  %d  (wie Mission %d)
-pl: Poziom  %d  (jak misja %d)
+en: Level  %d
+de: Stufe  %d
+pl: Poziom  %d
 max: 47
 
 en: Saved game: %.20s
@@ -527,6 +550,33 @@ en: A player has left.
 de: Ein Spieler ist gegangen.
 pl: Gracz wyszedł.
 max: 47
+
+# the network's messages (os/net_amiga.c), shown in the lobby
+en: Not an address.
+de: Keine Adresse.
+pl: To nie jest adres.
+
+en: The server is full.
+de: Der Server ist voll.
+pl: Serwer jest pełny.
+
+en: No answer from the server.
+de: Keine Antwort vom Server.
+pl: Serwer nie odpowiada.
+
+en: Bad data.
+de: Fehlerhafte Daten.
+pl: Błędne dane.
+
+en: Different version: %s
+de: Andere Version: %s
+pl: Inna wersja: %s
+max: 31
+
+en: No server there (%ld).
+de: Kein Server dort (%ld).
+pl: Brak serwera (%ld).
+max: 31
 
 en: A player did not get the saved game.
 de: Ein Spieler bekam den Spielstand nicht.

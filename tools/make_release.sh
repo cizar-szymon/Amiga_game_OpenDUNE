@@ -31,12 +31,21 @@ grep -a -q "\$VER: OpenDUNE $V " build/amiga/OpenDUNE.s || { echo "build/amiga/O
 rm -rf "$R/OpenDUNE"
 mkdir -p "$R/OpenDUNE/data" "$R/OpenDUNE/MUSIC"
 cp build/amiga/OpenDUNE.s "$R/OpenDUNE/OpenDUNE"
-python tools/make_icon.py "$R/OpenDUNE/OpenDUNE.info" --frame tools/icon/title112.png --crop 0 0 112 70 --lit-frame >/dev/null 2>&1
-python tools/make_icon.py "$R/OpenDUNE.info" --frame tools/icon/title112.png --crop 0 0 112 70 --lit-frame --drawer >/dev/null 2>&1
+python tools/make_icon.py "$R/OpenDUNE/OpenDUNE.info" --frame tools/icon/title112.png --crop 0 0 112 70 --lit-frame --pos 8 4 >/dev/null 2>&1
+python tools/make_icon.py "$R/OpenDUNE.info" --frame tools/icon/drawer.png --crop 0 0 46 40 --transparent --drawer >/dev/null 2>&1	# a plain drawer (tools/icon/draw_icons.py)
 [ -f build/amiga/MakeMusic ] || { echo "build/amiga/MakeMusic missing: tools/music/amiga/build.sh first" >&2; exit 1; }
 cp build/amiga/MakeMusic "$R/OpenDUNE/MakeMusic"	# records the music on the Amiga
-python tools/make_icon.py "$R/OpenDUNE/MakeMusic.info" --frame tools/icon/makemusic64.png --crop 0 0 64 40 --lit-frame >/dev/null 2>&1
-cp "$D/opendune.ini" "$D/OpenDUNE.txt" "$D/OpenDUNE_en.txt" "$D/OpenDUNE_release.txt" "$D/OpenDUNE_release_en.txt" "$R/OpenDUNE/"
+python tools/make_icon.py "$R/OpenDUNE/MakeMusic.info" --frame tools/icon/makemusic.png --crop 0 0 54 44 --transparent --pos 140 16 >/dev/null 2>&1	# loudspeaker and notes
+python tools/make_install.py >/dev/null	# Install.txt and Install.pdf (EN, PL, DE) from Install_src.txt
+cp "$D/opendune.ini" "$D/Install.txt" "$D/Install.pdf" "$D/OpenDUNE.txt" "$D/OpenDUNE_en.txt" "$D/OpenDUNE_release.txt" "$D/OpenDUNE_release_en.txt" "$R/OpenDUNE/"
+# the texts with icons (tools/icon/draw_icons.py), opened by MultiView
+# (file:picture:x:y - Install.txt in the first row, the descriptions below)
+for t in Install.txt:doc_i:230:12 OpenDUNE.txt:doc_pl:12:100 OpenDUNE_en.txt:doc_en:100:100 OpenDUNE_release.txt:doc_pl:190:100 OpenDUNE_release_en.txt:doc_en:290:100; do
+	IFS=: read -r f pic x y <<EOT
+$t
+EOT
+	python tools/make_icon.py "$R/OpenDUNE/$f.info" --frame "tools/icon/$pic.png" --crop 0 0 36 44 --transparent --project SYS:Utilities/MultiView --pos "$x" "$y" >/dev/null 2>&1
+done
 cp COPYING "$R/OpenDUNE/COPYING"			# GPL-2.0, goes with the program
 cp "$D/data_ReadMe.txt" "$R/OpenDUNE/data/ReadMe.txt"
 cp "$D/MUSIC_ReadMe.txt" "$R/OpenDUNE/MUSIC/ReadMe.txt"

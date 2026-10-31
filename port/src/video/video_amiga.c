@@ -447,6 +447,9 @@ static void Video_MouseAt(int sx, int sy)
 	if (s_mouseY > s_mouseMaxY) s_mouseY = s_mouseMaxY;
 }
 
+/* true while a text is typed (GUI_EditBox, a save's name): P is a letter */
+volatile bool g_amigaEditBox;
+
 void Video_Amiga_Key(uint16 code)
 {
 	bool up = (code & IECODE_UP_PREFIX) != 0;
@@ -461,7 +464,7 @@ void Video_Amiga_Key(uint16 code)
 	}
 	if (code == RAW_Z && s_lw > 320 && !up) Layout_ZoomRequest(0);	/* and on to the game (typing) */
 	if (code >= sizeof(s_rawToAT)) return;
-	if (code == RAW_P && s_lw > 320) {
+	if (code == RAW_P && s_lw > 320 && !g_amigaEditBox) {
 		/* the map screen: pause (standard keys of the ports: P) */
 		if (!up) RTS_PauseRequest();
 		return;

@@ -44,7 +44,9 @@ $(OBJDIR)/rev.c: src/rev.c.in VERSION
 	sed -e 's/!!VERSION!!/$(VERSION)/' -e 's/!!MODIFIED!!/2/' $< > $@
 	echo 'const char amiga_version[] = "$$VER: OpenDUNE $(VERSION) ($(BUILD_DATE))";' >> $@
 
-$(OBJDIR)/rev.o: $(OBJDIR)/rev.c
+# compiled again after any other object: the build date (__DATE__ __TIME__) of
+# the bug report is the program's
+$(OBJDIR)/rev.o: $(OBJDIR)/rev.c $(filter-out $(OBJDIR)/rev.o,$(OBJS))
 	$(CC) $(CFLAGS) -iquote src -c -o $@ $<
 
 $(OBJDIR)/%.o: src/%.c

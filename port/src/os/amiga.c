@@ -10,6 +10,8 @@
 #include <proto/exec.h>
 #include <proto/timer.h>
 #include <proto/dos.h>
+#include <intuition/intuition.h>
+#include <proto/intuition.h>
 #include <stdlib.h>
 
 #include <stdio.h>
@@ -40,6 +42,14 @@ void Amiga_StackInfo(unsigned long *size, unsigned long *free)
 /* libnix's I/O calls __chkabort(), which on Ctrl-C calls exit() in the middle
  * of a file operation; Ctrl-C is handled in Video_Tick() instead. */
 void __chkabort(void) {}
+
+/** A requester on the Workbench with an OK button: errors before the game's
+ * screen is open (started from an icon there is no console to print to). */
+void Amiga_Message(const char *text)
+{
+	struct EasyStruct es = { sizeof(struct EasyStruct), 0, (UBYTE *)"OpenDUNE", (UBYTE *)"%s", (UBYTE *)"OK" };
+	EasyRequest(NULL, &es, NULL, (APTR)text);
+}
 
 struct Device *TimerBase;
 static struct timerequest s_eclockReq;	/* TimerBase, ReadEClock */

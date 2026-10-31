@@ -7,6 +7,44 @@ z OpenDUNE/saves - F10 zapisuje bugNNN.txt, bugNNN.dat i bugNNN-*.bmp.
 Zgloszenia: github.com/cizar-szymon/Amiga_game_OpenDUNE (Issues).
 
 
+0.50 (31.10.2026)
+-----------------
+
+- Jezyki: niemiecki (oryginalne teksty Westwood z wlasnego Dune II) i
+  polski, wybor w Options -> Game controls -> Language. Napisy na
+  przyciskach i na gornym pasku w wybranym jezyku.
+- Gra LAN: komunikaty konca gry i bledy sieci w wybranym jezyku; gracz,
+  ktory wyszedl, jest tak opisany u wszystkich (lan_info=1); gorny pasek i
+  linia LAN bez resztek starych napisow.
+- Gra LAN: serwer zapisuje gre przyciskiem ZAPIS na gornym pasku obok
+  OPCJE (pozostali gracze go nie maja); poprawiony rzadki rozjazd gry
+  (BRAK ZGODNOSCI) po zamknieciu okna zapisu lub Opcji; w lobby sama
+  nazwa mapy i numer poziomu.
+- Pauza (P): duzy bialy napis PAUZA na srodku mapy.
+- Gra LAN: gdy Amiga gracza sie zawiesi, zresetuje albo straci siec
+  (10 s bez odpowiedzi), gra zatrzymuje sie u wszystkich z napisem
+  "Brak polaczenia z ...". Serwer moze ja wtedy zapisac (ZAPIS) -
+  ten gracz zostaje w zapisie, wiec po jego powrocie wszyscy wczytuja
+  zapis w lobby i graja dalej - albo grac dalej bez niego (P).
+  Wczesniej gra czekala bez konca, a przy dwoch graczach serwer od
+  razu wygrywal. Gracz, ktory stracil polaczenie z serwerem, dostaje
+  komunikat "Utracono polaczenie z serwerem".
+- Male mapy (misje 1 i 2) na srodku widoku w wiekszych rozdzielczosciach.
+- Instrukcja instalacji krok po kroku po polsku, angielsku i niemiecku
+  w jednym pliku Install.txt.
+- Szuflada gry ma zwykla ikone szuflady, MakeMusic - glosnik z nutami.
+- Brak plikow danych: gra pokazuje okno z lista brakujacych plikow .PAK
+  i katalogiem, w ktorym ich szuka (po angielsku, polsku i niemiecku),
+  zamiast konczyc sie bez slowa. MakeMusic bez SOUND.PAK mowi to samo
+  w trzech jezykach, a jego okno zamyka sie klawiszem Return.
+- Litera P w nazwie zapisu nie wlacza juz pauzy.
+- Start z ikony: przy wyjsciu z gry nie otwiera sie okno konsoli.
+- Raport F10 podaje prawdziwa date kompilacji programu.
+- Sprawdzone: gra LAN trzech graczy przez 67 minut (wszystkie sumy
+  zgodne), najciezsze misje 7-9, zapis i odczyt miedzy jezykami,
+  rozlaczenia graczy i serwera.
+
+
 0.49 (30.10.2026)
 -----------------
 

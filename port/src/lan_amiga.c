@@ -117,8 +117,9 @@ const char *Lan_MapName(int i)
 {
 	static char name[32];
 	if (i < 0 || i >= Lan_MapCount()) return "";
-	/* "SCENA020" -> "Arrakis 3 (A020) 3P" by its place in the list */
-	snprintf(name, sizeof(name), "Arrakis %d (%s) %dP", i + 1, s_lanMaps[i].name + 4, s_lanMaps[i].players);
+	/* "SCENA020" -> "Arrakis 3  3P" by its place in the list (no scenario
+	 * name, no "as mission": the user's wish, 31.10.2026) */
+	snprintf(name, sizeof(name), "Arrakis %d  %dP", i + 1, s_lanMaps[i].players);
 	return name;
 }
 
@@ -170,7 +171,7 @@ static bool s_lanInfo;				/* ini lan_info=1: the LAN line always */
 static uint32 s_sums[8], s_sumSteps[8];	/* own sums of the last checks */
 static uint16 s_noSilo[HOUSE_MAX];
 static uint8 s_savedSpeed, s_savedHints;
-static bool s_ended;
+static int s_ended;		/* the server gone (a joiner): 3 it quit, 5 no connection (Lan_CheckEnd) */
 static bool s_leave;		/* the player quit (Options) */
 static bool s_trace;		/* opendune.ini debug_lan_trace=1: the random state of each first step */
 
@@ -675,25 +676,32 @@ static void Lan_OwnSum(uint32 step, uint32 sum)
 	}
 }
 
+static void Lan_SetPause(bool on, int slot);
+static void Lan_ShowPause(bool on, int slot);
+static bool s_paused;
+
+/* A player has left: by the menu ("quit") the game goes on without them; a
+ * lost connection (a hang, a reset, the cable) pauses it for all, so that the
+ * server can save it (the player stays in the save, with the fog last sent:
+ * all load it again when the player is back) or play on with P. */
 static void Lan_PlayerGone(int slot, const char *why)
 {
 	if (!g_lanPlayers[slot].used || g_lanPlayers[slot].gone) return;
 	g_lanPlayers[slot].gone = true;
+	g_lanPlayers[slot].lost = strcmp(why, "quit") != 0;
 	Lan_Log("%s gone: %s\n", g_lanPlayers[slot].name, why);
 	if (g_lanGame) GUI_DisplayText(Lang_T("%s left the game."), 1, g_lanPlayers[slot].name);
 	if (g_lanServer) {
 		uint8 b = (uint8)slot;
 		Net_Send(NET_ALL, MT_GONE, &b, 1);
+		if (g_lanGame && g_lanPlayers[slot].lost) Lan_SetPause(true, slot);
 	}
 }
 
 /* Network events during the game. */
-static void Lan_SetPause(bool on, int slot);
 static void Lan_SendSeen(void);
 static bool Lan_StartSaved(void);
 static void Lan_TakeSeen(int slot, const uint8 *d, int len);
-static void Lan_ShowPause(bool on, int slot);
-static bool s_paused;
 
 static void Lan_Receive(void)
 {
@@ -709,7 +717,7 @@ static void Lan_Receive(void)
 					Lan_PlayerGone(slot, ev.text1);
 				} else {
 					Lan_PlayerGone(0, ev.text1);
-					s_ended = true;
+					if (!s_ended) s_ended = 5;
 				}
 				break;
 			case NEV_MSG:
@@ -728,7 +736,7 @@ static void Lan_Receive(void)
 							Lan_PlayerGone(slot, "quit");
 						} else {
 							Lan_PlayerGone(0, "quit");
-							s_ended = true;
+							s_ended = 3;
 						}
 						break;
 					case MT_GONE:
@@ -889,16 +897,35 @@ static bool Lan_HouseAlive(uint8 houseID)
 
 /** The game's steps that are due (in the main loop instead of GameLoop_Team..House). */
 static bool s_waitShown;	/* "LAN: WAITING for ..." is on the message line */
+static uint32 s_seenSent;	/* a joiner: when its fog last went to the server */
 
 /* ---- the pause: the server stops beginning turns, the others then wait for
  * its turns; all stop at the same turn, the game is not changed by it
  * (s_paused above). */
 
+static int s_lostSlot = -1;	/* paused for this lost player: its text again now and then (Lan_Run) */
+
+static void Lan_ShowLost(void)
+{
+	if (g_lanServer) {
+		GUI_DisplayText(Lang_T("No contact with %s. SAVE saves, P plays on."), 3, g_lanPlayers[s_lostSlot].name);
+	} else {
+		GUI_DisplayText(Lang_T("No contact with %s. Game paused."), 3, g_lanPlayers[s_lostSlot].name);
+	}
+}
+
 static void Lan_ShowPause(bool on, int slot)
 {
-	if (on == s_paused) return;
+	/* paused for a player who has gone (Lan_PlayerGone): said also when the
+	 * game was paused already */
+	bool lost = on && slot < LAN_MAX_PLAYERS && g_lanPlayers[slot].gone;
+
+	if (on == s_paused && !lost) return;
 	s_paused = on;
-	if (on) {
+	s_lostSlot = lost ? slot : -1;
+	if (lost) {
+		Lan_ShowLost();
+	} else if (on) {
 		GUI_DisplayText(Lang_T("Game paused by %s - press P to continue."), 3, slot < LAN_MAX_PLAYERS ? g_lanPlayers[slot].name : "?");
 	} else {
 		/* the time of the pause is not caught up */
@@ -916,6 +943,12 @@ static void Lan_SetPause(bool on, int slot)
 	b[1] = on ? 1 : 0;
 	Net_Send(NET_ALL, MT_PAUSE, b, 2);
 	Lan_ShowPause(on, slot);
+}
+
+/** The LAN game is paused (by anyone). */
+bool Lan_Paused(void)
+{
+	return s_paused;
 }
 
 /** P on the map screen of a LAN game (RTS_Pause): pause or go on, for all. */
@@ -968,11 +1001,25 @@ void Lan_Run(void)
 		n++;
 	}
 	if (n > 0) Lan_UpdateSeen(false);
+	if (!g_lanServer && now - s_seenSent > 30000) {
+		/* my fog to the server now and then: in its save if I am lost */
+		Lan_SendSeen();
+		s_seenSent = now;
+	}
 	if (s_waitShown && !s_waiting && g_lanModal == 0) {
 		/* the game goes on: "LAN: WAITING for ..." off the message line (not
 		 * under a window: there when it is closed) */
 		GUI_ClearTextLine();
 		s_waitShown = false;
+	}
+	if (s_paused && s_lostSlot >= 0 && g_lanModal == 0) {
+		/* (the message line empties after a while; the PAUSE word alone
+		 * would not say why) */
+		static uint32 shown;
+		if (now - shown > 8000) {
+			Lan_ShowLost();
+			shown = now;
+		}
 	}
 	if (s_waiting && now - s_waitSince > 300 && !s_paused) {
 		static uint32 shown;
@@ -989,7 +1036,8 @@ void Lan_Run(void)
 	g_lanUI = savedUI;
 }
 
-/** The game's end for this player: lost, won, the server gone. 0 none, 1 lost, 2 won, 3 server gone. */
+/** The game's end for this player: lost, won, the server gone. 0 none, 1 lost, 2 won, 3 server gone,
+ * 4 the player left, 5 no connection to the server. */
 int Lan_CheckEnd(void)
 {
 	static uint32 next;
@@ -998,7 +1046,10 @@ int Lan_CheckEnd(void)
 
 	if (!g_lanGame) return 0;
 	if (s_leave) return 4;
-	if (s_ended) return 3;
+	if (s_ended) return s_ended;
+	/* (paused for a lost player: the server alone has not won yet, it may
+	 * save first; the end is seen when it plays on) */
+	if (s_paused) return 0;
 	now = AmigaTimer_GetMs();
 	if (now - next < 1000 && next != 0) return 0;
 	next = now;
@@ -1024,9 +1075,10 @@ static void Lan_ResetTurns(void)
 	s_waiting = false;
 	s_outOfStep = false;
 	memset(s_lastSame, 0, sizeof(s_lastSame));
-	s_ended = false;
+	s_ended = 0;
 	s_leave = false;
 	s_paused = false;
+	s_lostSlot = -1;
 	memset(s_sumSteps, 0, sizeof(s_sumSteps));
 	memset(s_otherSteps, 0, sizeof(s_otherSteps));
 }
@@ -1156,7 +1208,10 @@ void Lan_CollectSeen(void)
 	int slot;
 	if (!g_lanGame || !g_lanServer) return;
 	memset(s_seenParts, 0, sizeof(s_seenParts));
-	memset(s_otherSeen, 0, sizeof(s_otherSeen));
+	/* (a lost player's fog stays as it last came: Lan_SendSeen every 30 s) */
+	for (slot = 0; slot < LAN_MAX_PLAYERS; slot++) {
+		if (!g_lanPlayers[slot].lost) memset(s_otherSeen[slot], 0, sizeof(s_otherSeen[slot]));
+	}
 	memcpy(s_otherSeen[g_lanMe], s_seen, sizeof(s_seen));
 	s_seenParts[g_lanMe] = 7;
 	Net_Send(NET_ALL, MT_SEENREQ, "s", 1);
@@ -1189,7 +1244,7 @@ bool Lan_SaveChunk(FILE *fp)
 	Tools_Random_GetFull(b + n); n += 8;
 	for (i = 0; i < 8; i++) { Lan_Put16(b + n, i < HOUSE_MAX ? s_noSilo[i] : 0); n += 2; }
 	for (i = 0; i < LAN_MAX_PLAYERS; i++) {
-		b[n++] = (uint8)(g_lanPlayers[i].used && !g_lanPlayers[i].gone);
+		b[n++] = (uint8)(g_lanPlayers[i].used && (!g_lanPlayers[i].gone || g_lanPlayers[i].lost));
 		b[n++] = g_lanPlayers[i].house;
 		memcpy(b + n, g_lanPlayers[i].name, 16); n += 16;
 	}
@@ -1430,6 +1485,7 @@ static void Lan_UpdateSeen(bool all)
 static void Lan_ResetSeen(void)
 {
 	memset(s_seen, 0, sizeof(s_seen));
+	memset(s_otherSeen, 0, sizeof(s_otherSeen));
 	memset(s_unitTile, 0xFF, sizeof(s_unitTile));
 	memset(s_structureTile, 0xFF, sizeof(s_structureTile));
 	Lan_UpdateSeen(true);
@@ -1482,12 +1538,10 @@ void Lan_InfoDraw(void)
 	for (slot = 0; slot < LAN_MAX_PLAYERS && n < (int)sizeof(text) - 32; slot++) {
 		LanPlayer *p = &g_lanPlayers[slot];
 		if (slot == g_lanMe || !p->used) continue;
-		if (!g_lanServer && slot != 0) {
-			n += snprintf(text + n, sizeof(text) - n, " %s", p->name);	/* (only the server is measured) */
-			continue;
-		}
 		if (p->gone) {
 			n += snprintf(text + n, sizeof(text) - n, Lang_T(" %s gone"), p->name);
+		} else if (!g_lanServer && slot != 0) {
+			n += snprintf(text + n, sizeof(text) - n, " %s", p->name);	/* (only the server is measured) */
 		} else {
 			n += snprintf(text + n, sizeof(text) - n, Lang_T(" %s %d ms"), p->name, p->ping < 0 ? 0 : p->ping);
 			if (!s_outOfStep && s_lastSame[slot] != 0) n += snprintf(text + n, sizeof(text) - n, Lang_T(" same %lu"), (unsigned long)s_lastSame[slot]);

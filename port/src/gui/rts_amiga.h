@@ -10,6 +10,7 @@ extern bool RTS_GetDragRect(int16 *x0, int16 *y0, int16 *x1, int16 *y1);
 extern bool RTS_IsInGroup(struct Unit *u);
 extern void RTS_Tick(void);
 extern void RTS_PauseRequest(void);
+extern void RTS_PauseDraw(void);
 extern uint16 RTS_EdgeSprite(uint16 def);
 extern void RTS_GroupAction(struct Unit *done, uint16 action, uint16 packed);
 extern int RTS_GroupSize(void);

@@ -1,0 +1,310 @@
+OpenDUNE for the Amiga - Install / Instalacja / Installation
+
+  English ............ first
+  Polski ............. dalej (po angielskim)
+  Deutsch ............ am Ende
+
+
+########################################################################
+
+
+OPENDUNE - INSTALLATION STEP BY STEP
+====================================
+
+What you need: an Amiga with a 68040 or 68060, an RTG graphics card
+(Picasso96), 32 MB Fast RAM, AmigaOS 3.1 or later - and your own copy of
+Dune II for the PC (version 1.07 if possible).
+
+
+STEP 1 - unpack the archive
+---------------------------
+
+Open a Shell and type (Work:Games is only an example):
+
+  UnZip OpenDUNE-0.xx.zip -d Work:Games
+
+This makes the drawer Work:Games/OpenDUNE with the program, the icons,
+opendune.ini, this text and two empty drawers: data and MUSIC.
+(UnZip is on Aminet: util/arc/UnZip.)
+
+
+STEP 2 - copy the game data into OpenDUNE/data
+----------------------------------------------
+
+The game's graphics, sounds and missions are not in the archive - they
+come from your own Dune II for the PC. On the PC they are in the
+directory of the installed game (e.g. C:\DUNE2). Copy these files to the
+Amiga (network, CF/SD card, USB stick, CrossDOS floppy) into
+Work:Games/OpenDUNE/data:
+
+  ATRE.PAK  DUNE.PAK  ENGLISH.PAK  FINALE.PAK  HARK.PAK  MENTAT.PAK
+  MERC.PAK  ORDOS.PAK  SCENARIO.PAK  SOUND.PAK  VOC.PAK
+  INTRO.PAK (only for the intro - not needed)
+
+The files of the Amiga version of Dune II do not fit.
+
+German texts (optional): also copy the .GER files of a German Dune II
+(DUNE.GER, MESSAGE.GER, TEXTA.GER ... - see OpenDUNE_en.txt) into data.
+
+
+STEP 3 - make the music (once, about 35 minutes)
+------------------------------------------------
+
+The music is recorded from your own game data, on the Amiga itself:
+
+1. Open the OpenDUNE drawer and double-click the MakeMusic icon
+   (the loudspeaker with notes).
+2. Wait until the window says it is finished (about 35 minutes on a
+   68060 at 100 MHz, longer on a slower Amiga). The recordings go into
+   OpenDUNE/MUSIC (34 files, about 75 MB of disk space).
+3. Press Return to close the window.
+
+This step can be skipped - then the game runs without music.
+
+
+STEP 4 - start the game
+-----------------------
+
+Double-click the OpenDUNE icon. The game opens its own screen; the main
+menu comes after a few seconds. The first time:
+
+- Options -> Resolution: the screen size (400x300 up to 960x540),
+  kept for the next start.
+- Options -> Game controls -> Language: English, Deutsch or Polski
+  (only those whose files are there); it changes in the main menu.
+
+Saves, settings and bug reports are kept in OpenDUNE/saves.
+
+
+STEP 5 - a game on the network (optional)
+-----------------------------------------
+
+Every Amiga needs its own installation (steps 1-4) and the same release
+of the program, and a TCP/IP stack (Roadshow, Miami, AmiTCP).
+
+1. One player: main menu -> Play on LAN -> START SERVER, choose the map,
+   the level and the house.
+2. The others: Play on LAN -> JOIN SERVER - the server appears in the
+   list by itself (or type its address) - choose a house.
+3. The server: START GAME.
+
+
+IF SOMETHING GOES WRONG
+-----------------------
+
+- The game ends at once or says files are missing: the .PAK files are
+  not in OpenDUNE/data (or opendune.ini datadir= points elsewhere).
+- No music: step 3 was not done, or Options -> Game controls -> Music
+  is off.
+- No picture / wrong screen: an RTG card with 8-bit (256 colour) screen
+  modes is needed.
+- An error in the game: press F10, then send the files bugNNN.* from
+  OpenDUNE/saves with the release number (main menu, bottom left).
+
+More: OpenDUNE_en.txt (all options and keys).
+
+
+########################################################################
+
+
+OPENDUNE - INSTALACJA KROK PO KROKU
+===================================
+
+Potrzebne: Amiga z 68040 lub 68060, karta graficzna RTG (Picasso96),
+32 MB Fast RAM, AmigaOS 3.1 lub nowszy - oraz wlasna kopia Dune II na PC
+(najlepiej wersja 1.07).
+
+
+KROK 1 - rozpakuj archiwum
+--------------------------
+
+Otworz Shell i wpisz (Work:Games to tylko przyklad):
+
+  UnZip OpenDUNE-0.xx.zip -d Work:Games
+
+Powstanie szuflada Work:Games/OpenDUNE z programem, ikonami,
+opendune.ini, tym opisem i dwiema pustymi szufladami: data i MUSIC.
+(UnZip jest na Aminecie: util/arc/UnZip.)
+
+
+KROK 2 - skopiuj dane gry do OpenDUNE/data
+------------------------------------------
+
+Grafiki, dzwieki i misje gry nie sa w archiwum - pochodza z Twojego
+Dune II na PC. Na PC sa w katalogu zainstalowanej gry (np. C:\DUNE2).
+Skopiuj te pliki na Amige (siec, karta CF/SD, pendrive, dyskietka
+CrossDOS) do Work:Games/OpenDUNE/data:
+
+  ATRE.PAK  DUNE.PAK  ENGLISH.PAK  FINALE.PAK  HARK.PAK  MENTAT.PAK
+  MERC.PAK  ORDOS.PAK  SCENARIO.PAK  SOUND.PAK  VOC.PAK
+  INTRO.PAK (tylko dla intro - niepotrzebny)
+
+Pliki z wersji Dune II na Amige nie pasuja.
+
+Teksty niemieckie (opcjonalnie): dograj tez pliki .GER z niemieckiego
+Dune II (DUNE.GER, MESSAGE.GER, TEXTA.GER ... - patrz OpenDUNE.txt) do
+data. Jezyk polski: plik lang/POLISH.PAK (jesli go masz) w szufladzie
+OpenDUNE/lang.
+
+
+KROK 3 - nagraj muzyke (raz, ok. 35 minut)
+------------------------------------------
+
+Muzyka jest nagrywana z Twoich danych gry, na samej Amidze:
+
+1. Otworz szuflade OpenDUNE i kliknij dwa razy ikone MakeMusic
+   (glosnik z nutami).
+2. Poczekaj, az okno napisze, ze skonczyl (ok. 35 minut na 68060
+   100 MHz, dluzej na wolniejszej Amidze). Nagrania trafiaja do
+   OpenDUNE/MUSIC (34 pliki, ok. 75 MB na dysku).
+3. Nacisnij Return, zeby zamknac okno.
+
+Ten krok mozna pominac - wtedy gra dziala bez muzyki.
+
+
+KROK 4 - uruchom gre
+--------------------
+
+Kliknij dwa razy ikone OpenDUNE. Gra otwiera wlasny ekran, menu
+glowne pojawia sie po kilku sekundach. Za pierwszym razem:
+
+- Options -> Game controls -> Language: English, Deutsch albo Polski
+  (tylko te, ktorych pliki sa); jezyk zmienia sie w menu glownym
+  (Options -> Main menu) i zostaje zapamietany.
+- Opcje -> Rozdzielczosc (Options -> Resolution): wielkosc ekranu (od
+  400x300 do 960x540), zapamietana na nastepny start.
+
+Zapisy, ustawienia i raporty bledow sa w OpenDUNE/saves.
+
+
+KROK 5 - gra w sieci (opcjonalnie)
+----------------------------------
+
+Kazda Amiga potrzebuje wlasnej instalacji (kroki 1-4), tego samego
+wydania programu i stosu TCP/IP (Roadshow, Miami, AmiTCP).
+
+1. Jeden gracz: menu glowne -> Gra w sieci -> ZALOZ GRE, wybiera
+   mape, poziom i rod.
+2. Pozostali: Gra w sieci -> DOLACZ - serwer sam pojawia sie na liscie
+   (albo wpisz jego adres) - wybierz rod.
+3. Serwer: START GRY.
+
+
+GDY COS NIE DZIALA
+------------------
+
+- Gra od razu sie konczy albo pisze, ze brakuje plikow: pliki .PAK nie
+  leza w OpenDUNE/data (albo datadir= w opendune.ini wskazuje inne
+  miejsce).
+- Brak muzyki: krok 3 nie zostal wykonany albo w Opcje -> Ustawienia
+  gry -> Muzyka muzyka jest wylaczona.
+- Brak obrazu / zly ekran: potrzebna karta RTG z trybami 8-bitowymi
+  (256 kolorow).
+- Blad w grze: nacisnij F10, potem wyslij pliki bugNNN.* z
+  OpenDUNE/saves z numerem wydania (menu glowne, lewy dolny rog).
+
+Wiecej: OpenDUNE.txt (wszystkie opcje i klawisze).
+
+
+########################################################################
+
+
+OPENDUNE - INSTALLATION SCHRITT FÜR SCHRITT
+===========================================
+
+Was du brauchst: eine Amiga mit 68040 oder 68060, eine RTG-Grafikkarte
+(Picasso96), 32 MB Fast-RAM, AmigaOS 3.1 oder neuer - und dein eigenes
+Dune II für den PC (am besten Version 1.07).
+
+
+SCHRITT 1 - das Archiv entpacken
+--------------------------------
+
+Öffne eine Shell und gib ein (Work:Games ist nur ein Beispiel):
+
+  UnZip OpenDUNE-0.xx.zip -d Work:Games
+
+Es entsteht die Schublade Work:Games/OpenDUNE mit dem Programm, den
+Icons, opendune.ini, dieser Anleitung und zwei leeren Schubladen: data
+und MUSIC. (UnZip gibt es im Aminet: util/arc/UnZip.)
+
+
+SCHRITT 2 - die Spieldaten nach OpenDUNE/data kopieren
+------------------------------------------------------
+
+Grafik, Klänge und Missionen des Spiels sind nicht im Archiv - sie kommen
+aus deinem eigenen Dune II für den PC. Auf dem PC liegen sie im
+Verzeichnis des installierten Spiels (z. B. C:\DUNE2). Kopiere diese
+Dateien auf die Amiga (Netzwerk, CF-/SD-Karte, USB-Stick,
+CrossDOS-Diskette) nach Work:Games/OpenDUNE/data:
+
+  ATRE.PAK  DUNE.PAK  ENGLISH.PAK  FINALE.PAK  HARK.PAK  MENTAT.PAK
+  MERC.PAK  ORDOS.PAK  SCENARIO.PAK  SOUND.PAK  VOC.PAK
+  INTRO.PAK (nur für das Intro - nicht nötig)
+
+Die Dateien der Amiga-Version von Dune II passen nicht.
+
+Deutsche Texte: kopiere zusätzlich die .GER-Dateien eines deutschen
+Dune II (DUNE.GER, MESSAGE.GER, TEXTA.GER ... - siehe OpenDUNE_en.txt)
+nach data - von der PC- oder der Amiga-Version.
+
+
+SCHRITT 3 - die Musik aufnehmen (einmal, etwa 35 Minuten)
+---------------------------------------------------------
+
+Die Musik wird aus deinen eigenen Spieldaten aufgenommen, auf der Amiga
+selbst:
+
+1. Öffne die Schublade OpenDUNE und doppelklicke das Icon MakeMusic
+   (der Lautsprecher mit Noten).
+2. Warte, bis das Fenster meldet, dass es fertig ist (etwa 35 Minuten
+   auf einem 68060 mit 100 MHz, länger auf einer langsameren Amiga).
+   Die Aufnahmen kommen nach OpenDUNE/MUSIC (34 Dateien, etwa 75 MB).
+3. Mit Return schließt du das Fenster.
+
+Dieser Schritt kann entfallen - dann läuft das Spiel ohne Musik.
+
+
+SCHRITT 4 - das Spiel starten
+-----------------------------
+
+Doppelklicke das Icon OpenDUNE. Das Spiel öffnet einen eigenen
+Bildschirm, nach einigen Sekunden kommt das Hauptmenü. Beim ersten Mal:
+
+- Options -> Game controls -> Language: English, Deutsch oder Polski
+  (nur die, deren Dateien da sind); die Sprache wechselt im Hauptmenü
+  (Options -> Main menu) und bleibt gespeichert.
+- Optionen -> Auflösung (Options -> Resolution): die Bildschirmgröße
+  (400x300 bis 960x540), gespeichert für den nächsten Start.
+
+Spielstände, Einstellungen und Fehlerberichte liegen in OpenDUNE/saves.
+
+
+SCHRITT 5 - ein Spiel im Netzwerk (wahlweise)
+---------------------------------------------
+
+Jede Amiga braucht ihre eigene Installation (Schritte 1-4), dieselbe
+Version des Programms und einen TCP/IP-Stack (Roadshow, Miami, AmiTCP).
+
+1. Ein Spieler: Hauptmenü -> Spiel im Netzwerk -> ERÖFFNEN, wählt Karte,
+   Stufe und Haus.
+2. Die anderen: Spiel im Netzwerk -> BEITRETEN - der Server erscheint
+   von selbst in der Liste (oder seine Adresse eingeben) - Haus wählen.
+3. Der Server: SPIELSTART.
+
+
+WENN ETWAS NICHT GEHT
+---------------------
+
+- Das Spiel endet sofort oder meldet fehlende Dateien: die .PAK-Dateien
+  liegen nicht in OpenDUNE/data (oder datadir= in opendune.ini zeigt
+  woanders hin).
+- Keine Musik: Schritt 3 fehlt, oder die Musik ist ausgeschaltet
+  (Options -> Game controls -> Music).
+- Kein Bild / falscher Bildschirm: eine RTG-Karte mit 8-Bit-Modi (256
+  Farben) ist nötig.
+- Ein Fehler im Spiel: F10 drücken, dann die Dateien bugNNN.* aus
+  OpenDUNE/saves mit der Versionsnummer (Hauptmenü, unten links)
+  schicken.
+
+Mehr: OpenDUNE_en.txt (alle Optionen und Tasten, auf Englisch).

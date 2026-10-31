@@ -49,6 +49,7 @@
 #include "../config.h"
 #include "../string.h"
 #include "../lang_amiga.h"
+#include "pause_font.h"
 
 extern bool Video_ScrollView(int16 dx, int16 dy, int16 x, int16 y, int16 w, int16 h);
 
@@ -209,12 +210,47 @@ static void Layout_Sizes(void)
 	g_viewportTilesH = (uint16)((s_viewH + 16 * z - 1) / (16 * z) + more);
 }
 
+/* The palette's grey nearest to v (0..255 of the brightest grey). */
+static uint8 Layout_Grey(int v, int top)
+{
+	int i, best = 0, bd = 0x7FFF;
+	for (i = 1; i < 256; i++) {
+		const uint8 *p = g_paletteActive + 3 * i;
+		int d = abs(p[0] - v * top / 255) + abs(p[1] - v * top / 255) + abs(p[2] - v * top / 255);
+		if (p[0] != p[1] || p[1] != p[2]) d += 8;	/* a true grey first */
+		if (d < bd) {
+			bd = d;
+			best = i;
+		}
+	}
+	return (uint8)best;
+}
+
+/* A map smaller than the view (the 32x32 maps of missions 1 and 2 from
+ * 640x480 up) in the middle of it (the user's wish, 31.10.2026): the view
+ * begins this many map pixels before the map's edge; the tiles beyond the
+ * map are black (GUI_Widget_Viewport_Draw). */
+static int Layout_Margin(int view, int size)
+{
+	int d = view / g_viewZoom - size * 16;
+	return (s_big && d > 0) ? d / 2 : 0;
+}
+
+/** The smallest position of the viewport (tiles): before the map's edge when
+ * the map is in the middle of a larger view (map.c). */
+void Layout_ViewMin(int16 *x, int16 *y)
+{
+	const MapInfo *mapInfo = &g_mapInfos[g_scenario.mapScale];
+	*x = (int16)((mapInfo->minX * 16 - Layout_Margin(s_viewW, mapInfo->sizeX)) / 16);
+	*y = (int16)((mapInfo->minY * 16 - Layout_Margin(s_viewH, mapInfo->sizeY)) / 16);
+}
+
 /* The smallest and largest position of the view (map pixels). */
 static void Layout_PosLimits(int *x1, int *x2, int *y1, int *y2)
 {
 	const MapInfo *mapInfo = &g_mapInfos[g_scenario.mapScale];
-	*x1 = mapInfo->minX * 16;
-	*y1 = mapInfo->minY * 16;
+	*x1 = mapInfo->minX * 16 - Layout_Margin(s_viewW, mapInfo->sizeX);
+	*y1 = mapInfo->minY * 16 - Layout_Margin(s_viewH, mapInfo->sizeY);
 	*x2 = max(*x1, (mapInfo->minX + mapInfo->sizeX) * 16 - s_viewW / g_viewZoom);
 	*y2 = max(*y1, (mapInfo->minY + mapInfo->sizeY) * 16 - s_viewH / g_viewZoom);
 }
@@ -233,11 +269,13 @@ void Layout_ClampViewport(void)
 	const MapInfo *mapInfo = &g_mapInfos[g_scenario.mapScale];
 	int16 x = Tile_GetPackedX(g_viewportPosition);
 	int16 y = Tile_GetPackedY(g_viewportPosition);
+	int16 x0, y0;
 
+	Layout_ViewMin(&x0, &y0);
 	x = min(x, (int16)(mapInfo->minX + mapInfo->sizeX - g_viewportTilesW));
 	y = min(y, (int16)(mapInfo->minY + mapInfo->sizeY - g_viewportTilesH));
-	x = max(x, (int16)mapInfo->minX);
-	y = max(y, (int16)mapInfo->minY);
+	x = max(x, x0);
+	y = max(y, y0);
 	g_viewportPosition = Tile_PackXY(x, y);
 	g_minimapPosition = g_viewportPosition;
 	Layout_SmoothReset();
@@ -530,18 +568,21 @@ void Layout_UpdateLoadSaveButton(void)
 		w->offsetX = s_btnX[i];
 		w->width = s_btnW[i];
 		w->height = 16;
-		if (LAN_GAME) {
-			/* no saving in a LAN game: not there at all (an invisible widget still drew its frame) */
+		if (LAN_GAME && (i == 0 || !g_lanServer)) {
+			/* a LAN game: no loading; only the server saves (SAVE beside
+			 * OPTIONS); not there at all (an invisible widget still drew its frame) */
 			w->width = 0;
 			w->height = 0;
+			w->flags.invisible = true;
+			continue;
 		}
 		if (s_twoButtons) {
 			w->clickProc = s_buttons[i].click;
-			w->flags.invisible = !s_big || mentat->flags.invisible || LAN_GAME;
+			w->flags.invisible = !s_big || mentat->flags.invisible;
 		} else {
 			/* one button: LOAD/SAVE with the small window */
 			w->clickProc = &GUI_Widget_LoadSave_Click;
-			w->flags.invisible = !s_big || mentat->flags.invisible || i > 0 || LAN_GAME;
+			w->flags.invisible = !s_big || mentat->flags.invisible || i > 0;
 		}
 	}
 }
@@ -675,10 +716,14 @@ void Layout_DrawLoadSaveButton(Screen screenID)
 	int x, y, i, n, room;
 	Screen old;
 
+	/* a LAN game: SAVE only, for the server (it saves for all); the others none */
+	bool lanSave = LAN_GAME && g_lanServer;
+
 	s_bar = &s_barLayouts[0];
-	if ((!s_big || LAN_GAME) && !Lang_OwnPictures()) {
-		/* no LOAD and SAVE (a LAN game: no saving; the small screen): the
-		 * lettered MENTAT and OPTIONS side by side, 5 pixels apart as below */
+	if ((!s_big || (LAN_GAME && !lanSave)) && !Lang_OwnPictures()) {
+		/* no LOAD and SAVE (a LAN game's joiner: only the server saves; the
+		 * small screen): the lettered MENTAT and OPTIONS side by side, 5
+		 * pixels apart as below */
 		s_langBar.mentatX = 16;
 		s_langBar.optionsX = (int16)(16 + Sprite_GetWidth(g_sprites[7]) + 3);
 		s_bar = &s_langBar;
@@ -687,7 +732,7 @@ void Layout_DrawLoadSaveButton(Screen screenID)
 		GFX_Screen_SetDirty(screenID, 0, 1, BAR_PATTERN_END, 17);
 		return;
 	}
-	if (!s_big || LAN_GAME) return;	/* (a LAN game: no saving) */
+	if (!s_big || (LAN_GAME && !lanSave)) return;	/* (a LAN game's joiner: no saving) */
 	buf = GFX_Screen_Get_ByIndex(screenID);
 	scratch = GFX_Screen_Get_ByIndex(SCREEN_3);	/* credits and intro only */
 
@@ -758,13 +803,16 @@ void Layout_DrawLoadSaveButton(Screen screenID)
 		} else {
 			s_buttonStyle = 0;
 		}
+		if (lanSave && s_buttonStyle == 0) s_buttonStyle = 1;	/* SAVE alone fits */
 		s_twoButtons = s_buttonStyle != 0;
 		n = s_twoButtons ? 2 : 1;
 
 		old = GFX_Screen_SetActive(screenID);
 		{
 			int bx = s_bar->loadX;
-			for (i = 0; i < n; i++) {
+			s_btnX[0] = (int16)bx;
+			s_btnW[0] = 0;
+			for (i = lanSave ? 1 : 0; i < n; i++) {
 				int c, r, w, lw = 0;
 				if (s_buttonStyle == 2) {
 					lw = Layout_MakeWord(scratch, s_buttons[i].word, fg);
@@ -1038,6 +1086,88 @@ void Layout_RestoreReal(int x, int y, int w, int h)
 	GUI_Mouse_Show_Safe();
 }
 
+/* The pause: a large white word in the middle of the view, drawn into SCREEN_0
+ * over the map every frame as the LAN line (RTS_PauseDraw), off before the
+ * view moves and when the pause ends (Layout_PauseHide). */
+static int s_pauseX, s_pauseY, s_pauseW, s_pauseH;	/* drawn (s_pauseW 0: none) */
+
+void Layout_PauseHide(void)
+{
+	if (s_pauseW == 0) return;
+	if (s_big) Layout_RestoreReal(s_pauseX, s_pauseY, s_pauseW, s_pauseH);
+	s_pauseW = 0;
+}
+
+/** The pause's word gone without restoring (the screen was drawn anew). */
+void Layout_PauseForget(void)
+{
+	s_pauseW = 0;
+}
+
+void Layout_PauseDraw(const char *text)
+{
+	/* the letters of Noto Sans Bold (pause_font.h), their edges in greys, a
+	 * black edge of one pixel around */
+	static uint8 mask[PAUSE_FONT_H + 2][260];
+	uint8 colour[4];
+	uint8 *dst;
+	int tw = 1, x, y, i, top = 0;
+	const unsigned char *c;
+
+	if (!s_big) return;
+	for (i = 1; i < 256; i++) {
+		const uint8 *p = g_paletteActive + 3 * i;
+		if (p[0] == p[1] && p[1] == p[2] && p[0] > top) top = p[0];
+	}
+	colour[0] = 0;
+	colour[1] = Layout_Grey(90, top);
+	colour[2] = Layout_Grey(175, top);
+	colour[3] = Layout_Grey(255, top);
+
+	memset(mask, 0, sizeof(mask));
+	for (c = (const unsigned char *)text; *c != '\0'; c++) {
+		const PauseGlyph *g = NULL;
+		for (i = 0; i < (int)lengthof(s_pauseGlyphs); i++) if (s_pauseGlyphs[i].c == *c) g = &s_pauseGlyphs[i];
+		if (g == NULL) {
+			tw += 10;	/* (a letter the word has not: a gap) */
+			continue;
+		}
+		if (tw + g->width + 2 >= (int)sizeof(mask[0])) break;
+		for (y = 0; y < PAUSE_FONT_H; y++) {
+			for (x = 0; x < g->width; x++) mask[1 + y][tw + x] = (uint8)(g->rows[y][x] - '0');
+		}
+		tw += g->width + 1;
+	}
+	tw++;
+
+	s_pauseW = tw;
+	s_pauseH = PAUSE_FONT_H + 2;
+	s_pauseX = s_viewW / 2 - s_pauseW / 2;
+	s_pauseY = 40 + s_viewH / 2 - s_pauseH / 2;
+	dst = GFX_Screen_Get_ByIndex(SCREEN_0);
+	GUI_Mouse_Hide_Safe();
+	for (y = 0; y < s_pauseH; y++) {
+		uint8 *row = dst + (s_pauseY + y) * SCREEN_WIDTH + s_pauseX;
+		for (x = 0; x < tw; x++) {
+			int v = mask[y][x], dx, dy;
+			if (v != 0) {
+				row[x] = colour[v];
+				continue;
+			}
+			/* black next to the letter's solid part */
+			for (dy = -1; dy <= 1; dy++) {
+				for (dx = -1; dx <= 1; dx++) {
+					int yy = y + dy, xx = x + dx;
+					if (yy >= 0 && yy < s_pauseH && xx >= 0 && xx < tw && mask[yy][xx] >= 2) v = 1;
+				}
+			}
+			if (v) row[x] = colour[0];
+		}
+	}
+	GFX_Screen_SetDirty(SCREEN_0, (uint16)s_pauseX, (uint16)s_pauseY, (uint16)(s_pauseX + s_pauseW), (uint16)(s_pauseY + s_pauseH));
+	GUI_Mouse_Show_Safe();
+}
+
 /* The view's picture on the screen moved by dx, dy pixels (in SCREEN_0 and on
  * the card by its blitter), what comes into view filled from SCREEN_1. */
 static void Layout_ShiftReal(int dx, int dy)
@@ -1098,6 +1228,7 @@ static void Layout_ApplyOffset(int nx, int ny)
 	/* the LAN boxes off first (they come back from SCREEN_1 at the old offset) */
 	Lan_ChatHide();
 	Lan_InfoHide();
+	Layout_PauseHide();
 	s_offX = s_nextX = nx;
 	s_offY = s_nextY = ny;
 	GUI_Mouse_Hide_Safe();
@@ -1180,8 +1311,8 @@ static void Layout_ScrollTick_(void)
 	mapInfo = &g_mapInfos[g_scenario.mapScale];
 	vx = min(qx / 16, mapInfo->minX + mapInfo->sizeX - g_viewportTilesW);
 	vy = min(s_posY / 16, mapInfo->minY + mapInfo->sizeY - g_viewportTilesH);
-	vx = max(vx, mapInfo->minX);
-	vy = max(vy, mapInfo->minY);
+	vx = max(vx, x1 / 16);
+	vy = max(vy, y1 / 16);
 	vp = Tile_PackXY((uint16)vx, (uint16)vy);
 	if (vp != g_viewportPosition) {
 		/* a whole tile on: GUI_DrawScreen moves the viewport, the offset with it */

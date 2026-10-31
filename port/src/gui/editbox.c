@@ -51,14 +51,19 @@ static void GUI_EditBox_BlinkCursor(uint16 positionX, bool resetBlink)
  */
 #if defined(__amigaos__)
 extern void Layout_ZoomCancel(void);
+extern volatile bool g_amigaEditBox;
 static uint16 GUI_EditBox_(char *text, uint16 maxLength, uint16 widgetID, Widget *w, uint16 (*tickProc)(void), bool paint);
 #endif
 
 uint16 GUI_EditBox(char *text, uint16 maxLength, uint16 widgetID, Widget *w, uint16 (*tickProc)(void), bool paint)
 #if defined(__amigaos__)
 {
-	/* a Z typed into the text is no zoom (layout_amiga.c) */
-	uint16 r = GUI_EditBox_(text, maxLength, widgetID, w, tickProc, paint);
+	/* a Z typed into the text is no zoom (layout_amiga.c), a P no pause
+	 * (video_amiga.c) */
+	uint16 r;
+	g_amigaEditBox = true;
+	r = GUI_EditBox_(text, maxLength, widgetID, w, tickProc, paint);
+	g_amigaEditBox = false;
 	Layout_ZoomCancel();
 	return r;
 }

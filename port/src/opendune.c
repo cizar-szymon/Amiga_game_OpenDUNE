@@ -686,12 +686,20 @@ static void ReadProfileIni(const char *filename)
 bool g_lanStarting = false;
 static bool s_menuRedraw;
 
-/* The LAN game ended for this player (1 lost, 2 won, 3 the server left): back to the menu. */
+/* The LAN game ended for this player (1 lost, 2 won, 3 the server left, 4 left, 5 the
+ * connection lost): back to the menu. */
 static void GameLoop_LanEnd(int end)
 {
-	static const char *texts[5] = { "", "Your house is defeated.", "You have won the battle!", "The server ended the game.", "You have left the game." };
+	const char *text = "";
+	switch (end) {
+		case 1: text = Lang_T("Your house is defeated."); break;
+		case 2: text = Lang_T("You have won the battle!"); break;
+		case 3: text = Lang_T("The server ended the game."); break;
+		case 4: text = Lang_T("You have left the game."); break;
+		case 5: text = Lang_T("The connection to the server is lost."); break;
+	}
 	Lan_EndGame();
-	GUI_DisplayModalMessage(texts[(end >= 0 && end <= 4) ? end : 0], 0xFFFF);
+	GUI_DisplayModalMessage(text, 0xFFFF);
 	GUI_ChangeSelectionType(SELECTIONTYPE_MENTAT);
 	Sprites_UnloadTiles();
 	Music_Play(28);
@@ -1284,6 +1292,7 @@ static void GameLoop_Main(void)
 #if defined(__amigaos__)
 			Lan_ChatDraw();	/* the chat box of a LAN game over it */
 			Lan_InfoDraw();	/* ini lan_info=1: the LAN line over the FPS */
+			RTS_PauseDraw();	/* PAUSE in the middle of the view */
 #endif
 			PROF_END(PROF_DRAW)
 		}
@@ -1319,6 +1328,48 @@ static void GameLoop_Main(void)
 
 	GUI_Screen_FadeIn(g_curWidgetXBase, g_curWidgetYBase, g_curWidgetXBase, g_curWidgetYBase, g_curWidgetWidth, g_curWidgetHeight, SCREEN_1, SCREEN_0);
 }
+
+#if defined(__amigaos__)
+extern void Amiga_Message(const char *text);
+
+/**
+ * The Dune II data files the game needs (as listed in Install.txt): when one
+ * is missing, a requester says which and where (in English, Polish and German:
+ * the language is not known yet) instead of quitting silently.
+ * @param found False when the data directory could not be read at all.
+ * @return True if all are there.
+ */
+static bool Amiga_DataCheck(bool found)
+{
+	static const char *const paks[] = {
+		"ATRE.PAK", "DUNE.PAK", "ENGLISH.PAK", "FINALE.PAK", "HARK.PAK", "MENTAT.PAK",
+		"MERC.PAK", "ORDOS.PAK", "SCENARIO.PAK", "SOUND.PAK", "VOC.PAK"
+	};
+	char missing[160] = "";
+	char dir[256];
+	char text[1024];
+	size_t n = 0;
+	unsigned i, count = 0;
+
+	for (i = 0; i < sizeof(paks) / sizeof(paks[0]); i++) {
+		if (found && File_Exists(paks[i])) continue;
+		/* six names a line */
+		n += snprintf(missing + n, sizeof(missing) - n, "%s%s", count == 0 ? "  " : (count % 6 == 0 ? "\n  " : "  "), paks[i]);
+		count++;
+	}
+	if (n == 0) return true;
+	IniFile_GetString("datadir", "PROGDIR:data", dir, sizeof(dir));
+	snprintf(text, sizeof(text),
+		"Dune II PC data files (1.07) are missing in %s:\n%s\n\n"
+		"Brak plikow danych Dune II z PC (1.07) w %s.\n\n"
+		"Es fehlen Dateien von Dune II f\xfcr den PC (1.07) in %s.\n\n"
+		"Install.txt",
+		dir, missing, dir, dir);
+	Error("%s\n", text);
+	Amiga_Message(text);
+	return false;
+}
+#endif
 
 /**
  * Initialize Timer, Video, Mouse, GFX, Fonts, Random number generator
@@ -1389,6 +1440,10 @@ static void PrintToConsole(const char * str)
 	int utf8_output;
 	char * LANG = getenv("LANG");
 
+#if defined(__amigaos__)
+	/* started from an icon: libnix would open a console window for it */
+	if (!g_consoleActive) return;
+#endif
 	utf8_output = (LANG != NULL && strstr(LANG, "UTF-8") != NULL);
 	while (*str) {
 		unsigned char c = *str++;	/* IBM 437 code page character */
@@ -1513,8 +1568,14 @@ int main(int argc, char **argv)
 	Debug("  g_starPortEnforceUnitLimit = %d\n", (int)g_starPortEnforceUnitLimit);
 
 	if (!File_Init()) {
+#if defined(__amigaos__)
+		Amiga_DataCheck(false);
+#endif
 		return 1;
 	}
+#if defined(__amigaos__)
+	if (!Amiga_DataCheck(true)) return 1;
+#endif
 
 	/* Loading config from dune.cfg */
 	if (!Config_Read("dune.cfg", &g_config)) {

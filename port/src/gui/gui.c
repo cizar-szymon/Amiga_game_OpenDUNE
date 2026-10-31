@@ -4766,6 +4766,7 @@ void GUI_DrawScreen(Screen screenID)
 			 * first the LAN boxes drawn over it off (they would move along) */
 			Lan_ChatHide();
 			Lan_InfoHide();
+			Layout_PauseHide();
 			if (Layout_Transformed()) {
 				/* zoomed or scrolling smoothly: through the layout */
 				Layout_ZoomShift(xOffset << 4, yOffset << 4);

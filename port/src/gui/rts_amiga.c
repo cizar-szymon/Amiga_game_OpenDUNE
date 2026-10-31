@@ -492,6 +492,24 @@ static void RTS_Pause(void)
 	}
 }
 
+/* In the frame after the map is drawn: PAUSE large in the middle of the view
+ * while the game is paused (one player or LAN), off when it goes on. */
+void RTS_PauseDraw(void)
+{
+	bool onMap = g_gameMode == GM_NORMAL && g_selectionType != SELECTIONTYPE_MENTAT && Layout_IsBig();
+	bool paused = g_lanGame ? Lan_Paused() : s_paused;
+
+	if (!onMap) {
+		Layout_PauseForget();
+		return;
+	}
+	if (!paused || (g_lanGame && g_lanModal > 0)) {
+		Layout_PauseHide();
+		return;
+	}
+	Layout_PauseDraw(Lang_T("PAUSE"));
+}
+
 void RTS_Tick(void)
 {
 	if (s_enabled < 0) s_enabled = IniFile_GetInteger("rts_controls", 1) != 0 ? 1 : 0;

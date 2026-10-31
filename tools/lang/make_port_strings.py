@@ -23,6 +23,7 @@ INDIRECT = [
     'LOAD', 'SAVE', 'LOAD/SAVE',
     'Raising the clock overclocks', 'the CPU - the system may hang.',
     'The clock changes at once.', 'MC68040: 20 to 50 MHz.', 'Only for a MC68060 rev. 6.',
+    'Not an address.', 'The server is full.', 'No answer from the server.', 'Bad data.',
 ]
 
 ENCODING = {'de': 'cp437', 'pl': 'iso8859_2'}

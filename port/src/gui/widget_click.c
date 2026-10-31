@@ -787,10 +787,9 @@ static WindowDesc s_loadSaveDesc = {
  * 7 = Resolution, 8 = Amiga info; Load a game and Save this game are the top
  * bar's buttons. */
 static const int s_optionsMap[7] = { 2, 7, 8, 3, 4, 5, 6 };
-/* a LAN game: no Restart scenario, no Pick another house */
+/* a LAN game: no Restart scenario, no Pick another house (the server saves
+ * with SAVE on the top bar) */
 static const int s_optionsMapLan[5] = { 2, 7, 8, 5, 6 };
-/* the server of a LAN game: Save this game too (variant B: the server saves) */
-static const int s_optionsMapLanServer[6] = { 2, 7, 8, 1, 5, 6 };
 static const int *s_options = s_optionsMap;
 static int s_optionsCount = 7;
 
@@ -798,17 +797,15 @@ static WindowDesc *Amiga_OptionsDesc(void)
 {
 	static const int16 y[7] = { 23, 40, 57, 74, 91, 110, 110 };
 	static const int16 yLan[5] = { 23, 40, 57, 110, 110 };
-	static const int16 yLanServer[6] = { 23, 40, 57, 74, 110, 110 };
-	bool server = LAN_GAME && g_lanServer;
 	int i;
-	s_options = server ? s_optionsMapLanServer : LAN_GAME ? s_optionsMapLan : s_optionsMap;
-	s_optionsCount = server ? 6 : LAN_GAME ? 5 : 7;
+	s_options = LAN_GAME ? s_optionsMapLan : s_optionsMap;
+	s_optionsCount = LAN_GAME ? 5 : 7;
 	s_optionsDesc = g_optionsWindowDesc;
 	s_optionsDesc.index = 10;
 	s_optionsDesc.widgetCount = s_optionsCount;
 	for (i = 0; i < s_optionsCount; i++) {
 		s_optionsDesc.widgets[i] = (s_options[i] >= 7) ? g_optionsWindowDesc.widgets[2] : g_optionsWindowDesc.widgets[s_options[i]];
-		s_optionsDesc.widgets[i].offsetY = server ? yLanServer[i] : LAN_GAME ? yLan[i] : y[i];
+		s_optionsDesc.widgets[i].offsetY = LAN_GAME ? yLan[i] : y[i];
 		if (s_options[i] == 7) s_optionsDesc.widgets[i].stringID = (uint16)-20;
 		if (s_options[i] == 8) s_optionsDesc.widgets[i].stringID = (uint16)-28;
 	}
@@ -1173,8 +1170,17 @@ bool GUI_Widget_Options_Click(Widget *w)
 
 	GameOptions_Save();
 
+#if defined(__amigaos__)
+	/* not in a LAN game: the recount puts the find arrays in index order, the
+	 * simulation goes through them in their order - on this Amiga only it
+	 * changed the order of the units' steps and of their random numbers (out
+	 * of step after the server's SAVE, 31.10.2026); nothing was loaded */
+	if (!LAN_GAME)
+#endif
+	{
 	Structure_Recount();
 	Unit_Recount();
+	}
 
 	g_cursorSpriteID = cursor;
 
@@ -1245,8 +1251,11 @@ static bool Amiga_LoadSave(Widget *w, int mode)
 	GUI_Widget_MakeSelected(w, false);
 	Timer_SetTimer(TIMER_GAME, true);
 	GameOptions_Save();
-	Structure_Recount();
-	Unit_Recount();
+	if (!LAN_GAME) {
+		/* (a LAN game: not, see GUI_Widget_Options_Click) */
+		Structure_Recount();
+		Unit_Recount();
+	}
 	g_cursorSpriteID = cursor;
 	Sprites_SetMouseSprite(0, 0, g_sprites[cursor]);
 	return false;
@@ -1254,7 +1263,15 @@ static bool Amiga_LoadSave(Widget *w, int mode)
 
 bool GUI_Widget_LoadSave_Click(Widget *w) { return Amiga_LoadSave(w, 0); }
 bool GUI_Widget_LoadGame_Click(Widget *w) { return Amiga_LoadSave(w, 1); }
-bool GUI_Widget_SaveGame_Click(Widget *w) { return Amiga_LoadSave(w, 2); }
+bool GUI_Widget_SaveGame_Click(Widget *w)
+{
+	/* (a LAN game: the server saves; the game goes on under the window) */
+	bool r;
+	g_lanModal++;
+	r = Amiga_LoadSave(w, 2);
+	g_lanModal--;
+	return r;
+}
 #endif
 
 static uint16 GetSavegameCount(void)

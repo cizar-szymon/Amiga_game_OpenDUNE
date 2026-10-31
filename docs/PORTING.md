@@ -13,8 +13,8 @@
 | 2b. Duża mapa: rozgrywka 640×480 1:1 (35×27 kafli), menu/mentat/fabryka 320×200 ×2 (`gui/layout_amiga.c`) | ✅ 28.10 (misja 1, Mentat, Options) |
 | 2c. Sterowanie: zaznaczanie prostokątem, rozkaz prawym przyciskiem (`gui/rts_amiga.c`, `rts_controls=1`) | ✅ 28.10 (ruch grupy sprawdzony) |
 | 3. Muzyka: nagrania muzyki AdLib zrobione raz na PC (`tools/music/make_music.py`), odtwarzane z dysku przez Paulę (`music_amiga.c`), niżej „Muzyka” | ✅ |
-| 4. Ikona, Tool Types, numer wydania, opisy | ⏳ |
-| 5. Języki: niemiecki (pliki `.GER` gracza), polski (własny przekład, `lang/POLISH.PAK`, litery w czcionkach), wybór w Game controls – niżej „Języki” | ✅ kod i PC 30.10, ⏳ test na Amidze |
+| 4. Ikona, numer wydania, opisy, paczka ZIP | ✅ 0.50 31.10 (start z ikony i z paczki sprawdzony) |
+| 5. Języki: niemiecki (pliki `.GER` gracza), polski (własny przekład, `lang/POLISH.PAK`, litery w czcionkach), wybór w Game controls – niżej „Języki” | ✅ 30.10, na Amidze 31.10 |
 
 ## Źródła
 
@@ -530,6 +530,72 @@ Harkonnen 3, Atreides 25, Ordos 12.
 - Tempo gry tylko 39 kroków/s zamiast 60 – przez Amiberry na Pi (niżej, „Platforma testowa Pi400”:
   zegar emulacji 66% rzeczywistego); po zmianie `sound_output` 59,5 kroku/s w grze 3 graczy.
 - Radar bez Outpost czarny (jak w oryginale) – rozkazy przez klik w radar przesuwają tylko widok.
+
+### Testy przed wydaniem 0.50 (31.10.2026, rano)
+
+| Test | Gdzie | Wynik |
+|---|---|---|
+| 1. Zapis / odczyt między językami | WinUAE 800×600, misja 7 | zapis PL → odczyt DE i EN, zapis DE, nadpisanie w EN, odczyt w trakcie gry, zapis w środku bitwy 20 czołgów → po odczycie te same jednostki w tych samych miejscach ✅ |
+| 2. Rozłączenia w grze LAN | Amiga 1 + WinUAE + Pi400 | A: twarde zerwanie gracza (`pkill -9 amiberry`) – serwer „CZEKAM na SLAVE”, po chwili „SLAVE opuścił grę”, gra idzie dalej ✅; B: wyjście przez Opcje → Menu główne – reszta gra dalej (serwer sam = wygrana) ✅; C: twarde zerwanie serwera (Pi) – obaj gracze w 5 s „Serwer zakończył grę.” ✅; D: z menu bez restartu nowe lobby i gra 3 graczy, sumy zgodne ✅ |
+| 3. Start z ikony (`wbstart`, jak dwuklik) | Amiga 1 | stos 400000 (raport F10), brak okna konsoli przy starcie i przy wyjściu (po poprawce), wyjście przez menu ✅ |
+| 4. Paczka wydania 0.50 | Amiga 1, `RAM:` | publiczny ZIP (358 KB, bez danych) rozpakowany `UnZip`, dane gracza do `data/`, muzyka do `MUSIC/`: start z ikony, menu „AMIGA 0.50”, katalog `saves` tworzy się sam, misja 1 po polsku z muzyką, zapis, wyjście ✅ |
+
+Znalezione i poprawione:
+- **P w polu tekstu** (nazwa zapisu) włączało pauzę i znikało z tekstu: `video_amiga.c` przepuszcza
+  P do gry, gdy `GUI_EditBox` jest aktywne (`g_amigaEditBox`, ustawiane w `gui/editbox.c`).
+- **Komunikaty końca gry LAN** („You have won the battle!”, „The server ended the game.” …) i
+  **błędy sieci w lobby** („Not an address.”, „No answer from the server.” …) były po angielsku:
+  `Lang_T` w `GameLoop_LanEnd`, tłumaczenie tekstów `net_amiga.c` przy wyświetleniu (`INDIRECT` w
+  `make_port_strings.py`), teksty z liczbą przez `Lang_T` w `net_amiga.c`.
+- **Linia LAN u graczy** pokazywała gracza, który wyszedł, jak obecnego: teraz „SLAVE wyszedł” u
+  wszystkich.
+- **Start z ikony**: „Dziękujemy za grę w Dune II.” na końcu otwierało okno konsoli libnix
+  (`PrintToConsole` nie sprawdzało `g_consoleActive`).
+- **Data kompilacji w raporcie F10** była stara (`rev.o` nie budował się od nowa): w
+  `Makefile.amiga` `rev.o` zależy od wszystkich innych obiektów.
+
+Dalej tego samego dnia (życzenia użytkownika):
+- **SAVE na górnym pasku w grze LAN** (tylko serwer; z Options zniknęło „Save this game”):
+  `layout_amiga.c` rysuje sam SAVE w miejscu LOAD, `GUI_Widget_SaveGame_Click` z `g_lanModal`
+  (gra idzie dalej pod oknem).
+- **Rozjazd po zapisie (BRAK ZGODNOŚCI 6600)**: w zrzutach stanu różnił się tylko stan losowań
+  (R). Przyczyna: na końcu okna Options / LOAD-SAVE `Structure_Recount()` i `Unit_Recount()`
+  układają tablice `g_*FindArray` według indeksu; w grze kolejność zależy od historii (nowa
+  jednostka na końcu, choć ma niższy indeks), a symulacja chodzi po nich w ich kolejności – na
+  jednej Amidze zmieniała się kolejność kroków jednostek i ich losowań. W grze LAN bez
+  przeliczania (nic się nie wczytuje). Po poprawce: Options u gracza + zapis u serwera, sumy
+  zgodne do kroku 9900 na 3 maszynach.
+- **PAUZA na środku mapy** (`Layout_PauseDraw`, `RTS_PauseDraw`): litery A E P S U Z z Noto Sans
+  Bold (OFL) w `gui/pause_font.h` (`tools/make_pause_font.py`), 4 poziomy pokrycia na szarości
+  palety, czarna obwódka; zdejmowane jak linia LAN (przed przesunięciem widoku).
+- **Lobby**: „Arrakis 1  3P” bez nazwy scenariusza, poziom bez „(jak misja N)”.
+- **Małe mapy 32×32** (misje 1–2 każdego rodu, SCENx001–004; wszystkie 36 map LAN to 62×62)
+  na środku widoku, gdy widok jest od nich większy (640×480 w poziomie, 800×600, 960×540):
+  `Layout_ViewMin` pozwala widokowi zacząć się przed brzegiem mapy, kafle poza mapą czarne,
+  ramka na radarze przycięta.
+- **Brak danych** (test z publicznym ZIP-em bez data/ na Amidze 1): gra z ikony kończyła się
+  bez słowa (komunikat tylko w `RAM:OpenDUNE.log`). Teraz `Amiga_DataCheck` (`opendune.c`, po
+  `File_Init`) sprawdza 11 plików .PAK z Install.txt i pokazuje requester (`Amiga_Message`,
+  `os/amiga.c`, EasyRequest) z listą brakujących i katalogiem, EN/PL/DE (język jeszcze nieznany).
+  MakeMusic bez SOUND.PAK pisał tylko po angielsku, a okno libnix (`CON://///AUTO/CLOSE/WAIT`)
+  po „Press Return” zostawało otwarte do kliknięcia zamknięcia. Teraz własne `__stdiowin` bez
+  WAIT (Return zamyka) i komunikaty (brak SOUND.PAK, pełny dysk) w trzech językach.
+  Pełny przebieg MakeMusic z ikony na Amidze 1: 34 nagrania + 3 ciche, 2048 s.
+- **Zanik gracza LAN (zawieszenie, reset)**: zawieszona Amiga nie zamyka połączenia, a sieć
+  nie liczyła ciszy – wszyscy stali na „CZEKAM na …” bez końca. Teraz (`net_amiga.c`) peer bez
+  żadnych danych przez `NET_SILENT_MS` = 10 s (pingi co 1 s) jest utracony (nie przy
+  `s_rxBlocked`). Serwer (`Lan_PlayerGone`, nie „quit”) pauzuje wszystkich: „Brak połączenia z X.
+  ZAPIS zapisuje, P gra dalej.” (powtarzane co 8 s, `s_lostSlot`); `Lan_CheckEnd` w pauzie nie
+  ogłasza wygranej (2 graczy). Utracony gracz (`lost`) zostaje w zapisie LAN z mgłą, którą
+  przysyła serwerowi co 30 s (`Lan_SendSeen`), więc po jego powrocie zapis wczytuje się dla
+  wszystkich. Gracz, który stracił serwer: „Utracono połączenie z serwerem.” (koniec 5).
+  Test (Pi zamrożone `kill -STOP` – połączenie zostaje otwarte jak przy zawieszeniu): pauza na
+  Amidze 1 i WinUAE po ok. 10 s, ZAPIS w pauzie, wczytanie w lobby przez 3 maszyny od kroku 2124,
+  sumy zgodne; 2 graczy: pauza zamiast wygranej, po P „Bitwa wygrana!”.
+
+Uwagi: dwa domyślne imiona graczy „SLAVE” w jednym lobby nie przeszkadzają grze, ale komunikat
+„SLAVE opuścił grę” nie mówi, który; 77 MB pełnego ZIP-a nie przejdzie przez AmiAgenta (limit
+czasu), stąd test z publicznym ZIP-em i danymi skopiowanymi na Amidze.
 
 ### Ślady po przewijaniu blitterem, linia `lan_info` (29.10.2026, poprawione)
 - Przyczyna śladów na karcie (kursor, przez chwilę licznik FPS o kafel obok): blitter przesuwa

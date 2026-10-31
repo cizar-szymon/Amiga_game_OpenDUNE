@@ -428,6 +428,15 @@ void GUI_Widget_Viewport_Draw(bool forceRedraw, bool hasScrolled, bool drawToMai
 				t = &g_map[curPos];
 				left = x << 4;
 
+#if defined(__amigaos__)
+				if (!Map_IsValidPosition(curPos)) {
+					/* beyond the map (a small map in the middle of a larger
+					 * view, layout_amiga.c): black, never unveiled */
+					GUI_DrawFilledRectangle(left, top, left + 15, top + 15, 12);
+					continue;
+				}
+#endif
+
 				if (!g_debugScenario && (g_veiledTileID == t->overlayTileID || !TILE_SHOWN(curPos))) {
 					/* draw a black rectangle */
 					GUI_DrawFilledRectangle(left, top, left + 15, top + 15, 12);

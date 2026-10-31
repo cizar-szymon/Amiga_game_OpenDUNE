@@ -94,8 +94,18 @@ uint16 Map_MoveDirection(uint16 direction)
 	x = min(x, mapInfo->minX + mapInfo->sizeX - VIEWPORT_TILES_W);
 	y = min(y, mapInfo->minY + mapInfo->sizeY - VIEWPORT_TILES_H);
 
+#if defined(__amigaos__)
+	{
+		/* a small map in the middle of a larger view (layout_amiga.c) */
+		int16 x0, y0;
+		Layout_ViewMin(&x0, &y0);
+		x = max(x, x0);
+		y = max(y, y0);
+	}
+#else
 	x = max(x, mapInfo->minX);
 	y = max(y, mapInfo->minY);
+#endif
 
 	g_viewportPosition = Tile_PackXY(x, y);
 	return g_viewportPosition;
@@ -316,10 +326,25 @@ void Map_UpdateMinimapPosition(uint16 packed, bool forceUpdate)
 		mapScale = g_scenario.mapScale;
 		mapInfo = &g_mapInfos[mapScale];
 
+#if defined(__amigaos__)
+		{
+			/* the view can begin before the map's edge (a small map in the
+			 * middle of a larger view): the rectangle inside the radar */
+			int l = (Tile_GetPackedX(packed) - mapInfo->minX) * (mapScale + 1);
+			int t = (Tile_GetPackedY(packed) - mapInfo->minY) * (mapScale + 1);
+			int r = l + mapScale * VIEWPORT_TILES_W + VIEWPORT_TILES_W - 1;
+			int b = t + mapScale * VIEWPORT_TILES_H + VIEWPORT_TILES_H - 1;
+			left   = (uint16)(max(l, 0) + 256 + SIDEBAR_DX);
+			right  = (uint16)(r + 256 + SIDEBAR_DX);
+			top    = (uint16)(max(t, 0) + RADAR_Y);
+			bottom = (uint16)(b + RADAR_Y);
+		}
+#else
 		left   = (Tile_GetPackedX(packed) - mapInfo->minX) * (mapScale + 1) + 256 + SIDEBAR_DX;
 		right  = left + mapScale * VIEWPORT_TILES_W + VIEWPORT_TILES_W - 1;
 		top    = (Tile_GetPackedY(packed) - mapInfo->minY) * (mapScale + 1) + RADAR_Y;
 		bottom = top + mapScale * VIEWPORT_TILES_H + VIEWPORT_TILES_H - 1;
+#endif
 		/* a large viewport on a small map: the rectangle inside the radar */
 		if (right > 256 + SIDEBAR_DX + 63) right = 256 + SIDEBAR_DX + 63;
 		if (bottom > RADAR_Y + 63) bottom = RADAR_Y + 63;
@@ -859,8 +884,18 @@ void Map_SetViewportPosition(uint16 packed)
 
 	mapInfo = &g_mapInfos[g_scenario.mapScale];
 
+#if defined(__amigaos__)
+	{
+		/* a small map in the middle of a larger view (layout_amiga.c) */
+		int16 x0, y0;
+		Layout_ViewMin(&x0, &y0);
+		x = max(x0, min(mapInfo->minX + mapInfo->sizeX - VIEWPORT_TILES_W, x));
+		y = max(y0, min(mapInfo->minY + mapInfo->sizeY - VIEWPORT_TILES_H, y));
+	}
+#else
 	x = max(mapInfo->minX, min(mapInfo->minX + mapInfo->sizeX - VIEWPORT_TILES_W, x));
 	y = max(mapInfo->minY, min(mapInfo->minY + mapInfo->sizeY - VIEWPORT_TILES_H, y));
+#endif
 
 	g_viewportPosition = Tile_PackXY(x, y);
 }

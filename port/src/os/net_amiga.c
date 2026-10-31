@@ -23,6 +23,7 @@
 #include "types.h"
 #include "net_amiga.h"
 #include "amiga_prof.h"
+#include "../lang_amiga.h"
 
 extern void Amiga_ExitLog(const char *text);
 
@@ -272,10 +273,13 @@ void Net_Counters(unsigned long *eclocks, unsigned long *framesOut, unsigned lon
 
 enum { F_HELLO = 1, F_BYE, F_PING, F_PONG };
 
+#define NET_SILENT_MS 10000	/* a peer silent this long is lost (Net_Process) */
+
 typedef struct Peer {
 	long fd;
 	int connecting, ok;
 	ULONG connectEnd, nextPing;
+	ULONG lastIn;	/* when it last sent anything (pings every second) */
 	char ip[16];
 	UBYTE in[4096];
 	int inLen;
@@ -608,7 +612,7 @@ static void Net_FrameIn(int i, int type, const UBYTE *d, int len)
 			CopyText(name, sizeof(name), &q, end);
 			if (d[0] != NET_PROTOCOL || strcmp(version, s_version) != 0) {
 				char why[32];
-				snprintf(why, sizeof(why), "Different version: %s", version);
+				snprintf(why, sizeof(why), Lang_T("Different version: %s"), version);
 				Net_Bye(p, "Different version");
 				if (!s_serving) Event(NEV_ERROR, i, 0, why, NULL, NULL);
 				Net_DropPeer(i, NULL);
@@ -616,6 +620,7 @@ static void Net_FrameIn(int i, int type, const UBYTE *d, int len)
 			}
 			p->ok = 1;
 			p->nextPing = AmigaTimer_GetMs();
+			p->lastIn = p->nextPing;
 			Event(NEV_PEER, i, 0, name, p->ip, version);
 			break;
 		}
@@ -678,6 +683,7 @@ static void Net_ReadPeer(int i)
 		return;
 	}
 	p->inLen += (int)n;
+	p->lastIn = AmigaTimer_GetMs();
 	Net_TakeFrames(i);
 }
 
@@ -815,7 +821,7 @@ static void Net_Main(void)
 				getsockopt(p->fd, SOL_SOCKET, SO_ERROR, &err, &elen);
 				if (err != 0) {
 					char text[32];
-					snprintf(text, sizeof(text), "No server there (%ld).", err);
+					snprintf(text, sizeof(text), Lang_T("No server there (%ld)."), err);
 					Event(NEV_ERROR, i, 0, text, NULL, NULL);
 					Net_DropPeer(i, NULL);
 				} else {
@@ -843,6 +849,15 @@ static void Net_Main(void)
 				if (p->fd >= 0 && p->connecting && (LONG)(now - p->connectEnd) >= 0) {
 					Event(NEV_ERROR, i, 0, "No answer from the server.", NULL, NULL);
 					Net_DropPeer(i, NULL);
+				}
+				/* an Amiga that hangs or is reset does not close its
+				 * connection: nothing from it (not even the answers to
+				 * the pings) for NET_SILENT_MS is a lost connection. Not
+				 * while the game is not taking what came (s_rxBlocked:
+				 * the socket is not read then). */
+				if (p->ok && !s_rxBlocked && (LONG)(now - p->lastIn) > NET_SILENT_MS) {
+					Net_DropPeer(i, "No answer from the server.");	/* (shown on a joiner) */
+					continue;
 				}
 				if (p->ok && (LONG)(now - p->nextPing) >= 0) {
 					UBYTE b[4];

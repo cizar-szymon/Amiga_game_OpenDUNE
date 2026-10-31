@@ -17,6 +17,7 @@ extern uint32 AmigaTimer_GetMs(void);
 typedef struct LanPlayer {
 	bool used;
 	bool gone;		/* left the game */
+	bool lost;		/* gone with the connection lost, not by the menu: kept in a save */
 	uint8 house;		/* HOUSE_INVALID: not chosen yet */
 	int ping;		/* ms, -1 unknown */
 	char name[16];
@@ -90,6 +91,7 @@ extern void Lan_CollectSeen(void);
 /* the chat (gui/lan_chat_amiga.c) */
 extern bool Lan_SendChat(const uint8 *data, int length);
 extern void Lan_PauseRequest(void);
+extern bool Lan_Paused(void);
 extern void Lan_ChatReceived(int slot, const uint8 *text, int length);
 extern bool Lan_ChatKey(uint16 code, bool up);
 extern bool Lan_ChatOpen(void);

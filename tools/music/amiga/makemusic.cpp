@@ -40,7 +40,11 @@
 unsigned long __stack = 65536;
 extern "C" void __stkinit(void);
 void (*const makemusic_stackSwap)(void) = __stkinit;
-const char version[] = "$VER: MakeMusic 1.0 (29.10.2026) OpenDUNE music recorder";
+const char version[] = "$VER: MakeMusic 1.1 (31.10.2026) OpenDUNE music recorder";
+/* the window for the output when started from the icon: libnix's own has WAIT
+ * (it stays open after the end until its close gadget), here Return closes it
+ * (Finish) */
+extern "C" { const char *__stdiowin = "CON://640/200/MakeMusic/AUTO/CLOSE"; }
 #else
 #define DEFAULT_DATA  "data"
 #define DEFAULT_TO    "MUSIC"
@@ -324,7 +328,13 @@ int main(int argc, char **argv)
 	Join(path, sizeof(path), data, "SOUND.PAK");
 	f = fopen(path, "rb");
 	if (f == NULL) {
-		printf("Cannot open %s - the Dune II PC data (SOUND.PAK) is needed.\n", path);
+		printf("\nCannot open %s.\n"
+		       "Copy the Dune II PC data files (1.07) into %s first.\n\n"
+		       "Brak pliku %s.\n"
+		       "Najpierw skopiuj pliki danych Dune II z PC (1.07) do %s.\n\n"
+		       "%s fehlt.\n"
+		       "Kopiere zuerst die Dateien von Dune II f\xfcr den PC (1.07) nach %s.\n\n"
+		       "Install.txt\n\n", path, data, path, data, path, data);
 		return Finish(20);
 	}
 	fseek(f, 0, SEEK_END);
@@ -373,7 +383,10 @@ int main(int argc, char **argv)
 			Join(path, sizeof(path), to, file);
 		}
 		if (!WriteRaw(path, s, length, loop)) {
-			printf("- cannot write %s\n", path);
+			printf("\n\nCannot write %s (disk full? about 75 MB are needed).\n"
+			       "Nie mozna zapisac %s (pelny dysk? potrzeba ok. 75 MB).\n"
+			       "%s kann nicht geschrieben werden (Platte voll? etwa 75 MB n\xf6tig).\n\n",
+			       path, path, path);
 			free(s);
 			free(pak);
 			return Finish(20);
