@@ -1007,10 +1007,12 @@ bool Layout_ZoomCopy(int x, int y, int w, int h)
  * box, drawn into SCREEN_0 only) back from SCREEN_1. While the view is
  * transformed through the offset and the zoom (Layout_ZoomCopy takes logical
  * pixels: with smooth scrolling the rectangle came back shifted, the ends of
- * the letters left), the strips beside the view black; else a plain copy.
+ * the letters left), the strips beside the view black, beyond the viewport's
+ * area 1:1; else a plain copy.
  */
 void Layout_RestoreReal(int x, int y, int w, int h)
 {
+	const uint8 *src;
 	uint8 *dst;
 	int fw = s_fullTilesW * 16, fy2 = 40 + s_fullTilesH * 16, r;
 
@@ -1019,10 +1021,17 @@ void Layout_RestoreReal(int x, int y, int w, int h)
 		return;
 	}
 	GUI_Mouse_Hide_Safe();
+	src = GFX_Screen_Get_ByIndex(SCREEN_1);
 	dst = GFX_Screen_Get_ByIndex(SCREEN_0);
-	for (r = max(y, 40); r < min(y + h, fy2); r++) {
-		int a = max(x, 0), b = min(x + w, fw);
-		if (a < b) memset(dst + r * SCREEN_WIDTH + a, 0, b - a);
+	for (r = max(y, 0); r < min(y + h, SCREEN_HEIGHT); r++) {
+		int a = max(x, 0), b = min(x + w, SCREEN_WIDTH);
+		if (r >= 40 && r < fy2) {
+			/* over the viewport's area black (Layout_FillReal fills the view),
+			 * right of it (the sidebar: a long line at 400x300) 1:1 */
+			if (a < min(b, fw)) memset(dst + r * SCREEN_WIDTH + a, 0, min(b, fw) - a);
+			a = max(a, fw);
+		}
+		if (a < b) memcpy(dst + r * SCREEN_WIDTH + a, src + r * SCREEN_WIDTH + a, b - a);
 	}
 	Layout_FillReal(x, y, x + w, y + h);
 	GFX_Screen_SetDirty(SCREEN_0, (uint16)max(x, 0), (uint16)max(y, 0), (uint16)min(x + w, SCREEN_WIDTH), (uint16)min(y + h, SCREEN_HEIGHT));

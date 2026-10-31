@@ -426,6 +426,29 @@ Misja 8 Atreides (62×62, `debug_start_scenario=8`), `debug_stats=1`, `framerate
 - Znaleziony błąd: po przewinięciu w pionie na karcie zostaje kawałek kursora (biała strzałka) pod
   pozycją myszy – zrzut `clutshot` po 6 krokach w dół i 6 w górę. Poprawione, niżej.
 
+### Ciężkie misje 7–9 (31.10.2026, Amiga 1, Warp1260X 68060 @ 100 MHz, polski, Atreides)
+`debug_start_scenario=7/8/9`, `debug_stats=1`, `framerate=60`, ekran 640×480 (misja 9 też
+800×600). Sceny (okresy po 5 s): postój 20 s; przewijanie strzałkami; bitwa – `od.py spawn`
+24 czołgów (po 12 Atreides i Harkonnen, Tank / Siege Tank / Raider Trike) w 6 rzędach naprzeciw
+siebie, częściowo w zakrytym terenie; lotnictwo i czerw – 4 ornitoptery, czerw, carryall.
+
+| Misja, ekran | postój | przewijanie | bitwa (jednostki pojawiają się w zakrytym terenie) | ornitoptery + czerw |
+|---|---|---|---|---|
+| 7, 640×480 | 22–50 fps, wolne 48–82% | 49–50 fps, wolne 39–48% | 34–57 fps, wolne **0**–63%, rysowanie do 13,9 ms | 51–56 fps, wolne 31–56% |
+| 8, 640×480 | 38–47 fps, wolne 73–75% | 39–52 fps, wolne 28–74% | 45–55 fps, wolne **0**–58%, rysowanie do 12,7 ms | 53–58 fps, wolne 26–39% |
+| 9, 640×480 | 34–38 fps, wolne 72–76% | 37–51 fps, wolne 31–72% | 26–56 fps, wolne **0**–72%, rysowanie do 13,0 ms | 46–57 fps, wolne 38–53% |
+| 9, 800×600 | 35–55 fps, wolne 49–73% | 39–47 fps, wolne 23–49% | 35–55 fps, wolne **0**–62%, rysowanie do 13,6 ms | 35–56 fps, wolne 22–59% |
+
+- fps to klatki wysłane na kartę – bez zmian na ekranie (postój, koniec bitwy) jest ich mniej przy
+  dużym zapasie CPU; nie jest to spadek tempa gry.
+- **Te same 24 czołgi w terenie już odsłoniętym** (misja 7, druga bitwa w tym samym miejscu):
+  53–56 fps, wolne 31–44%, rysowanie ~3 ms. Całe CPU (rysowanie 10–14 ms przez ~10–15 s) zabiera
+  więc odsłanianie mapy przez kilkadziesiąt jednostek naraz, nie walka. W zwykłej grze jednostki
+  wychodzą z odsłoniętej bazy i odsłaniają po kilka pól – jak w pomiarze z 29.10 (16 jednostek:
+  54–55 fps, wolne 22–30%). Możliwa optymalizacja na później: koszt rysowania przy odsłanianiu.
+- Misja 9 przy 800×600: czołgi Harkonnen dojechały do bazy i ją zniszczyły – „Misja zakończona
+  porażką” po polsku, ekran porażki poprawny (pomiar drugiej bitwy przez to odrzucony).
+
 ### Pomiar gry LAN (29.10.2026, 3 graczy, `tools/lan_test.sh 154 160` z `PEER=1`)
 Serwer Amiga 1 (Harkonnen, Warp1260X @ 100 MHz, 640×360, `lan_info=1`, `debug_stats=1`), WinUAE
 (Atreides, 640×480), `lan_peer.py` z PC (bez rozkazów); poziom 2, mapa 0. Pomiary na serwerze:
@@ -485,6 +508,28 @@ Znalezione i poprawione:
   zostawały końce liter („SLAVEE WARTE”). Nowe `Layout_RestoreReal` (piksele ekranu, przez offset
   i zoom) dla linii i okna czatu. Pas linii 12 wierszy zamiast 10 (czcionka ma 11: ogonki „g”
   zostawały jako „ms_gleich”). 16 zrzutów linii na każdej maszynie po poprawce – czyste.
+- Linia `lan_info` przy 400×300 jest dłuższa niż widok (320 px) i wchodzi na pasek boczny: po
+  „CZEKAM” zostawało „EKAM” – `Layout_RestoreReal` przywraca teraz część poza obszarem widoku 1:1
+  z SCREEN_1.
+
+### Długa gra LAN z walką (31.10.2026, noc, 67 min, poziom 9)
+
+Ten sam skład (Amiga 1 serwer Harkonnen PL 400×300, WinUAE Atreides DE 800×600, Pi400 Ordos EN
+640×480), mapa Arrakis 1 (A014) 3P, poziom 9, `debug_stats=1`. Skrypt (co ~2 min na każdej
+maszynie przez `od.py`): radar → własna baza, Construction Yard → budowa / postawienie płyty
+(CMD_BUILD, CMD_HOLD, CMD_RESUME, CMD_PLACE przez sieć), zaznaczenie jednostek ramką, radar →
+baza następnego gracza, rozkaz; potem armie krążą między bazami (Harkonnen → Ordos → Atreides).
+Bazy wszystkich trzech zniszczone, walki armii (komunikaty „Zniszczono: Dewiator Ordos.” /
+„Ordos Deviator zerstört.” / „Ordos Deviator destroyed.” w tej samej chwili), na końcu jednostek:
+Harkonnen 3, Atreides 25, Ordos 12.
+
+- **Sumy stanu: serwer 1056 porównań, każdy gracz 529 – wszystkie zgodne, żadnego OUT OF STEP,
+  nikt nie odpadł** (krok 158 700).
+- fps (okresy 5 s): Amiga 1 58–60 (mediana 59), wolne CPU 51–73%; WinUAE 53–60, wolne 12–77%;
+  Pi 58–60, wolne 50–74%; żadnego okresu poniżej 50 fps.
+- Tempo gry tylko 39 kroków/s zamiast 60 – przez Amiberry na Pi (niżej, „Platforma testowa Pi400”:
+  zegar emulacji 66% rzeczywistego); po zmianie `sound_output` 59,5 kroku/s w grze 3 graczy.
+- Radar bez Outpost czarny (jak w oryginale) – rozkazy przez klik w radar przesuwają tylko widok.
 
 ### Ślady po przewijaniu blitterem, linia `lan_info` (29.10.2026, poprawione)
 - Przyczyna śladów na karcie (kursor, przez chwilę licznik FPS o kafel obok): blitter przesuwa
@@ -581,6 +626,17 @@ Znalezione i poprawione:
 - Workbench wracał do PAL 640×256: zapisany tryb WinUAE `UAE:1024x768` 32 bit BGRA (ID
   `77041303`) nie istnieje w Amiberry (32 bity jako RGBA, `77041302`); w kopii
   `screenmode.prefs` ID zmienione – Workbench w RTG 1024×768.
+- **Zegar Amiberry wolniejszy od rzeczywistego (31.10.2026, znalezione w długim teście LAN):**
+  z `sound_output=exact` emulacja szła w tempie wyjścia dźwięku Pi bez monitora (wyjście
+  „Headless”) – 40 s czasu Amigi na 61 s rzeczywistych (66%), statystyki gry 2359 s przy 3614 s
+  Amigi 1. W grze LAN wszyscy idą w tempie najwolniejszego: 39 kroków/s zamiast 60. Teraz
+  `sound_output=normal` (kopia starej konfiguracji `.uae.bak-exact`): czas Amigi = rzeczywisty
+  (60 s na 61 s w grze, Amiberry 100% jednego rdzenia), gra LAN 3 graczy 59,5 kroku/s.
+- Raz (31.10.2026 02:4x, zaraz po zmianie `sound_output`, przy starcie gry LAN) SmartCrash na Pi:
+  „Exception B line-F emulator”, PC 0x0004BCB8 (Chip RAM – skok w nie-kod), `CLI[9]:
+  ODUNE:OpenDUNE`; nie wiadomo, czy przy wyjściu poprzedniego (Ctrl-C po minucie misji), czy przy
+  starcie nowego. 9 prób powtórzenia (start, misja 1, 10–70 s gry, Ctrl-C, 3–8 s przerwy, start)
+  bez awarii. Do obserwacji – na prawdziwych Amigach nie widziane.
 
 ### Płynne przewijanie co piksel (29.10.2026, decyzja użytkownika: widok o 1 kafel mniejszy)
 - `smooth_scroll=1` (domyślnie; 0 = jak dawniej, co kafel). Gra rysuje widok w całych kaflach do
