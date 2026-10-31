@@ -2,6 +2,7 @@
 #include <exec/types.h>
 #include <exec/memory.h>
 #include <exec/execbase.h>
+#include <devices/timer.h>
 #include <dos/dos.h>
 #include <dos/dostags.h>
 #include <utility/tagitem.h>
@@ -10,6 +11,7 @@
 #include <proto/exec.h>
 #include <proto/dos.h>
 #include <proto/Picasso96.h>
+#include <proto/timer.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -18,6 +20,7 @@
 
 extern struct ExecBase *SysBase;
 extern struct Library *P96Base;   /* opened by video/video_amiga.c */
+extern struct Device *TimerBase;  /* opened by os/amiga.c */
 
 /* MOVEC PCR,D0 (68060 only), in supervisor mode by Supervisor(): the
 	 processor's identity in bits 31-16 (0x0430 MC68060, 0x0431 MC68LC060 /
@@ -105,6 +108,39 @@ static void read_warp(AmigaInfo *info)
 	DeleteFile((CONST_STRPTR)kDiagFile);
 }
 
+/* n turns of "subq.l #1,dn; bne.s": one clock each on a 68060 (2,000,000 in
+ * 20.1 ms at 100 MHz on a Warp 1260, 31.10.2026); 3 on a 68040 and about 8 on
+ * a 68020/68030 by the manuals (not measured). */
+static void spin(ULONG n)
+{
+	__asm__ volatile("1:\tsubq.l #1,%0\n\tbne.s 1b" : "+d"(n));
+}
+
+/* The CPU clock in MHz without a Warp to ask: the loop timed with the
+ * E-clock, the fastest of three (an interrupt only makes it slower). */
+static int measure_mhz(UWORD attn)
+{
+	struct EClockVal a, b;
+	ULONG freq = 0, ticks, best = 0xFFFFFFFFUL;
+	ULONG n = (attn & (AFF_68040 | AFF_68060)) ? 2000000 : 200000;
+	ULONG clocks = (attn & AFF_68060) ? 1 : (attn & AFF_68040) ? 3 : 8;
+	int i;
+
+	if (TimerBase == NULL) return 0;
+	for (i = 0; i < 3; i++) {
+		Forbid();
+		freq = ReadEClock(&a);
+		spin(n);
+		ReadEClock(&b);
+		Permit();
+		ticks = b.ev_lo - a.ev_lo;
+		if (ticks < best) best = ticks;
+	}
+	if (best == 0) return 0;
+	/* n * clocks * freq / ticks / 1000000, in 32 bits */
+	return (int)(((n / 1000) * clocks * (freq / 1000) + best / 2) / best);
+}
+
 void amiga_info_read(AmigaInfo *info)
 {
 	UWORD attn = SysBase->AttnFlags;
@@ -143,6 +179,7 @@ void amiga_info_read(AmigaInfo *info)
 	}
 
 	read_warp(info);
+	if (!info->warp) info->measured_mhz = measure_mhz(attn);
 }
 
 int amiga_warp_set_mhz(int mhz)

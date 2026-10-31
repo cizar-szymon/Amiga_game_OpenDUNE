@@ -158,6 +158,7 @@ extern bool Lan_ChatKey(uint16 code, bool up);
 extern void AmigaBug_Request(void);
 extern void AmigaBug_Tick(void);
 extern void Music_Amiga_Tick(void);
+extern void Amiga_NoRtg(void);
 extern void AmigaBug_Printf(const char *format, ...);
 
 static bool Video_OpenP96(void)
@@ -234,6 +235,7 @@ static bool Video_OpenScreen(int w, int h)
 	id = Video_FindClutMode(w, h, &mw, &mh);
 	if (id == INVALID_ID) {
 		Error("No 8-bit RTG screen mode of %dx%d or larger\n", w, h);
+		if (w <= 640 && h <= 480) Amiga_NoRtg();	/* (larger: 640x480 is tried next) */
 		return false;
 	}
 	/* no mode of exactly w x h: the screen as large as the mode, the
@@ -375,6 +377,7 @@ bool Video_Init(int screen_magnification, VideoScaleFilter filter)
 
 	if (!Video_OpenP96()) {
 		Error("Picasso96API.library v2 is needed\n");
+		Amiga_NoRtg();
 		return false;
 	}
 	s_line = AllocVec(2048, MEMF_ANY | MEMF_CLEAR);

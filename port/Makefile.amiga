@@ -16,7 +16,7 @@ SRCS = animation.c audio/driver.c audio/dsp_amiga.c audio/midi_none.c audio/musi
   cutscene.c explosion.c file.c gfx.c gui/editbox.c gui/font.c gui/font_polish.c gui/gui.c gui/layout_amiga.c gui/rts_amiga.c gui/smooth_amiga.c gui/lan_menu_amiga.c gui/lan_chat_amiga.c gui/mentat.c \
   gui/security.c gui/viewport.c gui/widget.c gui/widget_click.c gui/widget_draw.c house.c \
   ini.c inifile.c input/input.c lan_amiga.c lang_amiga.c input/mouse.c load.c map.c object.c opendune.c \
-  os/endian.c os/error.c os/readdir_amiga.c os/amiga.c os/bugreport_amiga.c os/net_amiga.c os/sysinfo_amiga.c \
+  os/endian.c os/error.c os/readdir_amiga.c os/amiga.c os/bugreport_amiga.c os/net_amiga.c os/sysinfo_amiga.c os/syscheck_amiga.c \
   pool/house.c pool/structure.c pool/team.c pool/unit.c save.c \
   saveload/house.c saveload/info.c saveload/map.c saveload/object.c saveload/saveload.c \
   saveload/scenario.c saveload/scriptengine.c saveload/structure.c saveload/team.c saveload/unit.c \
@@ -48,6 +48,9 @@ $(OBJDIR)/rev.c: src/rev.c.in VERSION
 # the bug report is the program's
 $(OBJDIR)/rev.o: $(OBJDIR)/rev.c $(filter-out $(OBJDIR)/rev.o,$(OBJS))
 	$(CC) $(CFLAGS) -iquote src -c -o $@ $<
+
+# the start check runs on a 68000 too (it says the game needs a 68020)
+$(OBJDIR)/os/syscheck_amiga.o: CFLAGS += -mcpu=68000
 
 $(OBJDIR)/%.o: src/%.c
 	@mkdir -p $(dir $@)

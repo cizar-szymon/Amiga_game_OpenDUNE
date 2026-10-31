@@ -929,6 +929,13 @@ static void GUI_Amiga_AmigaInfoDraw(const AmigaInfo *info, bool clock)
 	}
 	y += 3;
 	if (!info->warp) {
+		if (info->measured_mhz > 0) {
+			/* (measured: see sysinfo_amiga.c) */
+			snprintf(mhz, sizeof(mhz), "~%d MHz", info->measured_mhz);
+			GUI_DrawText_Wrapper(Lang_T("CPU clock"), x + AMIGAINFO_LABEL, y, 232, 0, 0x22);
+			GUI_DrawText_Wrapper(mhz, x + AMIGAINFO_VALUE, y, 238, 0, 0x22);
+			y += AMIGAINFO_ROW + 3;
+		}
 		GUI_DrawText_Wrapper(Lang_T("No Warp: SYS:C/WarpTool"), x + AMIGAINFO_LABEL, y, 232, 0, 0x22);
 		GUI_DrawText_Wrapper(Lang_T("not found."), x + AMIGAINFO_LABEL, y + AMIGAINFO_ROW, 232, 0, 0x22);
 	} else {

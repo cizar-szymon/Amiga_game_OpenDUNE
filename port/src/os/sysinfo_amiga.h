@@ -20,6 +20,7 @@ typedef struct AmigaInfo {
 	char warp_model[24];
 	char warp_firmware[16];
 	int warp_mhz;            /* the CPU clock it reports, 0 if unknown */
+	int measured_mhz;        /* no Warp: the CPU clock timed by a loop */
 } AmigaInfo;
 
 /* Fills info; the Warp part runs "WarpTool Diag" (a fraction of a second). */

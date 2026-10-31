@@ -1522,6 +1522,11 @@ int main(int argc, char **argv)
 	}
 #endif /* TOS */
 #ifdef __amigaos__
+	{
+		/* the CPU and the memory first (a requester, see syscheck_amiga.c) */
+		extern bool Amiga_SystemCheck(void);
+		if (!Amiga_SystemCheck()) return 1;
+	}
 	/* errors (and with _DEBUG everything) to a file; the console only when
 	 * started from the Shell (from an icon libnix would open a window) */
 	{
