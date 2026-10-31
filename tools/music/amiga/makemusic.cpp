@@ -175,6 +175,7 @@ static signed char *Render(const unsigned char *adl, long adlLen, int track, lon
 	long *pos = (long *)malloc(sizeof(long) * maxTicks);
 	short buf[RATE / TICK_HZ + 2];
 	long due = 0, myPeak = 0;		/* samples due, in 1/TICK_HZ units */
+	long dot = 20L * RATE;			/* the next progress dot */
 	bool ended = false;
 
 	*loop = -1;
@@ -208,6 +209,11 @@ static signed char *Render(const unsigned char *adl, long adlLen, int track, lon
 			}
 		}
 		total += n;
+		if (total >= dot) {		/* a dot per 20 s of music: it is working */
+			putchar('.');
+			fflush(stdout);
+			dot += 20L * RATE;
+		}
 		if (tail >= 0 && (tail -= n) <= 0) break;
 	}
 	*peak = myPeak;
@@ -348,11 +354,11 @@ int main(int argc, char **argv)
 	}
 	fclose(f);
 	if (!peakOnly) {
-#if defined(__amigaos__)
-		mkdir(to, 0);
-#else
-		mkdir(to, 0755);
-#endif
+		mkdir(to, 0755);	/* (libnix: mode 0 gave a directory protected from deletion) */
+		printf("About 35 minutes on a 68060 @ 100 MHz; a dot per 20 s of music recorded.\n"
+		       "Okolo 35 minut na 68060 @ 100 MHz; kropka co 20 s nagranej muzyki.\n"
+		       "Etwa 35 Minuten auf einem 68060 @ 100 MHz; ein Punkt je 20 s Musik.\n\n");
+		fflush(stdout);
 	}
 
 	for (m = 0; m < sizeof(s_musics) / sizeof(s_musics[0]); m++) {
@@ -364,16 +370,16 @@ int main(int argc, char **argv)
 
 		snprintf(name, sizeof(name), "%s.ADL", s_musics[m].file);
 		adl = Pak_Find(pak, pakSize, name, &adlLen);
-		printf("%2u/%u %s_%d ", m + 1, (unsigned)(sizeof(s_musics) / sizeof(s_musics[0])), s_musics[m].file, s_musics[m].track);
+		printf("%2u/%u %s_%d", m + 1, (unsigned)(sizeof(s_musics) / sizeof(s_musics[0])), s_musics[m].file, s_musics[m].track);
 		fflush(stdout);
 		if (adl == NULL) {
-			printf("- no %s in SOUND.PAK\n", name);
+			printf(" - no %s in SOUND.PAK\n", name);
 			continue;
 		}
 		s = Render(adl, adlLen, s_musics[m].track, &length, &loop, &peak, peakOnly);
 		if (peak > allPeak) allPeak = peak;
 		if (s == NULL) {
-			printf("%s\n", peakOnly ? "" : "- silent in the AdLib version, no file");
+			printf("%s\n", peakOnly ? "" : " - silent in the AdLib version, no file");
 			if (!peakOnly) silent++;
 			continue;
 		}
@@ -393,8 +399,8 @@ int main(int argc, char **argv)
 		}
 		free(s);
 		made++;
-		if (loop >= 0) printf("%ld s, loop from %ld s", length / RATE, loop / RATE);
-		else printf("%ld s", length / RATE);
+		if (loop >= 0) printf(" %ld s, loop from %ld s", length / RATE, loop / RATE);
+		else printf(" %ld s", length / RATE);
 		printf(" (%ld s)\n", (long)(time(NULL) - t1));
 	}
 	free(pak);
