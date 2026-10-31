@@ -93,7 +93,8 @@ IF SOMETHING GOES WRONG
 -----------------------
 
 - The game ends at once or says files are missing: the .PAK files are
-  not in OpenDUNE/data (or opendune.ini datadir= points elsewhere).
+  not in OpenDUNE/data (or DATADIR= in the icon's Tool Types or
+  datadir= in opendune.ini points elsewhere).
 - No music: step 3 was not done, or Options -> Game controls -> Music
   is off.
 - No picture / wrong screen: an RTG card with 8-bit (256 colour) screen
@@ -194,8 +195,8 @@ GDY COS NIE DZIALA
 ------------------
 
 - Gra od razu sie konczy albo pisze, ze brakuje plikow: pliki .PAK nie
-  leza w OpenDUNE/data (albo datadir= w opendune.ini wskazuje inne
-  miejsce).
+  leza w OpenDUNE/data (albo DATADIR= w Tool Types ikony lub datadir=
+  w opendune.ini wskazuje inne miejsce).
 - Brak muzyki: krok 3 nie zostal wykonany albo w Opcje -> Ustawienia
   gry -> Muzyka muzyka jest wylaczona.
 - Brak obrazu / zly ekran: potrzebna karta RTG z trybami 8-bitowymi
@@ -297,8 +298,8 @@ WENN ETWAS NICHT GEHT
 ---------------------
 
 - Das Spiel endet sofort oder meldet fehlende Dateien: die .PAK-Dateien
-  liegen nicht in OpenDUNE/data (oder datadir= in opendune.ini zeigt
-  woanders hin).
+  liegen nicht in OpenDUNE/data (oder DATADIR= in den Tool Types des
+  Icons bzw. datadir= in opendune.ini zeigt woanders hin).
 - Keine Musik: Schritt 3 fehlt, oder die Musik ist ausgeschaltet
   (Options -> Game controls -> Music).
 - Kein Bild / falscher Bildschirm: eine RTG-Karte mit 8-Bit-Modi (256

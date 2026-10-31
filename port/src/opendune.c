@@ -1525,7 +1525,9 @@ int main(int argc, char **argv)
 	{
 		/* the CPU and the memory first (a requester, see syscheck_amiga.c) */
 		extern bool Amiga_SystemCheck(void);
+		extern void Amiga_OptionsRead(int argc, char **argv);
 		if (!Amiga_SystemCheck()) return 1;
+		Amiga_OptionsRead(argc, argv);	/* the icon's Tool Types, the Shell's KEY=value */
 	}
 	/* errors (and with _DEBUG everything) to a file; the console only when
 	 * started from the Shell (from an icon libnix would open a window) */

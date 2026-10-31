@@ -45,7 +45,8 @@ niemiecka, francuska) moga dzialac, ale nie byly testowane.
 
 Pliki z wersji Dune II na Amige NIE pasuja - to inny format.
 
-Dane moga lezec gdzie indziej - wtedy w opendune.ini: datadir=Work:Dune2/
+Dane moga lezec gdzie indziej - wtedy Tool Type ikony DATADIR=Work:Dune2/
+(albo datadir= w opendune.ini)
 (katalog z plikami .PAK).
 
 
@@ -166,8 +167,15 @@ F10 w dowolnej chwili zapisuje do OpenDUNE/saves:
 Wyslij te pliki razem z numerem wersji i opisem, co sie stalo.
 
 
-OPCJE (opendune.ini)
---------------------
+OPCJE (Tool Types ikony albo opendune.ini)
+-----------------------------------------
+
+Kazda opcja moze byc Tool Type ikony OpenDUNE (Workbench: zaznacz ikone,
+Ikony -> Informacje), np. SCREENMODE=800x600 - wygrywa z opendune.ini.
+Ikona ma najczestsze opcje w nawiasach, np. (LANGUAGE=polish): usun
+nawiasy, zeby wlaczyc. Z Shella to samo jako argumenty:
+OpenDUNE SCREENMODE=800x600 LANGUAGE=german. MakeMusic tez bierze
+DATADIR i MUSIC_DIR z ikony gry.
 
   datadir=           katalog z plikami .PAK (domyslnie PROGDIR:data)
   savedir=           katalog zapisow (domyslnie PROGDIR:saves)

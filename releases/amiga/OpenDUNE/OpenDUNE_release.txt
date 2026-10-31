@@ -37,6 +37,21 @@ Zgloszenia: github.com/cizar-szymon/Amiga_game_OpenDUNE (Issues).
   i katalogiem, w ktorym ich szuka (po angielsku, polsku i niemiecku),
   zamiast konczyc sie bez slowa. MakeMusic bez SOUND.PAK mowi to samo
   w trzech jezykach, a jego okno zamyka sie klawiszem Return.
+- MakeMusic pokazuje postep: kropka co 20 s nagranej muzyki, wiec widac,
+  ze pracuje, a nie zawiesil sie (jeden utwor to okolo minuty).
+- Katalog MUSIC zalozony przez MakeMusic da sie skasowac. Wczesniej
+  byl chroniony przed skasowaniem; stary katalog: Protect MUSIC +d.
+- Sprawdzenie Amigi przy starcie (okno po angielsku, polsku i niemiecku):
+  bez karty graficznej RTG z Picasso96 (tryb 8-bitowy od 640x480) albo
+  przy mniej niz 8 MB wolnej Fast RAM gra mowi, czego brakuje, i nie
+  startuje (gra zajmuje ok. 6,5 MB). Na 68020/68030 ostrzega, ze moze
+  dzialac wolno (Graj / Wyjdz); na 68000 mowi, ze potrzebny jest 68020.
+- Opcje - O Amidze: bez Warpa (WarpTool) okno pokazuje zegar procesora
+  zmierzony przez gre (np. "~50 MHz"); na 68060 dokladny co do 1 MHz.
+- Ustawienia takze w ikonie: kazda opcja opendune.ini moze byc Tool Type
+  ikony OpenDUNE (np. SCREENMODE=800x600) albo argumentem w Shellu i
+  wygrywa z opendune.ini. Ikona ma najczestsze opcje w nawiasach jako
+  podpowiedzi. MakeMusic bierze DATADIR i MUSIC_DIR tez z ikony gry.
 - Litera P w nazwie zapisu nie wlacza juz pauzy.
 - Start z ikony: przy wyjsciu z gry nie otwiera sie okno konsoli.
 - Raport F10 podaje prawdziwa date kompilacji programu.

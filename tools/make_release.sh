@@ -31,7 +31,11 @@ grep -a -q "\$VER: OpenDUNE $V " build/amiga/OpenDUNE.s || { echo "build/amiga/O
 rm -rf "$R/OpenDUNE"
 mkdir -p "$R/OpenDUNE/data" "$R/OpenDUNE/MUSIC"
 cp build/amiga/OpenDUNE.s "$R/OpenDUNE/OpenDUNE"
-python tools/make_icon.py "$R/OpenDUNE/OpenDUNE.info" --frame tools/icon/title112.png --crop 0 0 112 70 --lit-frame --pos 8 4 >/dev/null 2>&1
+# Tool Types: the player's settings, winning over opendune.ini (os/options_amiga.c);
+# in brackets they are off, as hints
+python tools/make_icon.py "$R/OpenDUNE/OpenDUNE.info" --frame tools/icon/title112.png --crop 0 0 112 70 --lit-frame --pos 8 4 \
+  --tooltypes "(DATADIR=Work:Dune2/)" "(MUSIC_DIR=PROGDIR:MUSIC)" "(SCREENMODE=800x600)" "(LANGUAGE=polish)" \
+  "(MUSIC_VOLUME=40)" "(SHOW_FPS=1)" "(LAN_INFO=1)" "(SKIP_INTRO=0)" >/dev/null 2>&1
 python tools/make_icon.py "$R/OpenDUNE.info" --frame tools/icon/drawer.png --crop 0 0 46 40 --transparent --drawer >/dev/null 2>&1	# a plain drawer (tools/icon/draw_icons.py)
 [ -f build/amiga/MakeMusic ] || { echo "build/amiga/MakeMusic missing: tools/music/amiga/build.sh first" >&2; exit 1; }
 cp build/amiga/MakeMusic "$R/OpenDUNE/MakeMusic"	# records the music on the Amiga

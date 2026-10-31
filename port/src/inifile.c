@@ -31,6 +31,11 @@
 
 static char * g_openduneini = NULL;
 
+#if defined(__amigaos__)
+/* the icon's Tool Types and the Shell's arguments win (os/options_amiga.c) */
+extern const char *Amiga_Option(const char *key);
+#endif
+
 /**
  * Find and read the opendune.ini file
  *
@@ -166,7 +171,7 @@ bool SetLanguage_From_IniFile(DuneCfg *config)
 {
 	char language[16];
 
-	if (config == NULL || g_openduneini == NULL) return false;
+	if (config == NULL) return false;
 	if (IniFile_GetString("language", NULL, language, sizeof(language)) == NULL) {
 		return false;
 	}
@@ -189,6 +194,14 @@ char *IniFile_GetString(const char *key, const char *defaultValue, char *dest, u
 {
 	char * p;
 	uint16 i;
+#if defined(__amigaos__)
+	const char *v = Amiga_Option(key);
+	if (v != NULL && length > 0) {
+		strncpy(dest, v, length - 1);
+		dest[length - 1] = '\0';
+		return dest;
+	}
+#endif
 	/* if g_openduneini is NULL, Ini_GetString() still does what we expect */
 	p = Ini_GetString("opendune", key, defaultValue, dest, length, g_openduneini);
 	if (p) {
@@ -201,6 +214,10 @@ char *IniFile_GetString(const char *key, const char *defaultValue, char *dest, u
 
 int IniFile_GetInteger(const char *key, int defaultValue)
 {
+#if defined(__amigaos__)
+	const char *v = Amiga_Option(key);
+	if (v != NULL) return atoi(v);
+#endif
 	if (g_openduneini == NULL) return defaultValue;
 	return Ini_GetInteger("opendune", key, defaultValue, g_openduneini);
 }

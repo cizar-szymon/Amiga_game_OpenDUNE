@@ -3,8 +3,10 @@
  * Amiga itself, from the player's own game data (no PC needed).
  *
  *   MakeMusic [DATA] [TO] [PEAK]
- *     DATA  the directory with SOUND.PAK of Dune II for the PC (default PROGDIR:data)
- *     TO    where the recordings go (default PROGDIR:MUSIC, made if missing)
+ *     DATA  the directory with SOUND.PAK of Dune II for the PC (default: DATADIR
+ *           of the game's icon, else datadir of opendune.ini, else PROGDIR:data)
+ *     TO    where the recordings go (default: MUSIC_DIR of the icon, music_dir of
+ *           opendune.ini, PROGDIR:MUSIC; made if missing)
  *     PEAK  (tests) only print the loudest sample of all pieces
  *
  * The AdLib music (the .ADL files in SOUND.PAK) is played by AdPlug's Westwood
@@ -28,6 +30,11 @@
 #include <time.h>
 #include <string>
 #include <sys/stat.h>
+#if defined(__amigaos__)
+#include <workbench/workbench.h>
+#include <proto/exec.h>
+#include <proto/icon.h>
+#endif
 
 #include "adl.h"
 #include "emuopl.h"
@@ -40,7 +47,7 @@
 unsigned long __stack = 65536;
 extern "C" void __stkinit(void);
 void (*const makemusic_stackSwap)(void) = __stkinit;
-const char version[] = "$VER: MakeMusic 1.1 (31.10.2026) OpenDUNE music recorder";
+const char version[] = "$VER: MakeMusic 1.2 (31.10.2026) OpenDUNE music recorder";
 /* the window for the output when started from the icon: libnix's own has WAIT
  * (it stays open after the end until its close gadget), here Return closes it
  * (Finish) */
@@ -294,6 +301,40 @@ static bool Ini_Get(const char *key, char *value, size_t size)
 	return found;
 }
 
+#if defined(__amigaos__)
+struct Library *IconBase;
+
+/* KEY=value among the Tool Types of the game's icon (PROGDIR:OpenDUNE.info),
+ * which win over its opendune.ini as in the game; "(KEY=...)" is a hint */
+static bool Icon_Get(const char *key, char *value, size_t size)
+{
+	struct DiskObject *dobj;
+	size_t klen = strlen(key);
+	bool found = false;
+
+	IconBase = OpenLibrary((CONST_STRPTR)"icon.library", 36);
+	if (IconBase == NULL) return false;
+	dobj = GetDiskObject((CONST_STRPTR)"PROGDIR:OpenDUNE");
+	if (dobj != NULL) {
+		char **tt = (char **)dobj->do_ToolTypes;
+		for (int i = 0; tt != NULL && tt[i] != NULL && !found; i++) {
+			const char *p = tt[i];
+			while (*p == ' ') p++;
+			if (strncasecmp(p, key, klen) != 0 || p[klen] != '=' || p[klen + 1] == '\0') continue;
+			strncpy(value, p + klen + 1, size - 1);
+			value[size - 1] = '\0';
+			found = true;
+		}
+		FreeDiskObject(dobj);
+	}
+	CloseLibrary(IconBase);
+	IconBase = NULL;
+	return found;
+}
+#else
+static bool Icon_Get(const char *, char *, size_t) { return false; }
+#endif
+
 static int Finish(int rc)
 {
 	if (s_fromIcon) {
@@ -319,12 +360,12 @@ int main(int argc, char **argv)
 
 	s_fromIcon = argc == 0;	/* (libnix: argc 0 from the Workbench, its window for the output) */
 	/* the game's own settings first, the arguments win */
-	if (Ini_Get("datadir", iniData, sizeof(iniData))) {
+	if (Icon_Get("datadir", iniData, sizeof(iniData)) || Ini_Get("datadir", iniData, sizeof(iniData))) {
 		size_t n = strlen(iniData);
 		if (n > 1 && iniData[n - 1] == '/') iniData[n - 1] = '\0';	/* "Work:Dune2/" */
 		data = iniData;
 	}
-	if (Ini_Get("music_dir", iniTo, sizeof(iniTo))) to = iniTo;
+	if (Icon_Get("music_dir", iniTo, sizeof(iniTo)) || Ini_Get("music_dir", iniTo, sizeof(iniTo))) to = iniTo;
 	if (argc > 1 && strcasecmp(argv[1], "PEAK") != 0) data = argv[1];
 	/* (a directory given as "Work:Dune2/" is fine too) */
 	if (argc > 2 && strcasecmp(argv[2], "PEAK") != 0) to = argv[2];

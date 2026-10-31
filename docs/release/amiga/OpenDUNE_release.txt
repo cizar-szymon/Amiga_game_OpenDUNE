@@ -48,6 +48,10 @@ Zgloszenia: github.com/cizar-szymon/Amiga_game_OpenDUNE (Issues).
   dzialac wolno (Graj / Wyjdz); na 68000 mowi, ze potrzebny jest 68020.
 - Opcje - O Amidze: bez Warpa (WarpTool) okno pokazuje zegar procesora
   zmierzony przez gre (np. "~50 MHz"); na 68060 dokladny co do 1 MHz.
+- Ustawienia takze w ikonie: kazda opcja opendune.ini moze byc Tool Type
+  ikony OpenDUNE (np. SCREENMODE=800x600) albo argumentem w Shellu i
+  wygrywa z opendune.ini. Ikona ma najczestsze opcje w nawiasach jako
+  podpowiedzi. MakeMusic bierze DATADIR i MUSIC_DIR tez z ikony gry.
 - Litera P w nazwie zapisu nie wlacza juz pauzy.
 - Start z ikony: przy wyjsciu z gry nie otwiera sie okno konsoli.
 - Raport F10 podaje prawdziwa date kompilacji programu.

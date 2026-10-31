@@ -50,6 +50,10 @@ Reports: github.com/cizar-szymon/Amiga_game_OpenDUNE (Issues).
   it says that a 68020 is needed.
 - Options - Amiga info: without a Warp (WarpTool) the window shows the
   CPU clock as the game measures it (e.g. "~50 MHz"); on a 68060 to 1 MHz.
+- Settings in the icon too: each option of opendune.ini can be a Tool Type
+  of the OpenDUNE icon (e.g. SCREENMODE=800x600) or a Shell argument, and
+  wins over opendune.ini. The icon has the usual ones in brackets as
+  hints. MakeMusic takes DATADIR and MUSIC_DIR from the game's icon too.
 - The letter P in a save's name no longer pauses the game.
 - Started from the icon: no console window opens when the game ends.
 - The F10 report gives the program's real build date.

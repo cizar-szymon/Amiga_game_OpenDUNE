@@ -45,7 +45,8 @@ French 1.07) may work but were not tested.
 
 The files of the Amiga version of Dune II do NOT fit - another format.
 
-The data can be elsewhere - then in opendune.ini: datadir=Work:Dune2/
+The data can be elsewhere - then the Tool Type DATADIR=Work:Dune2/ of the
+icon (or datadir= in opendune.ini)
 (the directory with the .PAK files).
 
 
@@ -170,8 +171,15 @@ F10 at any moment writes into OpenDUNE/saves:
 Send these files with the release number and what happened.
 
 
-OPTIONS (opendune.ini)
-----------------------
+OPTIONS (icon Tool Types or opendune.ini)
+-----------------------------------------
+
+Each option can be a Tool Type of the OpenDUNE icon (Workbench: select
+the icon, Icons -> Information), e.g. SCREENMODE=800x600 - it wins over
+opendune.ini. The icon comes with the usual ones in brackets, e.g.
+(LANGUAGE=polish): remove the brackets to switch one on. From the Shell
+the same as arguments: OpenDUNE SCREENMODE=800x600 LANGUAGE=german.
+MakeMusic takes DATADIR and MUSIC_DIR from the game's icon too.
 
   datadir=           directory of the .PAK files (default PROGDIR:data)
   savedir=           directory of the saves (default PROGDIR:saves)
