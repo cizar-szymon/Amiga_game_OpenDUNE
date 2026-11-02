@@ -7,6 +7,20 @@ z OpenDUNE/saves - F10 zapisuje bugNNN.txt, bugNNN.dat i bugNNN-*.bmp.
 Zgloszenia: github.com/cizar-szymon/Amiga_game_OpenDUNE (Issues).
 
 
+0.51 (2.11.2026)
+-----------------
+
+- Przewijanie mapy krawedzia ekranu rusza dopiero, gdy wskaznik zjedzie
+  z krawedzi na mape. Wczesniej wskaznik zostawiony przy krawedzi (np.
+  po starcie gry LAN) od razu przewijal widok w czarna, nieznana czesc
+  mapy, a strzalki go nie zatrzymywaly.
+- Rozdzielczosc, jezyk i licznik klatek wybrane w grze (Options) wygrywaja
+  z ikona, Shellem i opendune.ini - te daja tylko ustawienie na pierwszy
+  start. Bez niczego: 640x480, angielski, bez licznika klatek.
+- Ikona OpenDUNE ma w podpowiedziach tylko ustawienia, ktorych nie ma
+  w grze (DATADIR, MUSIC_DIR, MUSIC_VOLUME, LAN_INFO, SKIP_INTRO).
+
+
 0.50 (31.10.2026)
 -----------------
 

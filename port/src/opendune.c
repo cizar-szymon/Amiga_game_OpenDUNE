@@ -1589,6 +1589,11 @@ int main(int argc, char **argv)
 		Config_Default(&g_config);
 		commit_dune_cfg = true;
 	}
+#if defined(__amigaos__)
+	/* a new game is in English, not in dune.cfg's language: then the ini's /
+	 * icon's language=, then LANGUAGE.CFG (Lang_Init) */
+	g_config.language = LANGUAGE_ENGLISH;
+#endif
 	/* reading config from opendune.ini which prevail over dune.cfg */
 	SetLanguage_From_IniFile(&g_config);
 

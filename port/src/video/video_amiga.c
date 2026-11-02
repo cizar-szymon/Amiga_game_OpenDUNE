@@ -13,7 +13,7 @@
  * scrolls (Video_ScrollView() from GUI_DrawScreen) the card's blitter moves
  * the viewport in VRAM and the copy is moved the same way, so a scroll step
  * sends the new strip and what moved instead of the whole viewport
- * (opendune.ini vram_scroll=1, the default; 0 = without the copy). Each source row is
+ * (always on). Each source row is
  * widened once into a line buffer in fast RAM and written to the locked
  * bitmap with long moves, once per screen row it covers (Warp RTG notes:
  * write VRAM only, never read it; the lock is held only inside Video_Tick and
@@ -26,7 +26,7 @@
  * messages while its queue is full.) Keyboard: Amiga raw keys translated to
  * AT scancodes.
  * Resolution: Options -> Resolution (kept in the save directory), or
- * opendune.ini screenmode=WxH (wins); 640x480 by default.
+ * opendune.ini / icon screenmode=WxH until one is chosen; 640x480 by default.
  */
 
 #include <exec/types.h>
@@ -342,21 +342,21 @@ bool Video_Amiga_SetScreen(int w, int h)
 	return s_reqW == w && s_reqH == h;
 }
 
-/* A resolution from the ini (screenmode=WxH) or the one chosen in Options,
- * within 400x300 .. SCREEN_WIDTH_MAX x SCREEN_HEIGHT_MAX. */
+/* The resolution chosen in Options, else the ini's / icon's screenmode=WxH,
+ * else 640x480; within 400x300 .. SCREEN_WIDTH_MAX x SCREEN_HEIGHT_MAX. */
 static void Video_RequestedSize(int *w, int *h)
 {
 	char mode[32];
 	*w = 640;
 	*h = 480;
-	if (IniFile_GetString("screenmode", NULL, mode, sizeof(mode)) != NULL) {
+	if (Layout_SavedResolution(w, h)) {
+		/* chosen in Options */
+	} else if (IniFile_GetString("screenmode", NULL, mode, sizeof(mode)) != NULL) {
 		char *x = strchr(mode, 'x');
 		if (x != NULL) {
 			*w = atoi(mode);
 			*h = atoi(x + 1);
 		}
-	} else {
-		Layout_SavedResolution(w, h);
 	}
 	if (*w < 400 || *h < 300 || *w > SCREEN_WIDTH_MAX || *h > SCREEN_HEIGHT_MAX) {
 		Warning("screen mode %dx%d not supported, using 640x480\n", *w, *h);
@@ -387,7 +387,7 @@ bool Video_Init(int screen_magnification, VideoScaleFilter filter)
 	s_commands = IniFile_GetInteger("debug_commands", 0) != 0;
 	s_showFPS = IniFile_GetInteger("show_fps", 0) != 0;
 	if (Layout_SavedShowFPS() >= 0) s_showFPS = Layout_SavedShowFPS() != 0;	/* chosen in Game controls */
-	s_vramScroll = IniFile_GetInteger("vram_scroll", 1) != 0;
+	s_vramScroll = true;	/* always on (vram_scroll= is gone) */
 	Video_RequestedSize(&reqW, &reqH);
 	if (!Video_OpenScreen(reqW, reqH)) {
 		if (reqW == 640 && reqH == 480) return false;

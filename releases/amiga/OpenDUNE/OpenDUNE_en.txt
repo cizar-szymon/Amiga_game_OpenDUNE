@@ -15,8 +15,12 @@ the Shell: Version OpenDUNE
 REQUIREMENTS
 ------------
 
-- an Amiga with a 68040 or 68060 (tested on Warp 1260 / 7060, 68060 at
-  100 MHz), 32 MB Fast RAM or more
+- made for the Amiga 500 / 1200 / 3000 / 4000 with a Warp card (Warp 560,
+  1240, 1260, 1260 Extreme, 4070): ported and tested on Warp cards
+  (68060 at 100 MHz); their fast graphics card gives the large screens
+  and the smooth movement. Other Amigas with a 68040 or 68060 and an RTG
+  card run it too, but slower.
+- 32 MB Fast RAM or more
 - AmigaOS 3.1 or later (tested with 3.2), Picasso96 with 8-bit modes
   (e.g. 640x480, 800x600) - an RTG card (Warp, Picasso, CyberVision, UAE)
 - sound: Paula (audio.device); AHI is not needed
@@ -120,7 +124,7 @@ Options -> Game controls -> Language: each click chooses the next
 language (English, Deutsch, Polski - only those whose files are there).
 The language changes back in the main menu (Options -> Main menu) or at
 the next start; the choice is kept (saves/LANGUAGE.CFG). Without a choice
-in the game language= of opendune.ini decides.
+in the game: language= of opendune.ini, else English.
 
 Polish: a translation of all the game's texts (the mentats' briefings,
 messages, names and descriptions of units and buildings, menus, the
@@ -175,24 +179,22 @@ OPTIONS (icon Tool Types or opendune.ini)
 -----------------------------------------
 
 Each option can be a Tool Type of the OpenDUNE icon (Workbench: select
-the icon, Icons -> Information), e.g. SCREENMODE=800x600 - it wins over
+the icon, Icons -> Information), e.g. MUSIC_VOLUME=30 - it wins over
 opendune.ini. The icon comes with the usual ones in brackets, e.g.
-(LANGUAGE=polish): remove the brackets to switch one on. From the Shell
-the same as arguments: OpenDUNE SCREENMODE=800x600 LANGUAGE=german.
+(DATADIR=Work:Dune2/): remove the brackets to switch one on. From the
+Shell the same as arguments: OpenDUNE DATADIR=Work:Dune2/ MUSIC_VOLUME=30.
 MakeMusic takes DATADIR and MUSIC_DIR from the game's icon too.
+The screen size, language and frame counter are chosen in the game
+(Options); the choice is kept. Without a choice in the game: 640x480,
+English, no counter (or screenmode=, language=, show_fps= of opendune.ini).
 
   datadir=           directory of the .PAK files (default PROGDIR:data)
   savedir=           directory of the saves (default PROGDIR:saves)
-  screenmode=WxH     screen size (instead of the choice in Options)
+  screenmode=WxH     screen size when none was chosen in Options
   framerate=60       frames per second
   skip_intro=1       no intro at the start (must be 1 without INTRO.PAK)
-  show_fps=1         frame counter (also F8 and Options)
-  smooth_units=0     unit movement as the original (in steps)
-  smooth_scroll=0    map scrolling by whole tiles as the original (the
-                     default: smooth, pixel by pixel, the view a tile smaller)
-  rts_controls=0     controls as the original (no rubber band, no right
-                     button orders)
-  vram_scroll=0      scrolling without the card's blitter
+  show_fps=1         frame counter when not chosen in Options (F8: on /
+                     off until the game ends)
   music_dir=         music directory (default PROGDIR:MUSIC)
   music_volume=0..64 music volume (default 40)
   lan_info=1         in a LAN game a line with the players' response time

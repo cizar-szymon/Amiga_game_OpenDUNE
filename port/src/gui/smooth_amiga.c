@@ -3,8 +3,8 @@
  * The game moves units every 3 game ticks (50 ms, 20 times a second), by
  * several pixels at a time. The logic stays as it is; only the drawing shows
  * a unit between its position before and after the last movement step, by the
- * time since that step (opendune.ini smooth_units=1, the default; 0 = the
- * original). Moving units and the tiles around both positions are marked for
+ * time since that step (always on). Moving units and the tiles around both
+ * positions are marked for
  * redrawing in every frame (Map_Update(), as for a normal move). A jump of
  * more than 2 tiles (a new unit, a drop from a carryall) is not smoothed.
  */
@@ -38,7 +38,7 @@ static uint32 s_lastMark;		/* Timer_GetTime() of the last marking */
 
 static bool Smooth_Enabled(void)
 {
-	if (s_enabled < 0) s_enabled = IniFile_GetInteger("smooth_units", 1) != 0 ? 1 : 0;
+	s_enabled = 1;		/* always on (smooth_units= is gone) */
 	return s_enabled != 0;
 }
 

@@ -597,6 +597,59 @@ Uwagi: dwa domyślne imiona graczy „SLAVE” w jednym lobby nie przeszkadzają
 „SLAVE opuścił grę” nie mówi, który; 77 MB pełnego ZIP-a nie przejdzie przez AmiAgenta (limit
 czasu), stąd test z publicznym ZIP-em i danymi skopiowanymi na Amidze.
 
+### Testy przed wydaniem 0.50, część 2 (31.10–1.11.2026)
+
+| Test | Gdzie | Wynik |
+|---|---|---|
+| Zawieszenie serwera w grze LAN | Amiga 1 + WinUAE + Pi400 | gracze po ok. 10 s „Utracono połączenie z serwerem.” (wyżej, „Zanik gracza LAN”) ✅ |
+| Zły katalog danych | Amiga 1, WinUAE | requester z listą brakujących plików i katalogiem, także dla `DATADIR=` z Tool Types ikony; MakeMusic bierze ten sam katalog z ikony gry ✅ |
+| Długa gra 3 graczy | Amiga 1 (serwer, Harkonnen) + WinUAE (Atreides) + Pi400 (Ordos), mapa Arrakis 1 3P, poziom 9, ta sama binarka (md5) na 3 maszynach | 1.11.2026 01:28–02:28, 63 rundy rozkazów ruchu u obu graczy i przewijania u serwera: do kroku 202 200 (~56 min czasu gry) **serwer 1346 porównań sum, każdy gracz 674 – wszystkie zgodne**, żadnego OUT OF STEP ani zerwania; koniec przez Ctrl-C na 3 maszynach ✅ |
+| Brak RTG | WinUAE bez karty (`OpenDUNE_test_noRTG.uae`, `gfxcard_size=0`) | requester „needs a graphics card (RTG) … 640x480 or more” EN/PL/DE, po OK gra kończy się (log: „No 8-bit RTG screen mode of 640x480 or larger”) ✅ |
+| 68030 | WinUAE 68030 + 68882 z RTG (`OpenDUNE_test_030.uae`) | ostrzeżenie „made for a 68040 or 68060” z „Play / Quit”; Play – gra działa, okno „O Amidze”: MC68030, zegar „~656 MHz” (WinUAE bez ograniczenia szybkości, liczba bez znaczenia); Quit – koniec od razu ✅ |
+| 68000 | – | nie do zrobienia: jedyny ROM (`kicka1200.rom`) wymaga 68020, WinUAE nie startuje; potrzebny ROM A500/A600 3.x ⏳ |
+| `LANGUAGE=` z Tool Types | WinUAE, start z ikony (`wbstart`) | ikona z `LANGUAGE=german`: gra **po polsku**, bo `saves/LANGUAGE.CFG` (wybór w Game controls) wygrywa z `language=` (`Lang_Init`, tak w opisie); po usunięciu `LANGUAGE.CFG` – po niemiecku ✅ (mechanizm ikony działa) |
+
+Do decyzji: `LANGUAGE=` w ikonie albo w Shellu jest wyraźnym wyborem przy starcie, a teraz przegrywa
+z wyborem w grze, inaczej niż `SCREENMODE=` (wygrywa z wyborem w Options → Resolution).
+
+Uwaga z długiej gry: u serwera (Amiga 1) widok na starcie nie stał na bazie, tylko w czarnej,
+niezbadanej części mapy (baza Harkonnenów w prawym górnym rogu, kafle ~49–56 × 5–10), więc jego
+rozkazy z `play3.sh` szły w pustkę, a strzałki go nie przesuwały; klik w radar przeniósł widok na
+bazę. Do sprawdzenia: początkowe położenie widoku u serwera w grze LAN przy dużym ekranie.
+
+**Sprawdzone 1.11.2026 po południu** (Amiga 1 serwer 640×480, WinUAE gracz 800×600, `lan_peer.py`
+trzeci; Arrakis 1 3P; chwilowy log położenia widoku w `Lan_StartGame`, `Layout_Set`,
+`Map_SetViewportPosition`, `Map_MoveDirection`, `Layout_ScrollTick`, potem usunięty):
+- Początkowe położenie jest dobre. `Lan_StartGame` ustawia widok na swoim Construction Yardzie
+  jeszcze przy układzie 320×200 (15×10 kafli), a `Layout_Set(true)` tylko przycina go do mapy:
+  serwer 45,3 → 28,3 (35×27), gracz 27,35 → 18,28 (45×35). Baza widoczna u obu, ale nie na środku
+  (u gracza ok. 15 kafli od lewej i 11 od góry, bo zostaje lewy górny róg z widoku 15×10).
+- Czarny widok to **przewijanie przy krawędzi ekranu** (`RTS_EdgeScroll`, dodatek `rts_controls`):
+  w pierwszej próbie wskaźnik w WinUAE stał na 319,0 (górna krawędź; najpewniej host-mysz WinUAE),
+  więc od pierwszej klatki widok jechał w górę, 10 kafli/s, aż do brzegu mapy (18,28 → 18,1 –
+  odtworzone `od.py "move 319 0"`). Widok stał wtedy dokładnie nad pozycją `TacticalPos` serwera, co
+  wyglądało jak zły start. Strzałki nie pomagają, bo krawędź przewija dalej. U serwera w długiej
+  grze było tak samo (wskaźnik zostawiony przy krawędzi przez skrypty testowe).
+- Nie błąd startu. Możliwa poprawka (do decyzji): przewijanie krawędzią dopiero po ruchu myszy
+  od wejścia na mapę, i środek widoku na bazie po przejściu na duży układ.
+- **Poprawione (decyzja użytkownika, pkt 1):** `RTS_EdgeScroll` przewija dopiero, gdy wskaźnik był
+  na mapie z dala od krawędzi (`s_edgeArmed`); po wyjściu z mapy (mentat, okno, koniec gry) albo
+  przerwie pętli gry > 200 ms znowu trzeba zjechać z krawędzi. Test (WinUAE gracz, Amiga 1 serwer,
+  wskaźnik WinUAE na 319,0 przed START): A – po 12 s widok dalej 18,28 (na bazie); B – zjazd na
+  300,300 i powrót na 319,0 – przewija do 18,1 jak dawniej ✅. Środkowanie widoku – nie robione.
+
+### Ustawienia: wybór w grze ważniejszy niż ikona, cztery opcje na stałe (1.11.2026, decyzja użytkownika)
+- Rozdzielczość, język i licznik FPS: **wybór zapisany w grze** (`saves/RESOLUTION.CFG`,
+  `LANGUAGE.CFG`, `SHOWFPS.CFG`) wygrywa z ikoną / argumentem / `opendune.ini`; te dają tylko
+  wartość startową. Bez nich: 640×480, angielski (nie język z `dune.cfg` – `opendune.c`),
+  bez licznika. Dawniej `SCREENMODE=` wygrywało z wyborem w Options.
+- `vram_scroll`, `rts_controls`, `smooth_units`, `smooth_scroll` usunięte – zawsze włączone.
+- Test na Amidze 1 (osobne `SAVEDIR=RAM:odtN/`): pusty katalog → angielski 640×480 ✅;
+  `LANGUAGE=polish SCREENMODE=800x600` przy pustym → polski 800×600 ✅; zapisane `english` i
+  800x600 + `LANGUAGE=polish SCREENMODE=1024x768` → angielski 800×600 ✅.
+- Ikona z paczki bez podpowiedzi `(SCREENMODE=)`, `(LANGUAGE=)`, `(SHOW_FPS=)` (`tools/make_release.sh`);
+  zostały DATADIR, MUSIC_DIR, MUSIC_VOLUME, LAN_INFO, SKIP_INTRO.
+
 ### Ślady po przewijaniu blitterem, linia `lan_info` (29.10.2026, poprawione)
 - Przyczyna śladów na karcie (kursor, przez chwilę licznik FPS o kafel obok): blitter przesuwa
   w VRAM to, co karta pokazywała – także kursor, który gra właśnie zdjęła (miejsce oznaczone jako

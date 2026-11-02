@@ -62,7 +62,7 @@ static uint16 s_fullTilesW = 15, s_fullTilesH = 10;	/* the viewport's tiles at x
 static volatile int s_zoomRequest;	/* from the video driver: 1 Z, 2 wheel in, 3 wheel out */
 
 /*
- * Smooth scrolling (ini smooth_scroll=1, the default; the user's choice: the
+ * Smooth scrolling (always on; the user's choice: the
  * view one tile smaller). The game draws its viewport in whole tiles into
  * SCREEN_1 (the logical picture, one tile more than shows); the screen shows
  * it from a pixel offset s_offX/Y (0..16, more at the map's far edges), as
@@ -72,7 +72,7 @@ static volatile int s_zoomRequest;	/* from the video driver: 1 Z, 2 wheel in, 3 
  * the view to it pixel by pixel - the offset, and a whole tile of the game's
  * viewport when it is passed.
  */
-static int s_smooth = -1;			/* smooth_scroll from the ini, -1 not read */
+static int s_smooth = 1;			/* always on (smooth_scroll= is gone) */
 static int s_viewW = 240, s_viewH = 160;	/* the view on the screen, pixels */
 static int s_offX, s_offY;			/* the offset SCREEN_0 shows */
 static int s_nextX, s_nextY;			/* the offset after the coming tile shift */
@@ -179,10 +179,9 @@ static void Layout_Properties(void)
 }
 
 /** Keeps the viewport on the map (it may be larger than a small map). */
-/** Smooth scrolling on the large map screen (ini smooth_scroll, default 1). */
+/** Smooth scrolling on the large map screen. */
 static bool Layout_Smooth(void)
 {
-	if (s_smooth < 0) s_smooth = IniFile_GetInteger("smooth_scroll", 1) != 0 ? 1 : 0;
 	return s_big && s_smooth != 0;
 }
 
@@ -389,7 +388,7 @@ const uint16 g_layoutResolutions[LAYOUT_RESOLUTIONS][2] = {
 	{ 400, 300 }, { 640, 400 }, { 640, 480 }, { 800, 600 }, { 640, 360 }, { 960, 540 }
 };
 
-/** The resolution chosen in Options (Video_Init, when the ini has no screenmode). */
+/** The resolution chosen in Options (Video_Init: it wins over the ini's / icon's screenmode). */
 bool Layout_SavedResolution(int *w, int *h)
 {
 	char text[16];

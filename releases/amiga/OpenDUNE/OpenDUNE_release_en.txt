@@ -7,6 +7,21 @@ OpenDUNE/saves - F10 writes bugNNN.txt, bugNNN.dat and bugNNN-*.bmp.
 Reports: github.com/cizar-szymon/Amiga_game_OpenDUNE (Issues).
 
 
+0.51 (2.11.2026)
+-----------------
+
+- Scrolling the map with the screen's edge starts only once the pointer
+  has left the edge for the map. Before, a pointer left at the edge (e.g.
+  at the start of a LAN game) scrolled the view at once into the black,
+  unexplored part of the map, and the arrow keys did not stop it.
+- The resolution, language and frame counter chosen in the game (Options)
+  win over the icon, the Shell and opendune.ini - those give only the
+  setting for the first start. With nothing: 640x480, English, no frame
+  counter.
+- The OpenDUNE icon has as hints only the settings the game has no menu
+  for (DATADIR, MUSIC_DIR, MUSIC_VOLUME, LAN_INFO, SKIP_INTRO).
+
+
 0.50 (31.10.2026)
 -----------------
 

@@ -1,13 +1,14 @@
 /** @file src/gui/rts_amiga.c Group selection and right-click orders (AmigaOS).
  *
- * An addition to the original controls (opendune.ini rts_controls=1, the
- * default; 0 = the original only), on the map screen:
+ * An addition to the original controls (always on),
+ * on the map screen:
  *  - left button held and dragged on the viewport: a rectangle; on release all
  *    the player's units inside it are selected (the first one is shown in the
  *    sidebar, all get the selection mark). A plain click works as before.
  *  - the pointer at an edge of the whole screen (also over the top bar and
  *    the sidebar) scrolls the map by itself, in a corner diagonally, with an
- *    arrow pointer (RTS_EdgeScroll(), 10 tiles a second).
+ *    arrow pointer (RTS_EdgeScroll(), 10 tiles a second); only after the
+ *    pointer was off the edges on the map (not one left at an edge).
  *  - P pauses the game (the game timer stops; scrolling, selecting and
  *    orders still work, the orders are carried out after the pause), P again
  *    goes on (RTS_PauseRequest() from the video driver's key handling).
@@ -399,6 +400,11 @@ static void RTS_Order(int x, int y)
 
 static uint32 s_edgeNext;
 static uint16 s_edgeSprite = 0xFFFF;	/* the arrow shown, 0xFFFF none */
+/* The edges scroll only after the pointer was seen off them on the map: a
+ * pointer left at an edge (game start, a window closed) does not move the
+ * view by itself. Off the map or after a pause of the game loop: again. */
+static bool s_edgeArmed;
+static uint32 s_edgeLastCall;
 
 /* The edge of the screen under the pointer as a Map_MoveDirection()
  * direction (0 up, 1 up right ... 7 up left), 0xFFFF none. */
@@ -430,10 +436,16 @@ static void RTS_EdgeScroll(void)
 	static const uint16 sprites[8] = { 1, 1, 2, 3, 3, 3, 4, 1 };
 	static const XYPosition hotSpots[5] = {{0, 0}, {5, 0}, {8, 5}, {5, 8}, {0, 5}};
 	uint16 dir = 0xFFFF;
+	uint32 now = Timer_GetTime();
+	bool onMap = g_selectionType == SELECTIONTYPE_UNIT || g_selectionType == SELECTIONTYPE_STRUCTURE ||
+	             g_selectionType == SELECTIONTYPE_TARGET || g_selectionType == SELECTIONTYPE_PLACE;
 
-	if (g_selectionType == SELECTIONTYPE_UNIT || g_selectionType == SELECTIONTYPE_STRUCTURE ||
-	    g_selectionType == SELECTIONTYPE_TARGET || g_selectionType == SELECTIONTYPE_PLACE) {
-		if (Timer_GetTime() - s_lastMain < 100) dir = RTS_EdgeDirection();
+	if (!onMap || now - s_edgeLastCall > 200) s_edgeArmed = false;
+	s_edgeLastCall = now;
+	if (onMap && now - s_lastMain < 100) {
+		dir = RTS_EdgeDirection();
+		if (dir == 0xFFFF) s_edgeArmed = true;
+		else if (!s_edgeArmed) dir = 0xFFFF;
 	}
 	if (dir == 0xFFFF) {
 		s_edgeSprite = 0xFFFF;
@@ -512,9 +524,9 @@ void RTS_PauseDraw(void)
 
 void RTS_Tick(void)
 {
-	if (s_enabled < 0) s_enabled = IniFile_GetInteger("rts_controls", 1) != 0 ? 1 : 0;
+	s_enabled = 1;		/* always on (rts_controls= is gone) */
 	s_lastMain = Timer_GetTime();
-	RTS_Pause();		/* also with rts_controls=0 */
+	RTS_Pause();
 	if (g_gameMode == GM_NORMAL && g_selectionType != SELECTIONTYPE_MENTAT) {
 		Layout_ZoomTick();
 		Layout_ScrollTick();	/* smooth scrolling: the view on towards its target */
@@ -525,6 +537,7 @@ void RTS_Tick(void)
 		s_groupCount = 0;
 		s_selectPending = s_orderPending = false;
 		s_edgeSprite = 0xFFFF;
+		s_edgeArmed = false;
 		return;
 	}
 	RTS_EdgeScroll();

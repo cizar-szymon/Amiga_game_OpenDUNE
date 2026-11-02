@@ -1,13 +1,24 @@
-# OpenDUNE for the Amiga (68040/68060 + RTG)
+# OpenDUNE for the Amiga with a Warp card
 
 **Dune II: The Battle for Arrakis** on the Amiga: [OpenDUNE](https://github.com/OpenDUNE/OpenDUNE),
-the open source engine of the PC version 1.07, ported to AmigaOS 3 with a 68040/68060 accelerator
-and an RTG graphics card (Picasso96). Tested on Warp 1260 / 7060 (68060 at 100 MHz), WinUAE and
-Amiberry.
+the open source engine of the PC version 1.07, ported to AmigaOS 3.
 
-- large screen 400x300 to 960x540, scrolling by the card's blitter, smooth unit movement (up to 60 fps)
-- group selection with a rubber band, right-button orders, map zoom x2/x3, pause
-- **LAN game for up to 3 players** (fog of war per player, chat, pause, save/load)
+**This is a special port for the Amiga 500 / 1200 / 3000 / 4000 with a Warp accelerator card:
+Warp 560, Warp 1240, Warp 1260, Warp 1260 Extreme or Warp 4070.** It was ported and tested on
+these machines (an A1200 with a Warp 1260 Extreme and an A4000 with a Warp, both 68060 at 100 MHz),
+and it is tuned for them: the picture is put together in the card's fast graphics memory and scrolled by
+the card's blitter, so only what changed travels to the card. That fast graphics card is what
+makes the large screens, the smooth scrolling and unit movement and the frame rates below
+possible. Other 68040/68060 Amigas with a Picasso96 card (and WinUAE, Amiberry) run it as well,
+but slower graphics cards will not reach the same speed.
+
+- large screen 400x300 to 960x540 (default 640x480), scrolling by the card's blitter, smooth unit
+  movement (up to 60 fps)
+- group selection with a rubber band, right-button orders, map zoom x2/x3, pause (P)
+- **LAN game for up to 3 players** (fog of war per player, chat, pause, save/load by the server,
+  a lost player pauses the game for everyone)
+- English and German (Westwood's texts from your own Dune II), chosen in the game; a Polish
+  translation (`lang/POLISH.PAK`) is not part of the public release
 - music from disk (recordings of the original AdLib music, made from your own data)
 - F10 bug reports, Amiga info window (CPU, memory, card, Warp clock)
 
@@ -19,8 +30,16 @@ The ready-to-unpack release is in [`releases/amiga`](releases/amiga):
 [`OpenDUNE.txt`](releases/amiga/OpenDUNE/OpenDUNE.txt)) and the release history
 [`OpenDUNE_release_en.txt`](releases/amiga/OpenDUNE/OpenDUNE_release_en.txt).
 
-**Requirements:** 68040/68060, 32 MB Fast RAM, AmigaOS 3.1+ (tested 3.2), Picasso96 with 8-bit
-modes, Paula sound; a TCP/IP stack for the LAN game.
+**Requirements:** an Amiga with a Warp card (68040 or 68060; other 68040/68060 cards work,
+slower),
+32 MB Fast RAM (the game needs 8 MB free), AmigaOS 3.1+ (tested 3.2), a Picasso96 card with an
+8-bit mode of 640x480 or more, Paula sound; a TCP/IP stack for the LAN game. At the start the game
+checks the Amiga and says what is missing (no RTG card, too little Fast RAM); on a 68020/68030 it
+warns that it may run slowly.
+
+**Settings:** the screen size, language and frame counter are chosen in the game (Options) and
+kept. Other settings are in `opendune.ini` or as Tool Types of the OpenDUNE icon (e.g.
+`DATADIR=Work:Dune2/`), which win over `opendune.ini`.
 
 ### The game data is not included
 

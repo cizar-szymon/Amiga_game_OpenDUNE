@@ -15,8 +15,12 @@ Shellu: Version OpenDUNE
 WYMAGANIA
 ---------
 
-- Amiga z procesorem 68040 lub 68060 (testowana na Warp 1260 / 7060,
-  68060 @ 100 MHz), 32 MB Fast RAM lub wiecej
+- port przeznaczony dla Amigi 500 / 1200 / 3000 / 4000 z karta Warp
+  (Warp 560, 1240, 1260, 1260 Extreme, 4070): przenoszony i testowany na
+  kartach Warp (68060 @ 100 MHz); ich szybka karta graficzna daje duzy
+  ekran i plynny ruch. Inne Amigi z 68040 lub 68060 i karta RTG tez
+  uruchomia gre, ale wolniej.
+- 32 MB Fast RAM lub wiecej
 - AmigaOS 3.1 lub nowszy (testowany 3.2), Picasso96 z trybami 8-bit
   (np. 640x480, 800x600) - karta RTG (Warp, Picasso, CyberVision, UAE)
 - dzwiek: Paula (audio.device); AHI nie jest potrzebne
@@ -121,7 +125,8 @@ Options -> Game controls -> Language: kazde klikniecie wybiera nastepny
 jezyk (English, Deutsch, Polski - tylko te, ktorych pliki sa). Jezyk
 zmienia sie po powrocie do menu glownego (Options -> Main menu) albo
 przy nastepnym uruchomieniu; wybor jest zapamietany (saves/LANGUAGE.CFG).
-Bez wyboru w grze decyduje language= w opendune.ini.
+Bez wyboru w grze: language= z opendune.ini, a bez niego
+angielski.
 
 Polski: przeklad wszystkich tekstow gry (odprawy mentatow, komunikaty,
 nazwy i opisy jednostek i budynkow, menu, napisy intro i zakonczen) i
@@ -171,24 +176,22 @@ OPCJE (Tool Types ikony albo opendune.ini)
 -----------------------------------------
 
 Kazda opcja moze byc Tool Type ikony OpenDUNE (Workbench: zaznacz ikone,
-Ikony -> Informacje), np. SCREENMODE=800x600 - wygrywa z opendune.ini.
-Ikona ma najczestsze opcje w nawiasach, np. (LANGUAGE=polish): usun
+Ikony -> Informacje), np. MUSIC_VOLUME=30 - wygrywa z opendune.ini.
+Ikona ma najczestsze opcje w nawiasach, np. (DATADIR=Work:Dune2/): usun
 nawiasy, zeby wlaczyc. Z Shella to samo jako argumenty:
-OpenDUNE SCREENMODE=800x600 LANGUAGE=german. MakeMusic tez bierze
+OpenDUNE DATADIR=Work:Dune2/ MUSIC_VOLUME=30. MakeMusic tez bierze
 DATADIR i MUSIC_DIR z ikony gry.
+Rozdzielczosc, jezyk i licznik klatek wybiera sie w grze (Options); wybor
+jest zapamietany. Bez wyboru w grze: 640x480, angielski, bez licznika
+(albo screenmode=, language=, show_fps= z opendune.ini).
 
   datadir=           katalog z plikami .PAK (domyslnie PROGDIR:data)
   savedir=           katalog zapisow (domyslnie PROGDIR:saves)
-  screenmode=WxH     rozdzielczosc ekranu (zamiast wyboru w Options)
+  screenmode=WxH     rozdzielczosc ekranu, gdy nie wybrano jej w Options
   framerate=60       klatki na sekunde
   skip_intro=1       bez intro na starcie (bez INTRO.PAK musi byc 1)
-  show_fps=1         licznik klatek (tez F8 i Options)
-  smooth_units=0     ruch jednostek jak w oryginale (skokami)
-  smooth_scroll=0    przewijanie mapy co kafel jak w oryginale (domyslnie
-                     plynne co piksel, widok o kafel mniejszy)
-  rts_controls=0     sterowanie jak w oryginale (bez prostokata i
-                     prawego przycisku)
-  vram_scroll=0      przewijanie bez blittera karty
+  show_fps=1         licznik klatek, gdy nie wybrano go w Options (F8:
+                     wlacza / wylacza do konca gry)
   music_dir=         katalog muzyki (domyslnie PROGDIR:MUSIC)
   music_volume=0..64 glosnosc muzyki (domyslnie 40)
   lan_info=1         w grze LAN linia z czasem odpowiedzi graczy
