@@ -11,9 +11,7 @@ Zgloszenia: github.com/cizar-szymon/Amiga_game_OpenDUNE (Issues).
 -----------------
 
 - Przewijanie mapy krawedzia ekranu rusza dopiero, gdy wskaznik zjedzie
-  z krawedzi na mape. Wczesniej wskaznik zostawiony przy krawedzi (np.
-  po starcie gry LAN) od razu przewijal widok w czarna, nieznana czesc
-  mapy, a strzalki go nie zatrzymywaly.
+  z krawedzi na mape.
 - Rozdzielczosc, jezyk i licznik klatek wybrane w grze (Options) wygrywaja
   z ikona, Shellem i opendune.ini - te daja tylko ustawienie na pierwszy
   start. Bez niczego: 640x480, angielski, bez licznika klatek.
@@ -31,30 +29,26 @@ Zgloszenia: github.com/cizar-szymon/Amiga_game_OpenDUNE (Issues).
   ktory wyszedl, jest tak opisany u wszystkich (lan_info=1); gorny pasek i
   linia LAN bez resztek starych napisow.
 - Gra LAN: serwer zapisuje gre przyciskiem ZAPIS na gornym pasku obok
-  OPCJE (pozostali gracze go nie maja); poprawiony rzadki rozjazd gry
-  (BRAK ZGODNOSCI) po zamknieciu okna zapisu lub Opcji; w lobby sama
-  nazwa mapy i numer poziomu.
+  OPCJE (pozostali gracze go nie maja); w lobby sama nazwa mapy i numer
+  poziomu.
 - Pauza (P): duzy bialy napis PAUZA na srodku mapy.
 - Gra LAN: gdy Amiga gracza sie zawiesi, zresetuje albo straci siec
   (10 s bez odpowiedzi), gra zatrzymuje sie u wszystkich z napisem
   "Brak polaczenia z ...". Serwer moze ja wtedy zapisac (ZAPIS) -
   ten gracz zostaje w zapisie, wiec po jego powrocie wszyscy wczytuja
   zapis w lobby i graja dalej - albo grac dalej bez niego (P).
-  Wczesniej gra czekala bez konca, a przy dwoch graczach serwer od
-  razu wygrywal. Gracz, ktory stracil polaczenie z serwerem, dostaje
+  Gracz, ktory stracil polaczenie z serwerem, dostaje
   komunikat "Utracono polaczenie z serwerem".
 - Male mapy (misje 1 i 2) na srodku widoku w wiekszych rozdzielczosciach.
 - Instrukcja instalacji krok po kroku po polsku, angielsku i niemiecku
   w jednym pliku Install.txt.
 - Szuflada gry ma zwykla ikone szuflady, MakeMusic - glosnik z nutami.
 - Brak plikow danych: gra pokazuje okno z lista brakujacych plikow .PAK
-  i katalogiem, w ktorym ich szuka (po angielsku, polsku i niemiecku),
-  zamiast konczyc sie bez slowa. MakeMusic bez SOUND.PAK mowi to samo
+  i katalogiem, w ktorym ich szuka (po angielsku, polsku i niemiecku).
+  MakeMusic bez SOUND.PAK mowi to samo
   w trzech jezykach, a jego okno zamyka sie klawiszem Return.
 - MakeMusic pokazuje postep: kropka co 20 s nagranej muzyki, wiec widac,
   ze pracuje, a nie zawiesil sie (jeden utwor to okolo minuty).
-- Katalog MUSIC zalozony przez MakeMusic da sie skasowac. Wczesniej
-  byl chroniony przed skasowaniem; stary katalog: Protect MUSIC +d.
 - Sprawdzenie Amigi przy starcie (okno po angielsku, polsku i niemiecku):
   bez karty graficznej RTG z Picasso96 (tryb 8-bitowy od 640x480) albo
   przy mniej niz 8 MB wolnej Fast RAM gra mowi, czego brakuje, i nie
@@ -66,9 +60,7 @@ Zgloszenia: github.com/cizar-szymon/Amiga_game_OpenDUNE (Issues).
   ikony OpenDUNE (np. SCREENMODE=800x600) albo argumentem w Shellu i
   wygrywa z opendune.ini. Ikona ma najczestsze opcje w nawiasach jako
   podpowiedzi. MakeMusic bierze DATADIR i MUSIC_DIR tez z ikony gry.
-- Litera P w nazwie zapisu nie wlacza juz pauzy.
-- Start z ikony: przy wyjsciu z gry nie otwiera sie okno konsoli.
-- Raport F10 podaje prawdziwa date kompilacji programu.
+- Raport F10 podaje date kompilacji programu.
 - Sprawdzone: gra LAN trzech graczy przez 67 minut (wszystkie sumy
   zgodne), najciezsze misje 7-9, zapis i odczyt miedzy jezykami,
   rozlaczenia graczy i serwera.
@@ -88,8 +80,7 @@ Zgloszenia: github.com/cizar-szymon/Amiga_game_OpenDUNE (Issues).
 
 - Plynne przewijanie mapy co piksel (strzalki, krawedz ekranu): widok
   przesuwa sie plynnie zamiast skokami po 16 pikseli. Widok mapy jest o
-  jeden kafel mniejszy (pas przy panelu i na dole czarny). Dawne
-  przewijanie co kafel: smooth_scroll=0 w opendune.ini.
+  jeden kafel mniejszy (pas przy panelu i na dole czarny).
 - Szybsze wysylanie obrazu na karte podczas przewijania (Warp 1260,
   100 MHz: 43-55 klatek/s, 30-40% procesora wolne przy ciaglym
   przewijaniu).

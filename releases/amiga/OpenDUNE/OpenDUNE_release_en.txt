@@ -11,9 +11,7 @@ Reports: github.com/cizar-szymon/Amiga_game_OpenDUNE (Issues).
 -----------------
 
 - Scrolling the map with the screen's edge starts only once the pointer
-  has left the edge for the map. Before, a pointer left at the edge (e.g.
-  at the start of a LAN game) scrolled the view at once into the black,
-  unexplored part of the map, and the arrow keys did not stop it.
+  has left the edge for the map.
 - The resolution, language and frame counter chosen in the game (Options)
   win over the icon, the Shell and opendune.ini - those give only the
   setting for the first start. With nothing: 640x480, English, no frame
@@ -32,16 +30,14 @@ Reports: github.com/cizar-szymon/Amiga_game_OpenDUNE (Issues).
   the chosen language; a player who left is shown so on every Amiga
   (lan_info=1); the top bar and the LAN line without leftovers of old text.
 - LAN game: the server saves with the SAVE button on the top bar beside
-  OPTIONS (the others have none); a rare OUT OF STEP after closing the save
-  or Options window fixed; the lobby shows just the map's name and the
-  level's number.
+  OPTIONS (the others have none); the lobby shows just the map's name and
+  the level's number.
 - Pause (P): a large white PAUSE in the middle of the map.
 - LAN game: when a player's Amiga hangs, resets or loses the network
   (no answer for 10 s), the game pauses for everyone with "No contact
   with ...". The server can then save it (SAVE) - that player stays in
   the save, so when they are back all load it in the lobby and play
-  on - or play on without them (P). Before, the game waited forever,
-  and with two players the server won at once. A player who loses the
+  on - or play on without them (P). A player who loses the
   server gets "The connection to the server is lost."
 - Small maps (missions 1 and 2) in the middle of the view at the larger
   resolutions.
@@ -50,13 +46,11 @@ Reports: github.com/cizar-szymon/Amiga_game_OpenDUNE (Issues).
 - The game's drawer has a plain drawer icon, MakeMusic a loudspeaker with
   notes.
 - Missing data files: the game shows a window with the missing .PAK
-  files and the directory it looks in (in English, Polish and German)
-  instead of quitting without a word. MakeMusic without SOUND.PAK says
+  files and the directory it looks in (in English, Polish and German).
+  MakeMusic without SOUND.PAK says
   the same in three languages, and Return closes its window.
 - MakeMusic shows its progress: a dot per 20 s of music recorded, so it
   is plain that it works and has not hung (a piece takes about a minute).
-- The MUSIC directory made by MakeMusic can be deleted. Before, it was
-  protected from deletion; for an old one: Protect MUSIC +d.
 - The Amiga is checked at the start (a window in English, Polish and
   German): without an RTG graphics card with Picasso96 (an 8-bit mode of
   640x480 or more) or with less than 8 MB of free Fast RAM the game says
@@ -69,9 +63,7 @@ Reports: github.com/cizar-szymon/Amiga_game_OpenDUNE (Issues).
   of the OpenDUNE icon (e.g. SCREENMODE=800x600) or a Shell argument, and
   wins over opendune.ini. The icon has the usual ones in brackets as
   hints. MakeMusic takes DATADIR and MUSIC_DIR from the game's icon too.
-- The letter P in a save's name no longer pauses the game.
-- Started from the icon: no console window opens when the game ends.
-- The F10 report gives the program's real build date.
+- The F10 report gives the program's build date.
 - Checked: a LAN game of three players for 67 minutes (all sums the
   same), the heaviest missions 7-9, saves loaded in another language,
   players and the server dropping out.
@@ -91,8 +83,7 @@ Reports: github.com/cizar-szymon/Amiga_game_OpenDUNE (Issues).
 
 - Smooth map scrolling pixel by pixel (cursor keys, screen edge): the view
   glides instead of jumping 16 pixels. The map view is one tile smaller
-  (black strips beside the panel and below). The old scrolling by whole
-  tiles: smooth_scroll=0 in opendune.ini.
+  (black strips beside the panel and below).
 - Quicker upload of the picture to the card while scrolling (Warp 1260,
   100 MHz: 43-55 frames a second, 30-40% of the CPU free while scrolling
   all the time).
