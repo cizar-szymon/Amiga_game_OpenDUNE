@@ -1,7 +1,8 @@
 #!/bin/sh
 # The release of the Amiga port (after tools/build.sh), number from port/VERSION:
 #   releases/amiga/OpenDUNE/...           the public release, in git: the program,
-#   releases/amiga/OpenDUNE.info          icons, opendune.ini, docs PL/EN, COPYING,
+#   releases/amiga/OpenDUNE.info          icons, opendune.ini, doc/ (ALL texts and PDFs:
+#                                         descriptions PL/EN, history, Install, COPYING),
 #   releases/amiga/OpenDUNE-<v>.zip       empty data/ and MUSIC/ with a ReadMe -
 #                                         no game data
 #   private/OpenDUNE-<v>-full.zip         the same + the Dune II data (data/*.PAK) and
@@ -41,26 +42,35 @@ python tools/make_icon.py "$R/OpenDUNE.info" --frame tools/icon/drawer.png --cro
 cp build/amiga/MakeMusic "$R/OpenDUNE/MakeMusic"	# records the music on the Amiga
 python tools/make_icon.py "$R/OpenDUNE/MakeMusic.info" --frame tools/icon/makemusic.png --crop 0 0 54 44 --transparent --pos 140 16 >/dev/null 2>&1	# loudspeaker and notes
 python tools/make_install.py >/dev/null	# Install.txt and Install.pdf (EN, PL, DE) from Install_src.txt
-cp "$D/opendune.ini" "$D/Install.txt" "$D/Install.pdf" "$D/OpenDUNE.txt" "$D/OpenDUNE_en.txt" "$D/OpenDUNE_release.txt" "$D/OpenDUNE_release_en.txt" "$R/OpenDUNE/"
+cp "$D/opendune.ini" "$R/OpenDUNE/"
+# ALL texts and PDFs in one drawer doc (the user's rule for every port, 3.11.2026)
+mkdir -p "$R/OpenDUNE/doc"
+cp "$D/Install.txt" "$D/Install.pdf" "$D/OpenDUNE.txt" "$D/OpenDUNE_en.txt" "$D/OpenDUNE_release.txt" "$D/OpenDUNE_release_en.txt" "$R/OpenDUNE/doc/"
+cp COPYING "$R/OpenDUNE/doc/COPYING"			# GPL-2.0, goes with the program
+python tools/make_doc_icon.py "$R/OpenDUNE/doc.info" --frame tools/icon/drawer.png --crop 0 0 46 40 --transparent --drawer --window 430 230 --pos 230 12 >/dev/null 2>&1
 # the texts with icons (tools/icon/draw_icons.py), opened by MultiView
-# (file:picture:x:y - Install.txt in the first row, the descriptions below)
-for t in Install.txt:doc_i:230:12 OpenDUNE.txt:doc_pl:12:100 OpenDUNE_en.txt:doc_en:100:100 OpenDUNE_release.txt:doc_pl:190:100 OpenDUNE_release_en.txt:doc_en:290:100; do
+# (file:picture:x:y - Install.txt in the first row, the descriptions PL | EN below)
+for t in Install.txt:doc_i:72:10 OpenDUNE.txt:doc_pl:72:80 OpenDUNE_en.txt:doc_en:282:80 OpenDUNE_release.txt:doc_pl:72:150 OpenDUNE_release_en.txt:doc_en:282:150; do
 	IFS=: read -r f pic x y <<EOT
 $t
 EOT
-	python tools/make_icon.py "$R/OpenDUNE/$f.info" --frame "tools/icon/$pic.png" --crop 0 0 36 44 --transparent --project SYS:Utilities/MultiView --pos "$x" "$y" >/dev/null 2>&1
+	python tools/make_doc_icon.py "$R/OpenDUNE/doc/$f.info" --frame "tools/icon/$pic.png" --crop 0 0 36 44 --transparent --project SYS:Utilities/MultiView --pos "$x" "$y" >/dev/null 2>&1
 done
-cp COPYING "$R/OpenDUNE/COPYING"			# GPL-2.0, goes with the program
 cp "$D/data_ReadMe.txt" "$R/OpenDUNE/data/ReadMe.txt"
 cp "$D/MUSIC_ReadMe.txt" "$R/OpenDUNE/MUSIC/ReadMe.txt"
 
-# the archives (older releases' archives removed)
+# the archives: older public ones out of git into private/old (kept)
+mkdir -p private/old
 for f in "$R"/OpenDUNE-*.zip "$R"/OpenDUNE-*.lha; do
-	[ -e "$f" ] && [ "$f" != "$R/OpenDUNE-$V.zip" ] && { git rm -q --cached "$f" 2>/dev/null || true; rm -f "$f"; }
+	[ -e "$f" ] && [ "$f" != "$R/OpenDUNE-$V.zip" ] && { git rm -q --cached "$f" 2>/dev/null || true; mv "$f" private/old/; }
 done
 python tools/make_zip.py "$R/OpenDUNE-$V.zip" "$R" OpenDUNE OpenDUNE.info
 if [ "$FULL" = 1 ]; then
-	mkdir -p private
+	mkdir -p private/old
+	# only the current full archive in private/, the older ones in private/old (kept)
+	for f in private/OpenDUNE-*-full.zip; do
+		[ -e "$f" ] && [ "$f" != "private/OpenDUNE-$V-full.zip" ] && mv "$f" private/old/
+	done
 	LANG_ADD=
 	if [ -d tools/lang/polish ]; then
 		python tools/lang/make_polish.py build/lang_pak/POLISH.PAK >/dev/null

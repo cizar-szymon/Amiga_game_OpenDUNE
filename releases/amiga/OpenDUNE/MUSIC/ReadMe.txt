@@ -11,4 +11,4 @@ MakeMusic (Icon in der Schublade OpenDUNE) aus deinen Spieldaten in
 OpenDUNE/data aufnehmen. Ohne sie läuft das Spiel ohne Musik.
 
 Step by step / krok po kroku / Schritt für Schritt:
-Install.txt (English, polski, Deutsch)
+doc/Install.txt (English, polski, Deutsch)

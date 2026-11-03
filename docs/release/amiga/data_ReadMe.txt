@@ -7,4 +7,4 @@ Hierher kommen die Dateien von Dune II für den PC (eigene Kopie, 1.07):
   (INTRO.PAK - only for the intro / tylko dla intro / nur für das Intro)
 
 Step by step / krok po kroku / Schritt für Schritt:
-Install.txt (English, polski, Deutsch)
+doc/Install.txt (English, polski, Deutsch)

@@ -26,9 +26,9 @@ but slower graphics cards will not reach the same speed.
 
 The ready-to-unpack release is in [`releases/amiga`](releases/amiga):
 `OpenDUNE-<version>.zip` (also unpacked next to it; on the Amiga: `UnZip OpenDUNE-<version>.zip -d Work:Games`). Read
-[`OpenDUNE_en.txt`](releases/amiga/OpenDUNE/OpenDUNE_en.txt) (Polish:
-[`OpenDUNE.txt`](releases/amiga/OpenDUNE/OpenDUNE.txt)) and the release history
-[`OpenDUNE_release_en.txt`](releases/amiga/OpenDUNE/OpenDUNE_release_en.txt).
+[`OpenDUNE_en.txt`](releases/amiga/OpenDUNE/doc/OpenDUNE_en.txt) (Polish:
+[`OpenDUNE.txt`](releases/amiga/OpenDUNE/doc/OpenDUNE.txt)) and the release history
+[`OpenDUNE_release_en.txt`](releases/amiga/OpenDUNE/doc/OpenDUNE_release_en.txt).
 
 **Requirements:** an Amiga with a Warp card (68040 or 68060; other 68040/68060 cards work,
 slower),

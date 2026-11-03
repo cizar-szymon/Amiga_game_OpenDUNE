@@ -24,7 +24,8 @@ Open a Shell and type (Work:Games is only an example):
   UnZip OpenDUNE-0.xx.zip -d Work:Games
 
 This makes the drawer Work:Games/OpenDUNE with the program, the icons,
-opendune.ini, this text and two empty drawers: data and MUSIC.
+opendune.ini, the drawer doc (this text, the descriptions, the licence)
+and two empty drawers: data and MUSIC.
 (UnZip is on Aminet: util/arc/UnZip.)
 
 
@@ -44,7 +45,7 @@ Work:Games/OpenDUNE/data:
 The files of the Amiga version of Dune II do not fit.
 
 German texts (optional): also copy the .GER files of a German Dune II
-(DUNE.GER, MESSAGE.GER, TEXTA.GER ... - see OpenDUNE_en.txt) into data.
+(DUNE.GER, MESSAGE.GER, TEXTA.GER ... - see doc/OpenDUNE_en.txt) into data.
 
 
 STEP 3 - make the music (once, about 35 minutes)
@@ -102,7 +103,7 @@ IF SOMETHING GOES WRONG
 - An error in the game: press F10, then send the files bugNNN.* from
   OpenDUNE/saves with the release number (main menu, bottom left).
 
-More: OpenDUNE_en.txt (all options and keys).
+More: doc/OpenDUNE_en.txt (all options and keys).
 
 
 ########################################################################
@@ -124,7 +125,8 @@ Otworz Shell i wpisz (Work:Games to tylko przyklad):
   UnZip OpenDUNE-0.xx.zip -d Work:Games
 
 Powstanie szuflada Work:Games/OpenDUNE z programem, ikonami,
-opendune.ini, tym opisem i dwiema pustymi szufladami: data i MUSIC.
+opendune.ini, szuflada doc (ten opis, opisy gry, licencja) i dwiema
+pustymi szufladami: data i MUSIC.
 (UnZip jest na Aminecie: util/arc/UnZip.)
 
 
@@ -143,7 +145,7 @@ CrossDOS) do Work:Games/OpenDUNE/data:
 Pliki z wersji Dune II na Amige nie pasuja.
 
 Teksty niemieckie (opcjonalnie): dograj tez pliki .GER z niemieckiego
-Dune II (DUNE.GER, MESSAGE.GER, TEXTA.GER ... - patrz OpenDUNE.txt) do
+Dune II (DUNE.GER, MESSAGE.GER, TEXTA.GER ... - patrz doc/OpenDUNE.txt) do
 data. Jezyk polski: plik lang/POLISH.PAK (jesli go masz) w szufladzie
 OpenDUNE/lang.
 
@@ -204,7 +206,7 @@ GDY COS NIE DZIALA
 - Blad w grze: nacisnij F10, potem wyslij pliki bugNNN.* z
   OpenDUNE/saves z numerem wydania (menu glowne, lewy dolny rog).
 
-Wiecej: OpenDUNE.txt (wszystkie opcje i klawisze).
+Wiecej: doc/OpenDUNE.txt (wszystkie opcje i klawisze).
 
 
 ########################################################################
@@ -226,8 +228,8 @@ SCHRITT 1 - das Archiv entpacken
   UnZip OpenDUNE-0.xx.zip -d Work:Games
 
 Es entsteht die Schublade Work:Games/OpenDUNE mit dem Programm, den
-Icons, opendune.ini, dieser Anleitung und zwei leeren Schubladen: data
-und MUSIC. (UnZip gibt es im Aminet: util/arc/UnZip.)
+Icons, opendune.ini, der Schublade doc (diese Anleitung, die
+Beschreibungen, die Lizenz) und zwei leeren Schubladen: data und MUSIC. (UnZip gibt es im Aminet: util/arc/UnZip.)
 
 
 SCHRITT 2 - die Spieldaten nach OpenDUNE/data kopieren
@@ -246,7 +248,7 @@ CrossDOS-Diskette) nach Work:Games/OpenDUNE/data:
 Die Dateien der Amiga-Version von Dune II passen nicht.
 
 Deutsche Texte: kopiere zusätzlich die .GER-Dateien eines deutschen
-Dune II (DUNE.GER, MESSAGE.GER, TEXTA.GER ... - siehe OpenDUNE_en.txt)
+Dune II (DUNE.GER, MESSAGE.GER, TEXTA.GER ... - siehe doc/OpenDUNE_en.txt)
 nach data - von der PC- oder der Amiga-Version.
 
 
@@ -308,4 +310,4 @@ WENN ETWAS NICHT GEHT
   OpenDUNE/saves mit der Versionsnummer (Hauptmenü, unten links)
   schicken.
 
-Mehr: OpenDUNE_en.txt (alle Optionen und Tasten, auf Englisch).
+Mehr: doc/OpenDUNE_en.txt (alle Optionen und Tasten, auf Englisch).
