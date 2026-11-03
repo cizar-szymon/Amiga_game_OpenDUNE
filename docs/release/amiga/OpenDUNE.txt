@@ -16,7 +16,7 @@ WYMAGANIA
 ---------
 
 - port przeznaczony dla Amigi 500 / 1200 / 3000 / 4000 z karta Warp
-  (Warp 560, 1240, 1260, 1260 Extreme, 4070): przenoszony i testowany na
+  (Warp 560, 1240, 1260, 1260 Extreme, 7060): przenoszony i testowany na
   kartach Warp (68060 @ 100 MHz); ich szybka karta graficzna daje duzy
   ekran i plynny ruch. Inne Amigi z 68040 lub 68060 i karta RTG tez
   uruchomia gre, ale wolniej.
