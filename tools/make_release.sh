@@ -37,7 +37,7 @@ cp build/amiga/OpenDUNE.s "$R/OpenDUNE/OpenDUNE"
 python tools/make_icon.py "$R/OpenDUNE/OpenDUNE.info" --frame tools/icon/title112.png --crop 0 0 112 70 --lit-frame --pos 8 4 \
   --tooltypes "(DATADIR=Work:Dune2/)" "(MUSIC_DIR=PROGDIR:MUSIC)" \
   "(MUSIC_VOLUME=40)" "(LAN_INFO=1)" "(SKIP_INTRO=0)" >/dev/null 2>&1
-python tools/make_icon.py "$R/OpenDUNE.info" --frame tools/icon/drawer.png --crop 0 0 46 40 --transparent --drawer >/dev/null 2>&1	# a plain drawer (tools/icon/draw_icons.py)
+cp tools/icon/warp-drawer.info "$R/OpenDUNE.info"	# the game drawer: the WARP logo (tools/icon/warp-drawer.info, ../WARP-drawer.info)
 [ -f build/amiga/MakeMusic ] || { echo "build/amiga/MakeMusic missing: tools/music/amiga/build.sh first" >&2; exit 1; }
 cp build/amiga/MakeMusic "$R/OpenDUNE/MakeMusic"	# records the music on the Amiga
 python tools/make_icon.py "$R/OpenDUNE/MakeMusic.info" --frame tools/icon/makemusic.png --crop 0 0 54 44 --transparent --pos 140 16 >/dev/null 2>&1	# loudspeaker and notes
