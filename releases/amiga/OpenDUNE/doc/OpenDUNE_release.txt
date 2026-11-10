@@ -7,6 +7,20 @@ z OpenDUNE/saves - F10 zapisuje bugNNN.txt, bugNNN.dat i bugNNN-*.bmp.
 Zgloszenia: github.com/cizar-szymon/Amiga_game_OpenDUNE (Issues).
 
 
+0.52 (10.11.2026)
+-----------------
+
+- Gra przez internet dla 2 albo 3 graczy: Play on LAN -> INTERNET GAME.
+  Gracze spotykaja sie na serwerze gry - lista czekajacych gier, kod
+  kazdej gry, haslo, jesli potrzebne; na routerze nie trzeba nic
+  ustawiac.
+- F10 na ekranie mapy otwiera okno, ktore wysyla zgloszenie bledu (Twoj
+  adres e-mail, opis, opis Amigi i pliki raportu) na serwer gry; wymaga
+  stosu TCP/IP.
+- Gra LAN albo przez internet, ktora sie rozejdzie, proponuje wyslanie
+  dziennikow gry wszystkich graczy w ten sam sposob.
+
+
 0.51 (2.11.2026)
 -----------------
 
