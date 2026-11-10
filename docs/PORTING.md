@@ -1270,6 +1270,33 @@ Przed tym testem (można wcześniej, bez FPGA): rozbić pomiar `draw` na teren, 
 gracza – pokaże, czy potrzebna jest kopia z przezroczystością, czy wystarczy kopia kafli w pamięci karty.
 Scena do pomiarów: `debug_lan_battle=20` na trzech maszynach, `debug_stats=1`.
 
+### Czytelna czcionka `font=clean` (10.11.2026, życzenie użytkownika: czcionka w oknach menu mało czytelna)
+
+`opendune.ini` / Tool Type `font=clean`: litery 8-pikselowej czcionki gry (`NEW8P.FNT`) zastąpione prostymi
+z **X11 „fixed” 6×10** (domena publiczna, `ucs-fonts` Markusa Kuhna): `tools/lang/make_clean_font.py 6x10.bdf`
+→ `port/src/gui/font_clean.h` (ASCII, niemieckie w CP437, polskie w ISO-8859-2 tylko przy języku polskim),
+`Font_MakeClean` w `gui/font.c` (twarz + cień w prawo w dół, bez jasnej krawędzi; twarz od drugiej kolumny,
+jak w oryginale). Znaki, których nagłówek nie ma, zostają z gry. Mała czcionka 6 px (panel boczny) bez zmian.
+
+Dlaczego nie Terminus 6×12 (pierwszy wybór użytkownika z obrazka porównawczego): wielka litera ma w nim 8
+rzędów, a okna gry są zrobione pod 7 (przycisk 13 rzędów, listy co 10 rzędów z malowanym tłem, okno
+komunikatów liczy na pusty górny rząd). Trzy próby dopasowania (12, 11, 10 rzędów) dawały ucięte albo
+zlane ogonki („g”, „y” jak „q”, „u”) i napis za wysoko w przyciskach belki. „fixed 6×10” ma proporcje
+`NEW8P.FNT` (wielka litera 7 rzędów na tej samej linii pisma, 2 rzędy pod nią, 1 nad nią na akcenty) i
+wchodzi bez przeróbek. Generator zostawia ścieżkę dla źródła 6×12.
+
+Górna belka przy `font=clean` (decyzje użytkownika po obejrzeniu na Amidze 2): napisy bez cienia (styl
+`0x50` w `GUI_DrawText_Wrapper`: sama twarz, zwykły odstęp), w czterech przyciskach o rząd niżej
+(`gui/layout_amiga.c`, `lang_amiga.c`). Sprawdzone na zrzutach z Amigi 2: menu główne, okna sieci, odprawa
+mentata, górna belka. Nie sprawdzone: okno komunikatów z kilkoma wiadomościami pod rząd, teksty po niemiecku.
+
+### Komunikat „baza jest atakowana” w grze kilku graczy (zgłoszenie użytkownika 10.11.2026)
+
+`Structure_HouseUnderAttack` grało komunikat, gdy trafiony budynek należał do rodu człowieka – w grze
+sieciowej to każdy ród, więc słyszeli go wszyscy, także atakujący. Teraz tylko gracz, którego to budynek
+(`houseID == LOCAL_HOUSE_ID`); licznik `timerStructureAttack` dalej taki sam na każdej maszynie. Zbudowane,
+nie sprawdzone uchem w grze sieciowej.
+
 ### Nie zrobione / do zrobienia
 
 - Serwer na Pi **wdrożony 10.11.2026** (zgoda użytkownika, VPN; kopia poprzedniego kodu i `data/` w

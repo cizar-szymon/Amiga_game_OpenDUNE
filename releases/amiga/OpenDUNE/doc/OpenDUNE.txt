@@ -233,6 +233,9 @@ jest zapamietany. Bez wyboru w grze: 640x480, angielski, bez licznika
   lan_info=1         w grze LAN linia z czasem odpowiedzi graczy
   lan_relay=         serwer gry dla gry przez internet i zgloszen bledow,
                      host:port (domyslnie serwer portu)
+  font=clean         proste, czytelne litery w menu, oknach, komunikatach
+                     i na gornej belce zamiast liter gry (czcionka X11
+                     "fixed" 6x10, domena publiczna)
   language=          english / german / polish (jezyk, gdy nie wybrano
                      go w Options; german: pliki .GER w data,
                      polish: lang/POLISH.PAK)

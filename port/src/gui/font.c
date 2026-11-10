@@ -11,12 +11,19 @@
 #include "../config.h"
 #include "../file.h"
 #include "../string.h"
+#if defined(__amigaos__)
+#include "../inifile.h"
+#include "font_clean.h"
+#endif
 
 Font *g_fontIntro = NULL;
 Font *g_fontNew6p = NULL;
 Font *g_fontNew8p = NULL;
 
 int8 g_fontCharOffset = -1;
+#if defined(__amigaos__)
+bool g_fontClean = false;	/* opendune.ini font=clean is on */
+#endif
 
 Font *g_fontCurrent = NULL;
 
@@ -131,6 +138,60 @@ void Font_Select(Font *f)
 	g_fontCurrent = f;
 }
 
+#if defined(__amigaos__)
+/**
+ * The clean font (opendune.ini font=clean): the letters of the game's 8 pixel
+ * font replaced by plain ones of 6x10 (font_clean.h), the face (colour 1 of
+ * the font) with a shadow below and to the right (2) and no light edge. As in
+ * the game's font the face starts in the second column (the first one is the
+ * light edge there) and a capital letter in the second row, on the same line
+ * of writing: the texts stand where the game's windows expect them. The
+ * letters font_clean.h has not stay the game's.
+ *
+ * @param f The 8 pixel font.
+ * @param polish The Polish letters too (their codes are other letters in the
+ *   other languages).
+ */
+static void Font_MakeClean(Font *f, bool polish)
+{
+	uint16 i;
+
+	if (f == NULL) return;
+	for (i = 0; i < sizeof(s_cleanGlyphs) / sizeof(s_cleanGlyphs[0]); i++) {
+		const CleanGlyph *g = &s_cleanGlyphs[i];
+		FontChar *fc = &f->chars[g->code];
+		uint8 w = CLEAN_WIDTH + 1;	/* the width of a letter is one more than its step (g_fontCharOffset) */
+		uint8 *data;
+		uint8 x, y;
+
+		if (g->polish && !polish) continue;
+		data = (uint8 *)calloc(CLEAN_HEIGHT * w, 1);
+		if (data == NULL) continue;
+		for (y = 0; y < CLEAN_HEIGHT; y++) {
+			for (x = 0; x < CLEAN_WIDTH; x++) {
+				if ((g->rows[y] & (1 << (CLEAN_WIDTH - 1 - x))) == 0) continue;
+				if (x + 1 >= w) continue;
+				data[y * w + x + 1] = 1;
+				if (y + 1 < CLEAN_HEIGHT && x + 2 < w && data[(y + 1) * w + x + 2] == 0) data[(y + 1) * w + x + 2] = 2;
+			}
+		}
+		/* (a shadow written before the face of the row below it: the face wins) */
+		for (y = 1; y < CLEAN_HEIGHT; y++) {
+			for (x = 0; x < CLEAN_WIDTH; x++) {
+				if ((g->rows[y] & (1 << (CLEAN_WIDTH - 1 - x))) != 0 && x + 1 < w) data[y * w + x + 1] = 1;
+			}
+		}
+		free(fc->data);
+		fc->data = data;
+		fc->width = w;
+		fc->unusedLines = 0;
+		fc->usedLines = CLEAN_HEIGHT;
+	}
+	if (f->height < CLEAN_HEIGHT) f->height = CLEAN_HEIGHT;
+	if (f->maxWidth < CLEAN_WIDTH + 1) f->maxWidth = CLEAN_WIDTH + 1;
+}
+#endif
+
 bool Font_Init(void)
 {
 	g_fontIntro = Font_LoadFile("INTRO.FNT");
@@ -140,12 +201,25 @@ bool Font_Init(void)
 		g_fontNew6p = Font_LoadFile("new6p.fnt");
 	}
 	g_fontNew8p = Font_LoadFile("new8p.fnt");
+#if defined(__amigaos__)
+	g_fontClean = false;
+#endif
 
 	if (g_config.language == LANGUAGE_POLISH) {
 		Font_AddPolish(g_fontIntro);
 		Font_AddPolish(g_fontNew6p);
 		Font_AddPolish(g_fontNew8p);
 	}
+#if defined(__amigaos__)
+	{
+		/* opendune.ini / Tool Type font=clean: plain letters in place of the 8 pixel font's */
+		char name[16];
+		if (IniFile_GetString("font", "", name, sizeof(name)) != NULL && strcasecmp(name, "clean") == 0) {
+			Font_MakeClean(g_fontNew8p, g_config.language == LANGUAGE_POLISH);
+			g_fontClean = g_fontNew8p != NULL;
+		}
+	}
+#endif
 
 	return g_fontNew8p != NULL;
 }

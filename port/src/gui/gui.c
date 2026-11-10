@@ -610,6 +610,16 @@ void GUI_DrawText_Wrapper(const char *string, int16 left, int16 top, uint8 fgCol
 				colours[3] = 0;
 				g_fontCharOffset = -1;
 				break;
+
+#if defined(__amigaos__)
+			case 0x0050:
+				/* the face alone at the usual step (0x10 is the face alone, a
+				 * pixel closer): the words of the top bar in the clean font */
+				colours[2] = 0;
+				colours[3] = 0;
+				g_fontCharOffset = -1;
+				break;
+#endif
 		}
 
 		colours[0] = bgColour;

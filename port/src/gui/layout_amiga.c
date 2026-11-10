@@ -839,7 +839,8 @@ void Layout_DrawLoadSaveButton(Screen screenID)
 					/* as the lettered MENTAT and OPTIONS (lang_amiga.c): the
 					 * OPTIONS lettering's colour, the font's dark shadow */
 					const char *word = Lang_T(s_buttonStyle == 1 ? s_buttons[i].word : "LOAD/SAVE");
-					GUI_DrawText_Wrapper(word, bx + w / 2, 3, fg, 0, 0x122);
+					/* (the clean font: no shadow - the user's choice, 10.11.2026) */
+					GUI_DrawText_Wrapper(word, bx + w / 2, g_fontClean ? 4 : 3, fg, 0, g_fontClean ? 0x152 : 0x122);	/* (and a row lower) */
 				}
 				bx += w + ((s_buttonStyle == 2 || s_bar == &s_langBar) ? s_bar->gap : 4);
 			}

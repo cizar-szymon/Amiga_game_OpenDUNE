@@ -7,6 +7,17 @@ z OpenDUNE/saves - F10 zapisuje bugNNN.txt, bugNNN.dat i bugNNN-*.bmp.
 Zgloszenia: github.com/cizar-szymon/Amiga_game_OpenDUNE (Issues).
 
 
+0.53 (10.11.2026)
+-----------------
+
+- font=clean (opendune.ini albo Tool Type FONT=clean): proste, czytelne
+  litery w menu, oknach, komunikatach i na gornej belce.
+- Gra LAN i przez internet: komunikat "baza jest atakowana" slyszy gracz,
+  ktorego budynek zostal trafiony.
+- Gra LAN i przez internet: kazdy gracz zaczyna na skale podobnej
+  wielkosci pod budowe.
+
+
 0.52 (10.11.2026)
 -----------------
 

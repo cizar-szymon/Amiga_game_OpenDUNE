@@ -81,4 +81,9 @@
   będzie nowa funkcja FPGA (PORTING, „Następny krok”). Wcześniej można rozbić pomiar `draw` na części.
 - Amigi posprzątane (bez `OpenDUNE-test`), commity na gałęzi `internet-game` wysłane na GitHuba; `main` bez
   zmian do wydania 0.52 (nie zbudowane). Do sprawdzenia: `@` w oknie F10.
+- Wydanie 0.52 zrobione i wysłane (paczka publiczna sprawdzona na Amidze 2 z Shella; pełna w `private`).
+- Amiga 2: `lang/GFX.PAK` podmieniony na aktualny (stary jako `GFX.PAK.old`); gra z ikony zamknięta
+  narzędziem `breaktask` z UFO.
+- 0.53: `font=clean` (X11 fixed 6×10 zamiast pierwotnie wybranego Terminusa – PORTING), belka bez cienia i
+  napisy przycisków o rząd niżej, komunikat „baza jest atakowana” tylko dla atakowanego gracza.
 

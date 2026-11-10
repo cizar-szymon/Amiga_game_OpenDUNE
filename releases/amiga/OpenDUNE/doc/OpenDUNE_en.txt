@@ -237,6 +237,9 @@ English, no counter (or screenmode=, language=, show_fps= of opendune.ini).
   lan_info=1         in a LAN game a line with the players' response time
   lan_relay=         the game server of an internet game and of the bug
                      reports, host:port (default: the port's server)
+  font=clean         plain, easy to read letters in the menus, windows,
+                     messages and on the top bar in place of the game's
+                     own (the public domain X11 "fixed" 6x10 font)
   language=          english / german / polish (the language when none
                      was chosen in Options; german: the .GER files in
                      data, polish: lang/POLISH.PAK)

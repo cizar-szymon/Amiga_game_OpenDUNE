@@ -367,7 +367,7 @@ static void Lang_LetterButton(const LangButton *b, const uint8 *orig, uint8 *dst
 	 * mentat's with a shadow of their colour, the gold ones with the font's
 	 * own dark shadow (as the game's windows) */
 	oldScreen = GFX_Screen_SetActive(SCREEN_3);
-	style = (b->kind == 1) ? 0x10 : 0x20;
+	style = (b->kind == 1) ? 0x10 : (g_fontClean ? 0x50 : 0x20);	/* (the clean font: the bar's words without a shadow) */
 	font = 2;
 	GUI_DrawText_Wrapper(NULL, 0, 0, b->fg, 0, style | font);
 	if (Font_GetStringWidth(text) > right - left - 1) {
@@ -391,7 +391,7 @@ static void Lang_LetterButton(const LangButton *b, const uint8 *orig, uint8 *dst
 		}
 	}
 	/* (MENTAT and OPTIONS a row higher: as high as LOAD and SAVE beside them) */
-	y = (b->kind == 1) ? (h - g_fontCurrent->height) / 2 : (b->word == 1 || b->word == 2) ? 2 : 3;
+	y = (b->kind == 1) ? (h - g_fontCurrent->height) / 2 : (b->word == 1 || b->word == 2) ? (g_fontClean ? 3 : 2) : 3;	/* (the clean font: a row lower, the user's choice) */
 	x = (left + right + 1) / 2;
 	if (b->kind == 1) GUI_DrawText_Wrapper(text, x + 1, y + 1, b->shade, 0, 0x100 | style | font);
 	GUI_DrawText_Wrapper(text, x, y, b->fg, 0, 0x100 | style | font);

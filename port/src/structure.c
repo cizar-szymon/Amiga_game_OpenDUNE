@@ -2054,7 +2054,10 @@ void Structure_HouseUnderAttack(uint8 houseID)
 	if (h->flags.human) {
 		if (h->timerStructureAttack != 0) return;
 
-		Sound_Output_Feedback(48);
+		/* (a LAN game: every player's house is human - only the player whose
+		 * base it is hears "your base is under attack"; the timer runs the
+		 * same on every Amiga) */
+		if (houseID == LOCAL_HOUSE_ID) Sound_Output_Feedback(48);
 
 		h->timerStructureAttack = 8;
 		return;

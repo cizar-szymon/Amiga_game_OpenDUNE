@@ -22,6 +22,9 @@ extern Font *g_fontNew6p;
 extern Font *g_fontNew8p;
 
 extern int8 g_fontCharOffset;
+#if defined(__amigaos__)
+extern bool g_fontClean;
+#endif
 
 extern Font *g_fontCurrent;
 
