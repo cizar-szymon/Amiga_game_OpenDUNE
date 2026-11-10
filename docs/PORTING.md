@@ -15,6 +15,7 @@
 | 3. Muzyka: nagrania muzyki AdLib zrobione raz na PC (`tools/music/make_music.py`), odtwarzane z dysku przez Paulę (`music_amiga.c`), niżej „Muzyka” | ✅ |
 | 4. Ikona, numer wydania, opisy, paczka ZIP | ✅ 0.50 31.10 (start z ikony i z paczki sprawdzony) |
 | 5. Języki: niemiecki (pliki `.GER` gracza), polski (własny przekład, `lang/POLISH.PAK`, litery w czcionkach), wybór w Game controls – niżej „Języki” | ✅ 30.10, na Amidze 31.10 |
+| 6. Gra przez internet (serwer gry Settlers, 2–3 graczy), zgłoszenia F10 wysyłane z gry, raport rozejścia gry – niżej „Gra przez internet, zgłoszenia (0.52)” | ⏳ 10.11: działa (Amiga 1, Amiga 2, WinUAE na kopii serwera na PC); **serwer na Pi wdrożony 10.11** i sprawdzony przez adres publiczny fałszywymi Amigami; gra z Amigi przez Pi i wydanie 0.52 jeszcze nie zrobione |
 
 ## Źródła
 
@@ -1010,12 +1011,216 @@ Gra bierze teraz, gdy 1. da 0.0.0.0, pierwszy interfejs nie-127 z `SIOCGIFCONF`.
 
 ### Znane ograniczenia / dalej
 
-- Test z trzema Amigami (Amiga 2) – gdy będzie dostępna.
+- Test z trzema Amigami w LAN bez serwera gry – nie zrobiony (przez serwer gry: 10.11, niżej).
 - Okno LAN w palecie menu (oliwkowe tło); po grze LAN brak ekranu statystyk.
 - Zapora Windows: gdy serwerem ma być WinUAE, potrzebna reguła przychodząca TCP/UDP 6820 (jak
   „Settlers LAN 6810” – tylko za zgodą użytkownika).
 - Ślad kursora na zakrytym mgłą (czarnym) polu w grze jednoosobowej przy ruchach z `od.py` –
   jest też na `main`, nie od LAN.
+
+## Gra przez internet, zgłoszenia (0.52, 10.11.2026, życzenie użytkownika: „jak w Settlers”)
+
+Wzór: Settlers 0.131 i `../GAME_SERVER.md`. Ten sam serwer gry (Pi400, `83.12.152.135:6810`, kod w
+`../Settlers/server/`), gry rozróżniane po polu wersji: Dune wysyła `OpenDUNE-<port/VERSION>`.
+
+### Decyzje (użytkownik, 10.11.2026)
+
+- Wszystkie trzy funkcje: gra przez internet, zgłoszenia F10 z gry, raport rozejścia gry.
+- Gra internetowa od razu dla 2–3 graczy (serwer łączył dotąd tylko pary).
+- Strona serwera: `/` wszystkie gry, podstrony `/settlers` i `/dune`.
+
+### Trzech graczy bez zmiany ramek gry
+
+Sieć Dune to gwiazda: gospodarz ma osobne połączenie dla każdego gościa (`s_peers[2]`). Przez serwer
+jest tak samo: **gospodarz otwiera do serwera drugie połączenie** (`ATTACH <proto> <wersja> <kod>`),
+a serwer paruje każdego gościa z wolnym połączeniem gospodarza i przekazuje ramki w parach, bez
+oznaczania nadawcy. Rozszerzenia protokołu RELAY (Settlers ich nie wysyła, więc działa jak dotąd):
+
+```
+CREATE ... <gracz>\t<nazwa>\t<hasło>\t<M>      M = 2 | 3 (brak = 2)
+ATTACH <proto> <wersja> <kod>  -> ATTACHED     tylko z adresu gospodarza
+SESSION ... \t<P>\t<n>/<M>                     n/M tylko dla gier z M = 3
+```
+
+Serwer (`relay.py`): `Session.links` (`Link` = połączenie gospodarza + gość), sesja kończy się, gdy
+skończą się wszystkie pary; połączenie po graczu, który wyszedł w poczekalni, gospodarz może
+zastąpić nowym `ATTACH`. `LIST` pokazuje tylko gry tej samej gry (Settlers nie widzi gier Dune).
+Koniec „game ended” według ramki końca danej gry (`protocol.GAMES`: Settlers 16+3, OpenDUNE 16+7 =
+`MT_QUIT`; 16+3 to w Dune `MT_START`). Testy: 22 (13 dotychczasowych bez zmian + 3 graczy, `ATTACH`,
+podstrony, 6 plików w zgłoszeniu); `LOAD=1` jak przed zmianą.
+
+### W grze
+
+| Co | Gdzie |
+|---|---|
+| Połączenie przez serwer: `Net_Relay(host, port, op, gracze, wersja, imię, arg)`, `NEV_RELAY_GAME`, `NEV_RELAY_CODE`; DNS (`gethostbyname`), limit łączenia 10 s; gospodarz: `Net_RelayServe` (drugie połączenie, „The game on the server is over.”) | `os/net_amiga.c/.h` |
+| Okno INTERNET GAME (`VIEW_INTERNET`): imię, nazwa gry, 2/3 graczy, hasło, lista czekających gier, kod, NEW GAME / JOIN GAME / REFRESH; dalej zwykłe widoki serwera i dołączonego | `gui/lan_menu_amiga.c` |
+| Adres serwera: ini / Tool Type `lan_relay=host:port` (domyślnie serwer portu) | `gui/lan_menu_amiga.c`, `gui/report_amiga.c` |
+| Proces wysyłki zgłoszenia „OpenDUNE report” (priorytet 1, własna baza `bsdsocket`, paczki po 32 ramki, do 6 plików) | `os/report_amiga.c/.h` (z `Settlers/port/amiga_report.c`) |
+| Okno zgłoszenia na ekranie mapy: e-mail (`REPORT.CFG` w zapisach), opis do 1000 znaków, SEND / CANCEL, Tab; gra LAN idzie pod oknem (`g_lanModal`) | `gui/report_amiga.c`, `Report_Poll()` w pętli `opendune.c` |
+| F10: po zapisie plików, gdy działa stos TCP/IP (`Report_Network`), prośba o okno; wysyłane `bugNNN.txt`, `.dat`, `-game.bmp`, `-screen.bmp`, opis Amigi z `amiga_info_read` | `os/bugreport_amiga.c` |
+| Rozejście: serwer gry zapisuje koniec swojego `RAM:OpenDUNE-lan.txt` (do 60 KB; jest w nim stan każdej sumy) jako `lanerr-0.txt`, prosi gości (`MT_ERRREQ`), ci odsyłają swój ramkami `MT_FILE` / `MT_FILEEND`; po komplecie albo 15 s okno zgłoszenia rodzaju `LAN` | `lan_amiga.c` („A game out of step”) |
+| Test rozejścia: ini `debug_lan_desync=<krok>` (ta gra dodaje w tym kroku 1 kredyt) | `lan_amiga.c` |
+| Udawany gracz przez serwer: `tools/lan_peer.py <serwer> --relay 0.52 [--code] [--password]` | `tools/lan_peer.py` |
+
+Zgodność wersji: `JOIN` na serwerze odrzuca inną wersję programu (pole wersji z numerem wydania),
+czego sama gra LAN nie sprawdza (`LAN_VERSION`).
+
+### Testy 10.11.2026 (kopia serwera na PC w sieci lokalnej; Pi nietknięte)
+
+| Test | Wynik |
+|---|---|
+| Amiga 2 zakłada grę, `lan_peer.py --relay` dołącza, START | ✅ 999 tur w ~100 s (pełne tempo), sesja na `/dune` |
+| 3 graczy: Amiga 2 (gospodarz, `ATTACH`) + 2× `lan_peer.py` | ✅ tury do obu, po odejściu jednego gra idzie dalej, zapis sesji z `guest2`, koniec „game ended” |
+| Amiga 2 ↔ WinUAE przez serwer (lista gier, kod, dołączenie), 11 min, rozkazy budowy z obu stron | ✅ 129 sum zgodnych po obu stronach, 0 różnych (krok 38 700); ping gospodarza do serwera śr. 48 / maks. 139 ms; ok. 90 B/s na stronę |
+| **Trzy prawdziwe maszyny** przez serwer: Amiga 2 (gospodarz) + Amiga 1 + WinUAE, 10,5 min, rozkazy budowy z trzech stron, użytkownik ruszał jednostkami na obu Amigach (walka: plac budowy Atreidów uszkodzony) | ✅ po 119 sum od każdego gościa zgodnych na wszystkich trzech, 0 różnych (krok 35 700); do końca gry (16,5 min, krok 57 000): 189–190 sum od każdego gościa zgodnych, 0 różnych; ping do serwera: Amiga 2 śr. 27 / maks. 233 ms, Amiga 1 śr. 34 / maks. 119 ms; ok. 85–100 B/s danych gry na stronę |
+| **Przez serwer na Pi** (adres publiczny `83.12.152.135:6810`, domyślny w grze, po wdrożeniu): Amiga 2 (gospodarz) + Amiga 1 + WinUAE, 9 min, rozkazy budowy z trzech stron | ✅ po 109 sum od każdego gościa zgodnych na wszystkich trzech, 0 różnych (krok 32 700); ping w poczekalni 41 ms |
+| F10 w grze sieciowej na Amidze 2 | ✅ 4 pliki, 647 KB, numer zgłoszenia w oknie w kilka sekund; gra szła dalej |
+| Rozejście wymuszone (`debug_lan_desync=1500`), Amiga 2 ↔ WinUAE | ✅ zgodne do 1500, OUT OF STEP w 1800, `lanerr-0.txt` + `lanerr-1.txt`, zgłoszenie `LAN` na `/dune`, nie na `/settlers` |
+
+### Płyty w grze kilku graczy (zgłoszenie użytkownika 10.11.2026, raport F10 `bug019` z Amigi 2)
+
+Objaw: po postawieniu 1–2 płyt gracz nie mógł postawić następnych nigdzie („Tu nie można umieścić:
+Beton”), choć pola obok placu budowy były pustą skałą (mapa z zapisu w raporcie). Przyczyna: płyty i
+mury mają **jeden wspólny obiekt na typ dla wszystkich rodów** (`pool/structure.c`, indeksy 79–81;
+w oryginale buduje je tylko gracz), więc należał do rodu, który ostatni zlecił budowę, a
+`Structure_Place` sprawdzało sąsiedztwo z bazą tego rodu. Błąd był też w LAN 0.50/0.51; sum nie
+rozjeżdżał (wszędzie tak samo). Poprawka: `Lan_Place` przypisuje wspólny obiekt do rodu placu budowy,
+który stawia. Sprawdzone 10.11: gra 3 graczy, wszyscy zlecili płytę, Atreidzi (Amiga 2) postawili
+swoją obok placu ✅. Nie przeanalizowane do końca: anulowanie budowy płyty i zniszczenie placu z gotową
+płytą (ten sam wspólny obiekt).
+
+### Równe szanse na starcie: skała pod budowę (pomiar 10.11.2026, życzenie użytkownika)
+
+`debug_lan_maps=1` (ini / Shell): przy starcie gry LAN do `RAM:OpenDUNE-lan.txt` idzie dla każdej mapy
+liczba pól, na których może stać budynek, połączonych bokami z miejscem startu gracza
+(`Lan_LogMapAreas`). Takie same liczby = gracze na tej samej skale. Stosunek = największa / najmniejsza.
+
+| Nr | Mapa | Graczy | Pola skały na starcie | Stosunek |
+|---|---|---|---|---|
+| 0 | SCENA014 | 3 | 119 / 855 / 855 | 7.2 |
+| 1 | SCENA017 | 3 | 864 / 140 / 170 | 6.2 |
+| 2 | SCENA020 | 3 | 579 / 189 / 391 | 3.1 |
+| 3 | SCENA022 | 3 | 295 / 270 / 217 | 1.4 |
+| 4 | SCENH006 | 3 | 675 / 210 / 160 | 4.2 |
+| 5 | SCENH017 | 3 | 1430 / 1430 / 1430 | 1.0 |
+| 6 | SCENH021 | 3 | 822 / 249 / 822 | 3.3 |
+| 7 | SCENA005 | 2 | 354 / 164 | 2.2 |
+| 8 | SCENA006 | 2 | 244 / 566 | 2.3 |
+| 9 | SCENA007 | 2 | 420 / 134 | 3.1 |
+| 10 | SCENA008 | 2 | 89 / 182 | 2.0 |
+| 11 | SCENA009 | 2 | 126 / 633 | 5.0 |
+| 12 | SCENA010 | 2 | 122 / 338 | 2.8 |
+| 13 | SCENA011 | 2 | 89 / 264 | 3.0 |
+| 14 | SCENA012 | 2 | 346 / 156 | 2.2 |
+| 15 | SCENA013 | 2 | 269 / 392 | 1.5 |
+| 16 | SCENA015 | 2 | 1168 / 1168 | 1.0 |
+| 17 | SCENA018 | 2 | 497 / 457 | 1.1 |
+| 18 | SCENA019 | 2 | 543 / 188 | 2.9 |
+| 19 | SCENA021 | 2 | 426 / 152 | 2.8 |
+| 20 | SCENH005 | 2 | 109 / 339 | 3.1 |
+| 21 | SCENH008 | 2 | 92 / 844 | 9.2 |
+| 22 | SCENH009 | 2 | 189 / 517 | 2.7 |
+| 23 | SCENH010 | 2 | 98 / 366 | 3.7 |
+| 24 | SCENH011 | 2 | 745 / 745 | 1.0 |
+| 25 | SCENH012 | 2 | 606 / 180 | 3.4 |
+| 26 | SCENH013 | 2 | 882 / 99 | 8.9 |
+| 27 | SCENH016 | 2 | 647 / 232 | 2.8 |
+| 28 | SCENH018 | 2 | 1110 / 1110 | 1.0 |
+| 29 | SCENH019 | 2 | 293 / 510 | 1.7 |
+| 30 | SCENO005 | 2 | 209 / 392 | 1.9 |
+| 31 | SCENO006 | 2 | 625 / 213 | 2.9 |
+| 32 | SCENO008 | 2 | 579 / 732 | 1.3 |
+| 33 | SCENO009 | 2 | 252 / 1432 | 5.7 |
+| 34 | SCENO010 | 2 | 773 / 100 | 7.7 |
+| 35 | SCENO012 | 2 | 327 / 755 | 2.3 |
+
+Wniosek: miejsca startu (bazy z misji oryginału, wybrane tylko po odległości, `tools/lan_maps.py`)
+nie dają równych szans na większości map.
+
+**Decyzja użytkownika (10.11.2026): miejsca startu wyliczane z mapy** (`Lan_ChooseStarts` w
+`lan_amiga.c`, wołane z `Lan_ScenarioText`, czyli przed wczytaniem scenariusza, tak samo na każdej
+Amidze – zależy tylko od krajobrazu i liczby graczy):
+
+- skały mapy (`Lan_RockRegions`: pola, na których może stać budynek, połączone bokami) i kandydaci
+  (`Lan_StartCandidates`: co drugie pole, plac 2×2 na skale, co najmniej 60 pól tej skały w oknie 16×16);
+- „skała gracza” = wielkość skały, na której stoi, podzielona przez liczbę graczy na niej, liczona
+  do 400 pól (`Lan_StartShare`);
+- szukany jest największy poziom skały (400, 320, 256 … 60), przy którym wszyscy mają od poziomu do
+  poziomu + 25% i place są co najmniej 22 pola od siebie (`Lan_PickStarts`: z każdego miejsca
+  najdalsze, potem najdalsze od obu); gdy mapa takich miejsc nie ma – drugi przebieg bez górnej
+  granicy (każdy ma co najmniej poziom; w logu „or more”); gdy i tak nic – miejsca z misji;
+- miejsca w logu: `starts: map N player P at x,y rock … of …`; `debug_lan_maps=1` wypisuje je dla
+  wszystkich map dla graczy z poczekalni.
+
+Wynik dla 3 graczy (WinUAE, 10.11): skała każdego gracza (z całej skały), odległość, stosunek.
+28 map do 1,25; 8 map więcej (najgorsza 1,75); przedtem do 9.
+
+| Nr | Miejsca: skała gracza (z całej) | Odległość | Stosunek |
+|---|---|---|---|
+| 0 | 2,2: 285 (of 855) ; 38,22: 285 (of 855) ; 34,58: 285 (of 855) | 36 | 1.00 |
+| 1 | 2,2: 288 (of 864) ; 60,6: 288 (of 864) ; 14,34: 288 (of 864) | 32 | 1.00 |
+| 2 | 4,30: 195 (of 391) ; 60,30: 189 (of 189) ; 32,38: 195 (of 391) | 28 | 1.03 |
+| 3 | 6,2: 270 (of 270) ; 54,4: 295 (of 295) ; 12,58: 217 (of 217) | 48 | 1.36 |
+| 4 | 38,2: 225 (of 675) ; 28,32: 225 (of 675) ; 58,52: 225 (of 675) | 30 | 1.00 |
+| 5 | 60,4: 400 (of 1430) ; 14,10: 400 (of 1430) ; 26,60: 400 (of 1430) | 46 | 1.00 |
+| 6 | 28,18: 274 (of 822) ; 24,54: 274 (of 822) ; 60,56: 274 (of 822) | 36 | 1.00 |
+| 7 | 18,2: 164 (of 164) ; 58,54: 177 (of 354) ; 26,60: 177 (of 354) | 32 | 1.08 |
+| 8 | 60,18: 283 (of 566) ; 18,20: 283 (of 566) ; 60,60: 311 (of 311) | 42 | 1.10 |
+| 9 | 10,12: 210 (of 420) ; 40,18: 210 (of 420) ; 28,50: 134 (of 134) | 30 | 1.57 |
+| 10 | 6,2: 248 (of 496) ; 44,2: 248 (of 496) ; 4,44: 182 (of 182) | 38 | 1.36 |
+| 11 | 6,6: 211 (of 633) ; 32,24: 211 (of 633) ; 6,34: 211 (of 633) | 26 | 1.00 |
+| 12 | 38,2: 169 (of 169) ; 60,38: 169 (of 338) ; 24,54: 169 (of 338) | 36 | 1.00 |
+| 13 | 44,28: 184 (of 184) ; 20,30: 132 (of 264) ; 6,56: 132 (of 264) | 24 | 1.39 |
+| 14 | 32,6: 156 (of 156) ; 8,36: 173 (of 346) ; 38,56: 173 (of 346) | 30 | 1.11 |
+| 15 | 2,26: 269 (of 269) ; 30,32: 196 (of 392) ; 2,60: 196 (of 392) | 28 | 1.37 |
+| 16 | 4,2: 389 (of 1168) ; 60,32: 389 (of 1168) ; 16,46: 389 (of 1168) | 44 | 1.00 |
+| 17 | 40,2: 228 (of 457) ; 2,8: 228 (of 457) ; 44,50: 400 (of 497) | 38 | 1.75 |
+| 18 | 32,6: 181 (of 543) ; 58,16: 181 (of 543) ; 24,32: 181 (of 543) | 26 | 1.00 |
+| 19 | 26,30: 142 (of 426) ; 6,52: 142 (of 426) ; 28,58: 142 (of 426) | 22 | 1.00 |
+| 20 | 58,4: 137 (of 137) ; 6,8: 169 (of 339) ; 32,12: 169 (of 339) | 26 | 1.23 |
+| 21 | 2,24: 281 (of 844) ; 60,30: 281 (of 844) ; 20,58: 281 (of 844) | 34 | 1.00 |
+| 22 | 48,12: 172 (of 517) ; 16,20: 172 (of 517) ; 60,36: 172 (of 517) | 24 | 1.00 |
+| 23 | 34,20: 143 (of 429) ; 4,28: 143 (of 429) ; 30,46: 143 (of 429) | 26 | 1.00 |
+| 24 | 2,28: 248 (of 745) ; 30,36: 248 (of 745) ; 58,38: 248 (of 745) | 28 | 1.00 |
+| 25 | 2,22: 202 (of 606) ; 46,40: 202 (of 606) ; 18,50: 202 (of 606) | 28 | 1.00 |
+| 26 | 18,2: 294 (of 882) ; 60,20: 294 (of 882) ; 36,58: 294 (of 882) | 38 | 1.00 |
+| 27 | 28,2: 215 (of 647) ; 54,2: 215 (of 647) ; 2,8: 215 (of 647) | 26 | 1.00 |
+| 28 | 20,4: 370 (of 1110) ; 10,54: 370 (of 1110) ; 60,54: 370 (of 1110) | 50 | 1.00 |
+| 29 | 32,2: 106 (of 106) ; 38,38: 119 (of 119) ; 60,40: 120 (of 120) | 22 | 1.13 |
+| 30 | 4,2: 392 (of 392) ; 2,38: 347 (of 695) ; 38,48: 347 (of 695) | 36 | 1.13 |
+| 31 | 38,24: 208 (of 625) ; 60,26: 208 (of 625) ; 44,52: 208 (of 625) | 22 | 1.00 |
+| 32 | 42,4: 366 (of 732) ; 2,28: 400 (of 579) ; 42,44: 366 (of 732) | 40 | 1.09 |
+| 33 | 44,4: 400 (of 1432) ; 12,52: 400 (of 1432) ; 60,52: 400 (of 1432) | 48 | 1.00 |
+| 34 | 16,12: 400 (of 542) ; 56,20: 386 (of 773) ; 36,60: 386 (of 773) | 40 | 1.04 |
+| 35 | 8,2: 327 (of 327) ; 2,52: 377 (of 755) ; 52,58: 377 (of 755) | 50 | 1.15 |
+
+Sprawdzenie na trzech maszynach (Amiga 1 gospodarz, Amiga 2, WinUAE, przez serwer na Pi, 10.11): każda
+wyliczyła te same miejsca (2,2 / 38,22 / 34,58), 5 min gry, po 61 sum od każdego gościa zgodnych, 0 różnych;
+użytkownik: „teraz wygląda ok”.
+
+Ograniczenia: udział w skale wspólnej to dzielenie przez liczbę graczy, nie rzeczywisty podział
+terenu; odległość do przyprawy nie jest liczona; miejsca bywają w rogu mapy (2,2); wznowienie zapisanej
+gry LAN ustawia widok według miejsc z tabeli misji; mapy „dla 2 graczy” dalej przyjmują tylko 2 graczy,
+choć reguła znajduje na nich miejsca dla 3.
+
+### Nie zrobione / do zrobienia
+
+- Serwer na Pi **wdrożony 10.11.2026** (zgoda użytkownika, VPN; kopia poprzedniego kodu i `data/` w
+  `~/settlers-server/backup-20261110/`). Po wdrożeniu: 22 testy na Pi ✅, historia 15 gier Settlers
+  zachowana, `/`, `/settlers`, `/dune`, `/load` odpowiadają; przez `83.12.152.135:6810` fałszywe Amigi:
+  gra Settlers w starym formacie (CREATE z hasłem, LIST, JOIN, ramki) ✅ i gra Dune 3 graczy z `ATTACH` ✅
+  (w historii serwera zostały po tym dwie sesje „DEPLOY TEST”). Dune z Amig przez publiczny adres: tabela testów wyżej. Zostaje:
+  prawdziwy Settlers 0.131 przez serwer.
+- Wydanie 0.52 (`tools/make_release.sh`) dopiero po wdrożeniu serwera: gra 3 graczy wymaga `ATTACH`.
+- Znak `@` w polu e-mail: `od.py type` go nie wpisuje – sprawdzić z klawiatury (Shift+2).
+- Opóźnienie rozkazów (2–8 tur, liczone raz przy starcie z pingu) przy prawdziwym łączu internetowym.
+- Opcja `RELAYAUTO` z planu nie powstała: testy klikają `tools/od.py`.
+- Raport rozejścia wysyła dzienniki (stan każdej sumy), nie zapisy gry; ponownej synchronizacji
+  (Settlers ją ma) nie ma.
+- Okno zgłoszenia tylko na ekranie mapy (F10 gdzie indziej zapisuje pliki jak dotąd).
+- Pliki testów na Amidze 2 w `OpenDUNEWarp`: `OpenDUNE-test`, `saves/bug018*`, `saves/lanerr-*`,
+  `saves/REPORT.CFG` (e-mail „test”).
 
 ## Języki: polski i niemiecki (gałąź `lang-pl-de`, 30.10.2026, życzenie użytkownika)
 

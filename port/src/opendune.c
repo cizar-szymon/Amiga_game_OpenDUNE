@@ -78,6 +78,7 @@
 #include "rev.h"
 #include "gui/rts_amiga.h"
 #include "gui/layout_amiga.h"
+#include "os/report_amiga.h"
 #include "lang_amiga.h"
 #include "os/amiga_prof.h"
 #endif
@@ -1130,6 +1131,7 @@ static void GameLoop_Main(void)
 		RTS_Tick();
 		AmigaProf_Tick();
 		Layout_UpdateLoadSaveButton();
+		Report_Poll();	/* the window of a bug report (F10) */
 #endif
 		if (g_gameMode == GM_MENU) {
 			GameLoop_GameIntroAnimationMenu();

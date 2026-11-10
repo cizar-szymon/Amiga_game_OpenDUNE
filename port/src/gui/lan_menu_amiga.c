@@ -9,6 +9,10 @@
  *   CONNECT, BACK; then joined: the players and houses, DISCONNECT.
  * The server chooses its house first (Atreides, Harkonnen, Ordos); the others
  * choose from what is left; who has not chosen at START GAME gets what is left.
+ * - internet: a game through the game server (Settlers/server, ini
+ *   lan_relay=host:port): the games waiting there, NEW GAME (for 2 or 3
+ *   players, a password if wanted) or JOIN GAME (from the list or by the
+ *   code); then the server / joined views as on a LAN.
  * Everything is drawn here on the 320x200 menu screen.
  */
 
@@ -30,9 +34,11 @@
 #include "../lan_amiga.h"
 #include "../timer.h"
 #include "../lang_amiga.h"
+#include "../inifile.h"
+#include "../rev.h"
 
-enum { VIEW_CHOOSE, VIEW_SERVER, VIEW_JOIN, VIEW_JOINED };
-enum { FIELD_NONE, FIELD_NAME, FIELD_ADDRESS };
+enum { VIEW_CHOOSE, VIEW_SERVER, VIEW_JOIN, VIEW_JOINED, VIEW_INTERNET };
+enum { FIELD_NONE, FIELD_NAME, FIELD_ADDRESS, FIELD_GAME, FIELD_PASS, FIELD_CODE };
 
 #define COL_TITLE 238
 #define COL_TEXT  232
@@ -54,6 +60,21 @@ static Found s_found[4];
 static int s_foundCount;
 static bool s_searching, s_serving, s_connecting;
 static bool s_netOk;
+
+/* a game over the internet, through the game server */
+#define RELAY_DEFAULT "83.12.152.135:6810"
+#define NET_GAMES 5
+typedef struct NetGame { char code[8]; char name[16]; char player[16]; int minutes, there, most; bool locked; } NetGame;
+static NetGame s_netGames[NET_GAMES];
+static int s_netGameCount;
+static bool s_internet;		/* the server / joined view is of a game on the game server */
+static char s_gameName[16] = "DUNE";
+static char s_password[11] = "";
+static char s_code[8] = "";
+static int s_netPlayers = 2;	/* NEW GAME: for 2 or 3 players */
+static char s_relayHost[64];
+static int s_relayPort;
+static char s_relayVersion[24];
 /* the server's LAN saves (_lanNNN.dat), the one chosen (-1: a new game) */
 #define LAN_SAVES 10
 static int s_saveCount, s_saveSel = -1;
@@ -170,6 +191,18 @@ static void Lan_DrawHouses(int y)
 static Button s_buttons[4];
 static int s_buttonCount;
 
+/* a fourth button, anywhere (after Lan_SetButtons) */
+static void Lan_ExtraButton(int x, int y, int w, const char *text, bool enabled)
+{
+	Button *b = &s_buttons[3];
+	b->x = (int16)x;
+	b->y = (int16)y;
+	b->w = (int16)w;
+	b->text = text;
+	b->enabled = enabled;
+	s_buttonCount = 4;
+}
+
 static void Lan_SetButtons(int count, const char *t0, bool e0, const char *t1, bool e1, const char *t2, bool e2)
 {
 	const char *t[3];
@@ -179,6 +212,7 @@ static void Lan_SetButtons(int count, const char *t0, bool e0, const char *t1, b
 	t[0] = t0; t[1] = t1; t[2] = t2;
 	e[0] = e0; e[1] = e1; e[2] = e2;
 	s_buttonCount = count;
+	for (i = count; i < 3; i++) s_buttons[i].enabled = false;
 	for (i = 0; i < count; i++) {
 		s_buttons[i].x = (int16)(x + i * (w + gap));
 		s_buttons[i].y = 172;
@@ -278,16 +312,52 @@ static void Lan_Draw(void)
 			Lan_TextCentre(Lang_T("START SERVER: this Amiga sets up the game."), 84, COL_TEXT);
 			Lan_TextCentre(Lang_T("JOIN SERVER: find the server or type its"), 100, COL_TEXT);
 			Lan_TextCentre(Lang_T("address and connect."), 110, COL_TEXT);
+			Lan_TextCentre(Lang_T("INTERNET GAME: through the game server."), 126, COL_TEXT);
 			if (!s_netOk) Lan_TextCentre(Lang_T("No TCP/IP stack (bsdsocket.library)."), 140, COL_HOVER);
 			Lan_SetButtons(3, Lang_T("START SERVER"), s_netOk, Lang_T("JOIN SERVER"), s_netOk, Lang_T("BACK"), true);
+			Lan_ExtraButton(100, 152, 120, Lang_T("INTERNET GAME"), s_netOk);
+			break;
+
+		case VIEW_INTERNET:
+			Lan_TextCentre(Lang_T("Internet game"), 14, COL_TITLE);
+			Lan_Text(Lang_T("Your name"), 26, 28, COL_TEXT);
+			Lan_DrawField(110, 26, 100, s_playerName, s_field == FIELD_NAME);
+			Lan_Text(Lang_T("Game name"), 26, 42, COL_TEXT);
+			Lan_DrawField(110, 40, 100, s_gameName, s_field == FIELD_GAME);
+			snprintf(line, sizeof(line), "%s < %d >", Lang_T("Players"), s_netPlayers);
+			Lan_Text(line, 218, 42, Lan_Over(216, 40, 84, 11) ? COL_HOVER : COL_TEXT);
+			Lan_Text(Lang_T("Password"), 26, 56, COL_TEXT);
+			Lan_DrawField(110, 54, 70, s_password, s_field == FIELD_PASS);
+			Lan_Text(s_searching ? Lang_T("Asking the game server...") : Lang_T("Games waiting"), 26, 72, COL_TITLE);
+			if (s_netGameCount == 0 && !s_searching) Lan_Text(Lang_T("None - NEW GAME makes one."), 30, 84, COL_DIM);
+			for (i = 0; i < s_netGameCount; i++) {
+				const NetGame *g = &s_netGames[i];
+				int y = 84 + i * 10;
+				snprintf(line, sizeof(line), "%s %s %s %d/%d %d min%s", g->code, g->name, g->player, g->there, g->most, g->minutes, g->locked ? " *" : "");
+				Lan_Text(line, 30, y, strcmp(g->code, s_code) == 0 || Lan_Over(26, y - 1, 270, 10) ? COL_HOVER : COL_TEXT);
+			}
+			Lan_Text(Lang_T("Game code"), 26, 138, COL_TEXT);
+			Lan_DrawField(110, 136, 40, s_code, s_field == FIELD_CODE);
+			Lan_Text(Lang_T("* needs the password"), 160, 138, COL_DIM);
+			Lan_TextCentre(s_status, 152, COL_HOVER);
+			Lan_SetButtons(3, Lang_T("NEW GAME"), !s_connecting, Lang_T("JOIN GAME"), !s_connecting && strlen(s_code) == 4, Lang_T("BACK"), true);
+			Lan_ExtraButton(236, 68, 60, Lang_T("REFRESH"), !s_searching && !s_connecting);
 			break;
 
 		case VIEW_SERVER:
-			Lan_TextCentre(Lang_T("LAN game - server"), 14, COL_TITLE);
-			Lan_Text(Lang_T("Server name"), 26, 30, COL_TEXT);
-			Lan_DrawField(110, 28, 100, s_serverName, s_field == FIELD_NAME);
-			Lan_Text(Lang_T("Server address"), 26, 44, COL_TEXT);
-			Lan_Text(s_myAddress, 112, 44, COL_TEXT);
+			if (s_internet) {
+				Lan_TextCentre(Lang_T("Internet game - server"), 14, COL_TITLE);
+				Lan_Text(Lang_T("Game code"), 26, 30, COL_TEXT);
+				Lan_Text(s_code, 112, 30, COL_HOVER);
+				snprintf(line, sizeof(line), Lang_T("for %d players - tell the code to the others"), s_netPlayers);
+				Lan_Text(line, 26, 44, COL_TEXT);
+			} else {
+				Lan_TextCentre(Lang_T("LAN game - server"), 14, COL_TITLE);
+				Lan_Text(Lang_T("Server name"), 26, 30, COL_TEXT);
+				Lan_DrawField(110, 28, 100, s_serverName, s_field == FIELD_NAME);
+				Lan_Text(Lang_T("Server address"), 26, 44, COL_TEXT);
+				Lan_Text(s_myAddress, 112, 44, COL_TEXT);
+			}
 			Lan_Text(Lang_T("Game"), 26, 54, COL_TEXT);
 			if (s_saveSel < 0) {
 				snprintf(line, sizeof(line), Lang_T("< New game >%s"), s_saveCount > 0 ? "" : Lang_T("  (no saves)"));
@@ -341,8 +411,8 @@ static void Lan_Draw(void)
 			break;
 
 		case VIEW_JOINED:
-			Lan_TextCentre(Lang_T("LAN game - joined"), 14, COL_TITLE);
-			snprintf(line, sizeof(line), Lang_T("Server %s  %s"), g_lanPlayers[0].name, s_address);
+			Lan_TextCentre(s_internet ? Lang_T("Internet game - joined") : Lang_T("LAN game - joined"), 14, COL_TITLE);
+			snprintf(line, sizeof(line), Lang_T("Server %s  %s"), g_lanPlayers[0].name, s_internet ? s_code : s_address);
 			Lan_Text(line, 26, 30, COL_TEXT);
 			snprintf(line, sizeof(line), Lang_T("Map  %s"), Lan_MapName(g_lanMap));
 			Lan_Text(line, 26, 44, COL_TEXT);
@@ -381,6 +451,57 @@ static void Lan_ClearPlayers(void)
 		g_lanPlayers[slot].house = HOUSE_INVALID;
 		g_lanPlayers[slot].ping = -1;
 	}
+}
+
+/* The game server: its address (ini lan_relay=host[:port]) and the version
+ * that tells the games on it apart. */
+static void Lan_RelaySetup(void)
+{
+	char *colon;
+	if (IniFile_GetString("lan_relay", RELAY_DEFAULT, s_relayHost, sizeof(s_relayHost)) == NULL || s_relayHost[0] == 0) {
+		strcpy(s_relayHost, RELAY_DEFAULT);
+	}
+	s_relayPort = 6810;
+	colon = strrchr(s_relayHost, ':');
+	if (colon != NULL) {
+		int port = atoi(colon + 1);
+		*colon = 0;
+		if (port > 0 && port < 65536) s_relayPort = port;
+	}
+	snprintf(s_relayVersion, sizeof(s_relayVersion), "OpenDUNE-%s", g_opendune_revision);
+}
+
+/* Asks the game server: 'L' the games waiting, 'C' a new game, 'J' join s_code. */
+static void Lan_Internet(int op)
+{
+	char arg[32];
+	arg[0] = 0;
+	if (op == 'L') {
+		s_netGameCount = 0;
+		s_searching = true;
+	} else {
+		if (op == 'C') {
+			snprintf(arg, sizeof(arg), "%s\t%s", s_gameName[0] != 0 ? s_gameName : s_playerName, s_password);
+		} else {
+			snprintf(arg, sizeof(arg), "%s\t%s", s_code, s_password);
+		}
+		s_searching = false;
+		s_connecting = true;
+		g_lanServer = op == 'C';
+		g_lanMe = 0;
+	}
+	Net_Relay(s_relayHost, s_relayPort, op, s_netPlayers, s_relayVersion, s_playerName, arg);
+	Lan_Status(Lang_T("Asking the game server..."));
+}
+
+/* back from a game on the game server to the internet view */
+static void Lan_InternetView(void)
+{
+	s_internet = false;
+	s_serving = s_connecting = false;
+	s_view = VIEW_INTERNET;
+	s_field = FIELD_NONE;
+	Lan_ClearPlayers();
 }
 
 static void Lan_RunServer(void)
@@ -508,10 +629,45 @@ static bool Lan_Events(void)
 				strncpy(s_myAddress, ev.text1, sizeof(s_myAddress) - 1);
 				break;
 			case NEV_ERROR:
-				Lan_Status(Lang_T(ev.text1));	/* net_amiga.c's texts: INDIRECT in make_port_strings.py */
+				if (strncmp(ev.text1, "The game needs version", 22) == 0) {
+					Lan_Status(Lang_T("The game is of another version."));
+				} else {
+					Lan_Status(Lang_T(ev.text1));	/* net_amiga.c's and the game server's texts: INDIRECT in make_port_strings.py */
+				}
 				if (ev.value) {
 					s_serving = s_searching = s_connecting = false;
+					if (s_internet) Lan_InternetView();	/* the game on the game server is over */
 				}
+				break;
+			case NEV_RELAY_GAME:
+				if (s_netGameCount < NET_GAMES) {
+					NetGame *g = &s_netGames[s_netGameCount++];
+					memset(g, 0, sizeof(*g));
+					strncpy(g->name, ev.text1, sizeof(g->name) - 1);
+					strncpy(g->player, ev.text2, sizeof(g->player) - 1);
+					strncpy(g->code, ev.text3, sizeof(g->code) - 1);
+					g->minutes = (int)((ev.value & 0xFFFFFL) / 60);
+					g->there = (int)((ev.value >> 20) & 3);
+					g->most = (int)((ev.value >> 22) & 3);
+					g->locked = (ev.value & 0x40000000L) != 0;
+				}
+				break;
+			case NEV_RELAY_CODE:
+				/* the game is made: the server view, as RUN SERVER on a LAN */
+				strncpy(s_code, ev.text1, sizeof(s_code) - 1);
+				s_connecting = false;
+				s_internet = true;
+				s_serving = true;
+				s_view = VIEW_SERVER;
+				s_field = FIELD_NONE;
+				Lan_ClearPlayers();
+				g_lanServer = true;
+				g_lanMe = 0;
+				g_lanPlayers[0].used = true;
+				strcpy(g_lanPlayers[0].name, s_playerName);
+				Lan_ScanSaves();
+				Lan_ChooseSave(-1);
+				Lan_Status(Lang_T("Waiting for players..."));
 				break;
 			case NEV_SERVING:
 				s_serving = true;
@@ -532,6 +688,7 @@ static bool Lan_Events(void)
 			}
 			case NEV_SEARCH_DONE:
 				s_searching = false;
+				if (s_view == VIEW_INTERNET) Lan_Status("");
 				break;
 			case NEV_PEER:
 				if (g_lanServer) {
@@ -547,6 +704,7 @@ static bool Lan_Events(void)
 					Lan_Status(Lan_PlayerCount() == 3 ? Lang_T("Three players: START GAME.") : Lang_T("A player has joined."));
 				} else {
 					s_connecting = false;
+					s_internet = s_view == VIEW_INTERNET;
 					s_view = VIEW_JOINED;
 					Lan_ClearPlayers();
 					strncpy(g_lanPlayers[0].name, ev.text1, 15);
@@ -567,7 +725,7 @@ static bool Lan_Events(void)
 					Lan_SendLobby();
 					Lan_Status(Lang_T("A player has left."));
 				} else {
-					s_view = VIEW_JOIN;
+					if (s_internet) Lan_InternetView(); else s_view = VIEW_JOIN;
 					Lan_Status(Lang_T(ev.text1));
 				}
 				break;
@@ -646,6 +804,9 @@ static void Lan_TypeKey(uint16 key)
 
 	if (s_field == FIELD_NONE) return;
 	text = s_field == FIELD_ADDRESS ? s_address : (s_view == VIEW_SERVER ? s_serverName : s_playerName);
+	if (s_field == FIELD_GAME) text = s_gameName;
+	if (s_field == FIELD_PASS) { text = s_password; size = sizeof(s_password); }
+	if (s_field == FIELD_CODE) { text = s_code; size = 5; }
 	len = (int)strlen(text);
 	if (key == 0x0F) {	/* backspace */
 		if (len > 0) text[len - 1] = 0;
@@ -663,6 +824,8 @@ static void Lan_TypeKey(uint16 key)
 	} else {
 		if (c >= 'a' && c <= 'z') c -= 'a' - 'A';
 		if (!((c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-' || c == '_' || c == '.')) return;
+		/* a password and a code: letters and digits only */
+		if ((s_field == FIELD_PASS || s_field == FIELD_CODE) && (c == '-' || c == '_' || c == '.')) return;
 	}
 	if (len >= size - 1) return;
 	text[len] = (char)c;
@@ -699,6 +862,38 @@ static bool Lan_Click(int x, int y, bool *leave)
 				Lan_Status("");
 			} else if (hit == 2) {
 				*leave = true;
+			} else if (hit == 3) {
+				s_view = VIEW_INTERNET;
+				s_field = FIELD_NONE;
+				s_internet = false;
+				Lan_Internet('L');
+			}
+			return false;
+
+		case VIEW_INTERNET:
+			if (Lan_Over(110, 26, 100, 11)) { s_field = FIELD_NAME; return false; }
+			if (Lan_Over(110, 40, 100, 11)) { s_field = FIELD_GAME; return false; }
+			if (Lan_Over(110, 54, 70, 11)) { s_field = FIELD_PASS; return false; }
+			if (Lan_Over(110, 136, 40, 11)) { s_field = FIELD_CODE; return false; }
+			s_field = FIELD_NONE;
+			if (Lan_Over(216, 40, 84, 11)) {
+				s_netPlayers = s_netPlayers == 2 ? 3 : 2;
+				return false;
+			}
+			for (i = 0; i < s_netGameCount; i++) {
+				if (Lan_Over(26, 84 + i * 10 - 1, 270, 10)) strcpy(s_code, s_netGames[i].code);
+			}
+			if (hit == 0) {
+				Lan_Internet('C');
+			} else if (hit == 1) {
+				Lan_Internet('J');
+			} else if (hit == 2) {
+				Net_Stop();
+				s_searching = s_connecting = false;
+				s_view = VIEW_CHOOSE;
+				Lan_Status("");
+			} else if (hit == 3) {
+				Lan_Internet('L');
 			}
 			return false;
 
@@ -744,6 +939,11 @@ static bool Lan_Click(int x, int y, bool *leave)
 				s_serving = false;
 				s_view = VIEW_CHOOSE;
 			}
+			if (s_internet && (hit == 0 || hit == 2)) {
+				/* the game is off the game server: the list again */
+				Lan_InternetView();
+				Lan_Internet('L');
+			}
 			return false;
 
 		case VIEW_JOIN:
@@ -778,7 +978,7 @@ static bool Lan_Click(int x, int y, bool *leave)
 			}
 			if (hit == 0) {
 				Net_Stop();
-				s_view = VIEW_JOIN;
+				if (s_internet) Lan_InternetView(); else s_view = VIEW_JOIN;
 				Lan_Status(Lang_T("Disconnected."));
 			}
 			return false;
@@ -809,8 +1009,10 @@ bool Lan_Menu(void)
 	if (!s_started) {
 		s_netOk = Net_Start(LAN_VERSION) != 0;
 		if (s_netOk) atexit(Net_Quit);
+		Lan_RelaySetup();
 		s_started = true;
 	}
+	s_internet = false;
 	s_view = VIEW_CHOOSE;
 	s_field = FIELD_NONE;
 	s_serving = s_searching = s_connecting = false;
@@ -848,6 +1050,7 @@ bool Lan_Menu(void)
 			else {
 				Net_Stop();
 				s_serving = s_searching = s_connecting = false;
+				s_internet = false;
 				s_view = VIEW_CHOOSE;
 				s_dirty = true;
 			}

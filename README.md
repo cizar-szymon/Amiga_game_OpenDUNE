@@ -17,6 +17,10 @@ but slower graphics cards will not reach the same speed.
 - group selection with a rubber band, right-button orders, map zoom x2/x3, pause (P)
 - **LAN game for up to 3 players** (fog of war per player, chat, pause, save/load by the server,
   a lost player pauses the game for everyone)
+- **internet game for 2 or 3 players** through a game server: a list of the games waiting, a code
+  and an optional password, no router setup
+- **bug reports from the game**: F10 opens a window that sends your description, the description
+  of the Amiga and the report files to the game server
 - English and German (Westwood's texts from your own Dune II), chosen in the game; a Polish
   translation (`lang/POLISH.PAK`) is not part of the public release
 - music from disk (recordings of the original AdLib music, made from your own data)

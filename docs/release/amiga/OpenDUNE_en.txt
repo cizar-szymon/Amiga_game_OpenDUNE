@@ -165,6 +165,28 @@ game.
 All players need the same release of the program.
 
 
+INTERNET GAME (2 or 3 players)
+------------------------------
+
+Main menu -> Play on LAN -> INTERNET GAME. The Amigas meet on the game
+server, so nothing has to be set on the router; each needs a TCP/IP stack
+with a way to the internet.
+
+One player makes the game: your name, a name for the game, 2 or 3 players,
+a password if only invited players may join - NEW GAME. The window shows
+the code of the game (four letters and digits): tell it to the others.
+They choose the game from the list "Games waiting" (REFRESH asks the
+server again) or type its code, type the password when the game has one
+(marked with *) and press JOIN GAME. From there all is as in a LAN game:
+houses, map, level, START GAME; chat Tab, pause P, the maker of the game
+saves and loads.
+
+The game ends on the server when its maker leaves. A game of three goes
+on for two when one player leaves.
+
+  lan_relay=host:port    another game server (opendune.ini or Tool Type)
+
+
 BUG REPORT (F10)
 ----------------
 
@@ -172,7 +194,22 @@ F10 at any moment writes into OpenDUNE/saves:
   bugNNN.txt         release, game state, units
   bugNNN.dat         a saved game of that moment (during a mission)
   bugNNN-*.bmp       the screen
-Send these files with the release number and what happened.
+
+With a TCP/IP stack running, F10 on the map screen then opens the window
+"Bug report": your e-mail address (not needed; kept for the next time)
+and what happened (up to 1000 letters). Tab changes the field. SEND sends
+to the game server: the address and the text, the release number, the
+description of the Amiga (processor, clock, accelerator, Kickstart,
+memory, graphics card, screen size) and the files bugNNN.txt, bugNNN.dat,
+bugNNN-game.bmp and bugNNN-screen.bmp. The window shows the number of the
+report. CANCEL sends nothing; the files stay in OpenDUNE/saves.
+
+Without a TCP/IP stack F10 only writes the files: send them with the
+release number and what happened.
+
+When a LAN or internet game goes out of step (the games of the players
+differ), the maker of the game gets the same window: SEND sends the last
+part of the game's log of every player (lanerr-N.txt in OpenDUNE/saves).
 
 
 OPTIONS (icon Tool Types or opendune.ini)
@@ -198,6 +235,8 @@ English, no counter (or screenmode=, language=, show_fps= of opendune.ini).
   music_dir=         music directory (default PROGDIR:MUSIC)
   music_volume=0..64 music volume (default 40)
   lan_info=1         in a LAN game a line with the players' response time
+  lan_relay=         the game server of an internet game and of the bug
+                     reports, host:port (default: the port's server)
   language=          english / german / polish (the language when none
                      was chosen in Options; german: the .GER files in
                      data, polish: lang/POLISH.PAK)

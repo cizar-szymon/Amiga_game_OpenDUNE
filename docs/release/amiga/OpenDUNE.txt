@@ -162,6 +162,27 @@ wszystkich: P. Zapis i wczytanie gry LAN robi serwer.
 Wszyscy gracze musza miec te sama wersje programu.
 
 
+GRA PRZEZ INTERNET (2 albo 3 graczy)
+------------------------------------
+
+Menu glowne -> Play on LAN -> INTERNET GAME. Amigi spotykaja sie na
+serwerze gry, wiec na routerze nie trzeba nic ustawiac; kazda potrzebuje
+stosu TCP/IP z dostepem do internetu.
+
+Jeden gracz zaklada gre: swoje imie, nazwa gry, 2 albo 3 graczy, haslo,
+jesli maja dolaczyc tylko zaproszeni - NEW GAME. Okno pokazuje kod gry
+(cztery litery i cyfry): podaj go pozostalym. Oni wybieraja gre z listy
+"Games waiting" (REFRESH pyta serwer ponownie) albo wpisuja kod, wpisuja
+haslo, gdy gra je ma (oznaczona *), i naciskaja JOIN GAME. Dalej wszystko
+jest jak w grze LAN: rody, mapa, poziom, START GAME; czat Tab, pauza P,
+zapis i wczytanie robi zakladajacy gre.
+
+Gra konczy sie na serwerze, gdy wyjdzie jej zalozyciel. Gra trzech graczy
+idzie dalej we dwoch, gdy jeden wyjdzie.
+
+  lan_relay=host:port    inny serwer gry (opendune.ini albo Tool Type)
+
+
 RAPORT BLEDU (F10)
 ------------------
 
@@ -169,7 +190,22 @@ F10 w dowolnej chwili zapisuje do OpenDUNE/saves:
   bugNNN.txt         wersja, stan gry, jednostki
   bugNNN.dat         zapis gry z tej chwili (w trakcie misji)
   bugNNN-*.bmp       obraz ekranu
-Wyslij te pliki razem z numerem wersji i opisem, co sie stalo.
+
+Gdy dziala stos TCP/IP, F10 na ekranie mapy otwiera potem okno "Bug
+report": Twoj adres e-mail (nieobowiazkowy; zapamietany na nastepny raz)
+i opis, co sie stalo (do 1000 znakow). Tab zmienia pole. SEND wysyla na
+serwer gry: adres i opis, numer wersji, opis Amigi (procesor, zegar,
+karta turbo, Kickstart, pamiec, karta graficzna, rozdzielczosc) oraz
+pliki bugNNN.txt, bugNNN.dat, bugNNN-game.bmp i bugNNN-screen.bmp. Okno
+pokazuje numer zgloszenia. CANCEL niczego nie wysyla; pliki zostaja w
+OpenDUNE/saves.
+
+Bez stosu TCP/IP F10 tylko zapisuje pliki: wyslij je razem z numerem
+wersji i opisem, co sie stalo.
+
+Gdy gra LAN albo przez internet sie rozejdzie (gry graczy roznia sie),
+zakladajacy gre dostaje to samo okno: SEND wysyla koncowa czesc dziennika
+gry kazdego gracza (lanerr-N.txt w OpenDUNE/saves).
 
 
 OPCJE (Tool Types ikony albo opendune.ini)
@@ -195,6 +231,8 @@ jest zapamietany. Bez wyboru w grze: 640x480, angielski, bez licznika
   music_dir=         katalog muzyki (domyslnie PROGDIR:MUSIC)
   music_volume=0..64 glosnosc muzyki (domyslnie 40)
   lan_info=1         w grze LAN linia z czasem odpowiedzi graczy
+  lan_relay=         serwer gry dla gry przez internet i zgloszen bledow,
+                     host:port (domyslnie serwer portu)
   language=          english / german / polish (jezyk, gdy nie wybrano
                      go w Options; german: pliki .GER w data,
                      polish: lang/POLISH.PAK)

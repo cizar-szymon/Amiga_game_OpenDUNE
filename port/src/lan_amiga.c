@@ -31,6 +31,7 @@
 #include "types.h"
 #include "os/math.h"
 #include "os/net_amiga.h"
+#include "os/report_amiga.h"
 #include "os/amiga_prof.h"
 
 #include "lan_amiga.h"
@@ -176,7 +177,8 @@ static bool s_leave;		/* the player quit (Options) */
 static bool s_trace;		/* opendune.ini debug_lan_trace=1: the random state of each first step */
 
 enum { MT_LOBBY = 1, MT_PICK, MT_START, MT_TURN, MT_TURNALL, MT_SUM, MT_QUIT, MT_GONE, MT_MAP, MT_CHAT, MT_PAUSE,
-       MT_SEENREQ, MT_SEEN, MT_FILE, MT_FILEEND, MT_FILEOK };
+       MT_SEENREQ, MT_SEEN, MT_FILE, MT_FILEEND, MT_FILEOK,
+       MT_ERRREQ };	/* the server, out of step: your log to me (MT_FILE, MT_FILEEND) */
 
 static bool s_logNew = true;
 
@@ -257,6 +259,15 @@ static void Lan_Place(Structure *cy, uint16 position)
 	if (cy->o.type != STRUCTURE_CONSTRUCTION_YARD || cy->o.linkedID == 0xFF) return;
 	ns = Structure_Get_ByIndex(cy->o.linkedID);
 	cy->o.linkedID = STRUCTURE_INVALID;
+	if (ns->o.index >= STRUCTURE_INDEX_MAX_SOFT) {
+		/* A slab or a wall: there is one object of each for all the houses
+		 * (pool/structure.c - in the original only the player builds them),
+		 * and the house that asked for one last has it. It is this yard's
+		 * now: placed next to its house's buildings, the tiles its house's. */
+		ns->o.houseID = cy->o.houseID;
+		ns->o.type = ns->o.index == STRUCTURE_INDEX_SLAB_1x1 ? STRUCTURE_SLAB_1x1 :
+		             ns->o.index == STRUCTURE_INDEX_SLAB_2x2 ? STRUCTURE_SLAB_2x2 : STRUCTURE_WALL;
+	}
 
 	if (!Structure_Place(ns, position)) {
 		cy->o.linkedID = ns->o.index & 0xFF;	/* back: place it again */
@@ -440,9 +451,220 @@ static bool Lan_StartTileFree(uint16 packed, uint8 type, const uint16 *used, int
  * Yard: ring after ring (from the second ring, the first stays free for
  * building), rock before sand. In the simulation, the same on every Amiga.
  */
-static void Lan_PlaceStartUnits(void)
+/* ---- The places the players start at, chosen from the landscape.
+ *
+ * The bases of the original missions (lan_maps.h) stand on rock of very
+ * different sizes (119 tiles against 855 on the first map), so a LAN game
+ * chooses its own places, the same on every Amiga (from the landscape alone):
+ * each on rock a building can stand on, with at least START_LOCAL_MIN such
+ * tiles around the yard, with about the same rock to build on for every
+ * player (the size of the rock joined to the place, counted up to START_CAP
+ * and shared when two players stand on the same rock), and as far from each
+ * other as that allows. */
+#define START_LOCAL_MIN 60	/* tiles of the same rock within 7 tiles of the yard */
+#define START_MIN_DIST  22	/* tiles between two yards, when the map has such places */
+#define START_CAP       400	/* more rock than this is not an advantage */
+
+static uint16 s_startCy[LAN_MAX_PLAYERS];
+static int s_startMap = -1;
+static uint8 s_rockOk[4096];
+static uint8 s_rockRegion[4096];
+static uint16 s_regionSize[256];
+static uint16 s_cand[1024], s_candRock[1024];
+static int s_candCount;
+
+/* the place of a player's Construction Yard */
+static uint16 Lan_Start(int slot)
+{
+	return s_startMap == g_lanMap ? s_startCy[slot] : s_lanMaps[g_lanMap].cy[slot];
+}
+
+/* the rocks of the landscape: which a tile belongs to, their sizes */
+static void Lan_RockRegions(void)
+{
+	static uint16 queue[4096];
+	static const int16 step[4] = { -64, 64, -1, 1 };
+	uint16 p;
+	int regions = 0;
+
+	for (p = 0; p < 4096; p++) {
+		int x = p & 63, y = p >> 6;
+		s_rockRegion[p] = 0;
+		s_rockOk[p] = (x >= 1 && x <= 62 && y >= 1 && y <= 62 && g_table_landscapeInfo[Map_GetLandscapeType(p)].isValidForStructure) ? 1 : 0;
+	}
+	memset(s_regionSize, 0, sizeof(s_regionSize));
+	for (p = 0; p < 4096; p++) {
+		int head = 0, tail = 0, d;
+		if (!s_rockOk[p] || s_rockRegion[p] != 0 || regions == 255) continue;
+		regions++;
+		queue[tail++] = p;
+		s_rockRegion[p] = (uint8)regions;
+		while (head < tail) {
+			uint16 q = queue[head++];
+			for (d = 0; d < 4; d++) {
+				uint16 r = (uint16)(q + step[d]);
+				if (!s_rockOk[r] || s_rockRegion[r] != 0) continue;
+				s_rockRegion[r] = (uint8)regions;
+				queue[tail++] = r;
+			}
+		}
+		s_regionSize[regions] = (uint16)tail;
+	}
+}
+
+/* the places a yard can stand at (every second tile) and their rock */
+static void Lan_StartCandidates(void)
+{
+	int x, y, i, j;
+	s_candCount = 0;
+	for (y = 2; y <= 60; y += 2) {
+		for (x = 2; x <= 60; x += 2) {
+			uint16 c = (uint16)(y * 64 + x);
+			uint8 region = s_rockRegion[c];
+			int local = 0;
+			if (region == 0 || s_rockRegion[c + 1] != region || s_rockRegion[c + 64] != region || s_rockRegion[c + 65] != region) continue;
+			for (j = y - 7; j <= y + 8; j++) {
+				for (i = x - 7; i <= x + 8; i++) {
+					if (i < 0 || i > 63 || j < 0 || j > 63) continue;
+					if (s_rockRegion[j * 64 + i] == region) local++;
+				}
+			}
+			if (local < START_LOCAL_MIN) continue;
+			s_cand[s_candCount] = c;
+			s_candRock[s_candCount] = min(s_regionSize[region], START_CAP);
+			s_candCount++;
+		}
+	}
+}
+
+static int Lan_StartDist(uint16 a, uint16 b)
+{
+	int dx = (a & 63) - (b & 63), dy = (a >> 6) - (b >> 6);
+	if (dx < 0) dx = -dx;
+	if (dy < 0) dy = -dy;
+	return dx > dy ? dx : dy;
+}
+
+/* the rock of one of count players that stand on the same rock */
+static uint16 Lan_StartShare(uint8 region, int count)
+{
+	uint16 share = (uint16)(s_regionSize[region] / count);
+	return share < START_CAP ? share : START_CAP;
+}
+
+/* n places where every player has lo..hi rock (its share of the rock it
+ * stands on), far from each other (from each place: the farthest one, then
+ * the one farthest from both). The smallest distance of the best set, -1: none. */
+static int Lan_PickStarts(int n, uint16 lo, uint16 hi, uint16 *out)
+{
+	int best = -1, i, j, k;
+	for (i = 0; i < s_candCount; i++) {
+		uint16 a = s_cand[i], b;
+		uint8 ra = s_rockRegion[a], rb;
+		int bj = -1, bd = -1, ck = -1, cd = -1;
+		if (s_regionSize[ra] < lo) continue;
+		for (j = 0; j < s_candCount; j++) {
+			uint8 rj = s_rockRegion[s_cand[j]];
+			int d, same = rj == ra ? 2 : 1;
+			if (j == i || Lan_StartShare(rj, same) < lo) continue;
+			if (n == 2 && (Lan_StartShare(rj, same) > hi || Lan_StartShare(ra, same) > hi)) continue;
+			d = Lan_StartDist(a, s_cand[j]);
+			if (d > bd) { bd = d; bj = j; }
+		}
+		if (bj < 0) continue;
+		b = s_cand[bj];
+		rb = s_rockRegion[b];
+		if (n == 2) {
+			if (bd > best) { best = bd; out[0] = a; out[1] = b; }
+			continue;
+		}
+		for (k = 0; k < s_candCount; k++) {
+			uint8 rk = s_rockRegion[s_cand[k]];
+			int d, d2;
+			int ca = 1 + (rb == ra ? 1 : 0) + (rk == ra ? 1 : 0);
+			int cb = 1 + (ra == rb ? 1 : 0) + (rk == rb ? 1 : 0);
+			int ck2 = 1 + (ra == rk ? 1 : 0) + (rb == rk ? 1 : 0);
+			uint16 sa = Lan_StartShare(ra, ca), sb = Lan_StartShare(rb, cb), sk = Lan_StartShare(rk, ck2);
+			if (k == i || k == bj) continue;
+			if (sa < lo || sb < lo || sk < lo || sa > hi || sb > hi || sk > hi) continue;
+			d = Lan_StartDist(a, s_cand[k]);
+			d2 = Lan_StartDist(b, s_cand[k]);
+			if (d2 < d) d = d2;
+			if (d > cd) { cd = d; ck = k; }
+		}
+		if (ck < 0) continue;
+		if (cd < bd) bd = cd;
+		if (bd > best) { best = bd; out[0] = a; out[1] = b; out[2] = s_cand[ck]; }
+	}
+	return best;
+}
+
+static void Lan_ChooseStarts(void)
 {
 	const LanMap *m = &s_lanMaps[g_lanMap];
+	uint16 pick[3], chosen[3], t, rock = 0;
+	int n = 0, slot, i, j, dist, bestDist = -1, pass;
+	bool sim = g_lanSim, equal = true;
+
+	for (slot = 0; slot < LAN_MAX_PLAYERS; slot++) {
+		s_startCy[slot] = m->cy[slot];
+		if (g_lanPlayers[slot].used) n++;
+	}
+	s_startMap = g_lanMap;
+	if (n < 2) return;
+
+	/* the landscape of the map (Scenario_Load makes it again, the same) */
+	g_lanSim = true;
+	Sprites_LoadTiles();
+	Map_CreateLandscape(m->seed);
+	g_lanSim = sim;
+	Lan_RockRegions();
+	Lan_StartCandidates();
+
+	/* as much rock as the map gives to all, about the same for each (within
+	 * a quarter): the first size with places far apart. A map without such
+	 * places: the most rock every player can have, whatever the others have. */
+	for (pass = 0; pass < 2 && bestDist < START_MIN_DIST; pass++) {
+		bestDist = -1;
+		for (t = START_CAP; t >= START_LOCAL_MIN; t = (uint16)(t * 4 / 5)) {
+			dist = Lan_PickStarts(n, t, pass == 0 ? (uint16)(t + t / 4) : 0xFFFF, pick);
+			if (dist > bestDist) {
+				bestDist = dist;
+				rock = t;
+				equal = pass == 0;
+				memcpy(chosen, pick, sizeof(chosen));
+			}
+			if (dist >= START_MIN_DIST) break;
+		}
+	}
+	if (bestDist < 12) {
+		/* no such places on this map: those of the missions */
+		Lan_Log("starts: map %d, none found (best distance %d): the missions' places\n", g_lanMap, bestDist);
+		return;
+	}
+	/* in the order of the map, to the players in theirs */
+	for (i = 0; i < n; i++) {
+		for (j = i + 1; j < n; j++) {
+			if (chosen[j] < chosen[i]) { uint16 x = chosen[i]; chosen[i] = chosen[j]; chosen[j] = x; }
+		}
+	}
+	i = 0;
+	for (slot = 0; slot < LAN_MAX_PLAYERS; slot++) {
+		if (!g_lanPlayers[slot].used) continue;
+		s_startCy[slot] = chosen[i++];
+		{
+			uint8 region = s_rockRegion[s_startCy[slot]];
+			int count = 0, k;
+			for (k = 0; k < n; k++) if (s_rockRegion[chosen[k]] == region) count++;
+			Lan_Log("starts: map %d player %d at %u,%u rock %u of %u (asked %u%s), apart %d\n", g_lanMap, slot,
+			        s_startCy[slot] & 63, s_startCy[slot] >> 6, Lan_StartShare(region, count),
+			        s_regionSize[region], rock, equal ? "" : " or more", bestDist);
+		}
+	}
+}
+
+static void Lan_PlaceStartUnits(void)
+{
 	int slot;
 	for (slot = 0; slot < LAN_MAX_PLAYERS; slot++) {
 		const LanLevel *lv;
@@ -451,8 +673,8 @@ static void Lan_PlaceStartUnits(void)
 		int x0, y0;
 		if (!g_lanPlayers[slot].used) continue;
 		lv = Lan_Level(g_lanPlayers[slot].house);
-		x0 = Tile_GetPackedX(m->cy[slot]);
-		y0 = Tile_GetPackedY(m->cy[slot]);
+		x0 = Tile_GetPackedX(Lan_Start(slot));
+		y0 = Tile_GetPackedY(Lan_Start(slot));
 		for (k = 0; k < lv->count; k++) {
 			uint8 type = lv->units[k];
 			uint16 found = 0xFFFF;
@@ -489,9 +711,11 @@ const char *Lan_ScenarioText(void)
 	int slot;
 	int serverStart = 0;
 
+	Lan_ChooseStarts();
+
 	p += snprintf(p, end - p, "[BASIC]\nLosePicture=LOSTBILD.WSA\nWinPicture=WIN1.WSA\nBriefPicture=HARVEST.WSA\n"
 	              "TimeOut=0\nMapScale=0\nLoseFlags=1\nWinFlags=3\n");
-	p += snprintf(p, end - p, "CursorPos=%u\nTacticalPos=%u\n", m->cy[serverStart], (unsigned)(m->cy[serverStart] - 64 * 5 - 8));
+	p += snprintf(p, end - p, "CursorPos=%u\nTacticalPos=%u\n", Lan_Start(serverStart), (unsigned)(Lan_Start(serverStart) - 64 * 5 - 8));
 	p += snprintf(p, end - p, "[MAP]\nSeed=%u\n", m->seed);
 	if (m->field[0] != '\0') p += snprintf(p, end - p, "Field=%s\n", m->field);
 	if (m->bloom[0] != '\0') p += snprintf(p, end - p, "Bloom=%s\n", m->bloom);
@@ -503,7 +727,7 @@ const char *Lan_ScenarioText(void)
 	p += snprintf(p, end - p, "[STRUCTURES]\n");
 	for (slot = 0; slot < LAN_MAX_PLAYERS; slot++) {
 		if (!g_lanPlayers[slot].used) continue;
-		p += snprintf(p, end - p, "ID%03d=%s,Const Yard,256,%u\n", slot, g_table_houseInfo[g_lanPlayers[slot].house].name, m->cy[slot]);
+		p += snprintf(p, end - p, "ID%03d=%s,Const Yard,256,%u\n", slot, g_table_houseInfo[g_lanPlayers[slot].house].name, Lan_Start(slot));
 	}
 	/* the units: Lan_PlaceStartUnits(), when the landscape is there */
 	return s_scenario;
@@ -630,6 +854,169 @@ static void Lan_TakeTurnFrame(TurnBuf *ring, const uint8 *d, int len)
 	if (d[4] == 0) t->complete = true;
 }
 
+/* ---- A game out of step: the logs of all players to the game server.
+ *
+ * The log (RAM:OpenDUNE-lan.txt) has the state each sum is made of, of every
+ * check (Lan_DumpState), so the logs of the players show where their games
+ * differ. The server keeps the end of its own as lanerr-0.txt of the save
+ * directory and asks the others for theirs (MT_ERRREQ); they come in MT_FILE
+ * frames ([size][offset][bytes], then MT_FILEEND [size][sum]) and are kept as
+ * lanerr-<player>.txt. When all are there (or 15 s later) the window of a
+ * bug report asks to send them (gui/report_amiga.c, kind "LAN"). */
+#define ERR_TAIL 60000
+
+static uint8 *s_errTx;				/* a joiner: its log on the way to the server */
+static uint32 s_errTxSize, s_errTxOff;
+static uint8 *s_errRx[LAN_MAX_PLAYERS];		/* the server: the logs coming in */
+static uint32 s_errRxSize[LAN_MAX_PLAYERS], s_errRxGot[LAN_MAX_PLAYERS];
+static bool s_errHave[LAN_MAX_PLAYERS];
+static bool s_errWaiting;
+static uint32 s_errUntil;
+static uint32 s_desyncStep;			/* ini debug_lan_desync=<step>: this game leaves the step there (a test) */
+
+static uint32 Lan_ErrSum(const uint8 *d, uint32 n)
+{
+	uint32 h = 2166136261UL, i;
+	for (i = 0; i < n; i++) { h ^= d[i]; h *= 16777619UL; }
+	return h;
+}
+
+/* the end of the log, at most ERR_TAIL bytes */
+static uint8 *Lan_ErrTail(uint32 *size)
+{
+	FILE *f = fopen("RAM:OpenDUNE-lan.txt", "rb");
+	long len;
+	uint8 *d;
+	*size = 0;
+	if (f == NULL) return NULL;
+	fseek(f, 0, SEEK_END);
+	len = ftell(f);
+	if (len > ERR_TAIL) {
+		fseek(f, len - ERR_TAIL, SEEK_SET);
+		len = ERR_TAIL;
+	} else {
+		fseek(f, 0, SEEK_SET);
+	}
+	d = len > 0 ? malloc(len) : NULL;
+	if (d != NULL && fread(d, 1, len, f) != (size_t)len) {
+		free(d);
+		d = NULL;
+	}
+	fclose(f);
+	if (d != NULL) *size = (uint32)len;
+	return d;
+}
+
+static void Lan_ErrKeep(int slot, const uint8 *d, uint32 n)
+{
+	char name[16];
+	uint8 fd;
+	snprintf(name, sizeof(name), "lanerr-%d.txt", slot);
+	fd = File_Open_Personal(name, FILE_MODE_WRITE);
+	if (fd == 0xFF) return;
+	File_Write(fd, (void *)d, n);
+	File_Close(fd);
+	s_errHave[slot] = true;
+}
+
+/* the server: the game is out of step (once a game) */
+static void Lan_ErrStart(void)
+{
+	uint32 size;
+	uint8 *d;
+	int slot;
+	if (!g_lanServer) return;
+	memset(s_errHave, 0, sizeof(s_errHave));
+	d = Lan_ErrTail(&size);
+	if (d != NULL) Lan_ErrKeep(0, d, size);
+	free(d);
+	for (slot = 1; slot < LAN_MAX_PLAYERS; slot++) {
+		if (g_lanPlayers[slot].used && !g_lanPlayers[slot].gone) Net_Send(slot - 1, MT_ERRREQ, NULL, 0);
+	}
+	s_errWaiting = true;
+	s_errUntil = AmigaTimer_GetMs() + 15000;
+}
+
+/* a joiner: the server asks for the log */
+static void Lan_ErrAsked(void)
+{
+	free(s_errTx);
+	s_errTx = Lan_ErrTail(&s_errTxSize);
+	s_errTxOff = 0;
+}
+
+/* the server: a part / the end of a joiner's log */
+static void Lan_ErrFile(int slot, bool end, const uint8 *d, int len)
+{
+	uint32 size;
+	if (slot < 1 || slot >= LAN_MAX_PLAYERS || len < 8 || !s_errWaiting) return;
+	size = Get32(d);
+	if (size == 0 || size > ERR_TAIL) return;
+	if (!end) {
+		uint32 off = Get32(d + 4), n = (uint32)len - 8;
+		if (s_errRx[slot] == NULL || s_errRxSize[slot] != size) {
+			free(s_errRx[slot]);
+			s_errRx[slot] = malloc(size);
+			s_errRxSize[slot] = size;
+			s_errRxGot[slot] = 0;
+		}
+		if (s_errRx[slot] != NULL && off + n <= size) {
+			memcpy(s_errRx[slot] + off, d + 8, n);
+			if (off + n > s_errRxGot[slot]) s_errRxGot[slot] = off + n;
+		}
+		return;
+	}
+	if (s_errRx[slot] != NULL && s_errRxGot[slot] == size && Lan_ErrSum(s_errRx[slot], size) == Get32(d + 4)) {
+		Lan_ErrKeep(slot, s_errRx[slot], size);
+	}
+	free(s_errRx[slot]);
+	s_errRx[slot] = NULL;
+}
+
+/* each Lan_Run: the log on its way, the window when all are there */
+static void Lan_ErrTick(void)
+{
+	if (s_errTx != NULL) {
+		int frames = 0;
+		while (s_errTxOff < s_errTxSize && frames++ < 16) {
+			uint8 b[8 + 200];
+			uint32 n = min(200, s_errTxSize - s_errTxOff);
+			Put32(b, s_errTxSize);
+			Put32(b + 4, s_errTxOff);
+			memcpy(b + 8, s_errTx + s_errTxOff, n);
+			if (!Net_Send(0, MT_FILE, b, 8 + (int)n)) break;
+			s_errTxOff += n;
+		}
+		if (s_errTxOff == s_errTxSize) {
+			uint8 b[8];
+			Put32(b, s_errTxSize);
+			Put32(b + 4, Lan_ErrSum(s_errTx, s_errTxSize));
+			if (Net_Send(0, MT_FILEEND, b, 8)) {
+				free(s_errTx);
+				s_errTx = NULL;
+			}
+		}
+	}
+	if (s_errWaiting) {
+		static char names[LAN_MAX_PLAYERS][16];
+		const char *list[LAN_MAX_PLAYERS];
+		int slot, count = 0;
+		bool all = true;
+		for (slot = 1; slot < LAN_MAX_PLAYERS; slot++) {
+			if (g_lanPlayers[slot].used && !g_lanPlayers[slot].gone && !s_errHave[slot]) all = false;
+		}
+		if (!all && (int32)(AmigaTimer_GetMs() - s_errUntil) < 0) return;
+		s_errWaiting = false;
+		for (slot = 0; slot < LAN_MAX_PLAYERS; slot++) {
+			if (!s_errHave[slot]) continue;
+			snprintf(names[count], sizeof(names[count]), "lanerr-%d.txt", slot);
+			list[count] = names[count];
+			count++;
+		}
+		if (count > 0 && Report_Network()) Report_Open("LAN", list, count);
+	}
+}
+
 /* the others' sums until ours of the same step is there */
 static uint32 s_otherSums[LAN_MAX_PLAYERS][8], s_otherSteps[LAN_MAX_PLAYERS][8];
 
@@ -642,6 +1029,7 @@ static void Lan_CompareSum(int slot, uint32 step, uint32 mine, uint32 sum)
 		}
 		s_outOfStep = true;
 		s_outOfStepAt = step;
+		Lan_ErrStart();
 		Lan_Log("OUT OF STEP at %lu: mine %08lx, %s %08lx\n", (unsigned long)step, (unsigned long)mine, g_lanPlayers[slot].name, (unsigned long)sum);
 		GUI_DisplayText(Lang_T("LAN: OUT OF STEP with %s (step %lu)"), 1, g_lanPlayers[slot].name, (unsigned long)step);
 	} else {
@@ -730,6 +1118,13 @@ static void Lan_Receive(void)
 						break;
 					case MT_SUM:
 						if (ev.length >= 8) Lan_CheckSum(slot, Get32(ev.data), Get32(ev.data + 4));
+						break;
+					case MT_ERRREQ:
+						if (!g_lanServer) Lan_ErrAsked();
+						break;
+					case MT_FILE:
+					case MT_FILEEND:
+						if (g_lanServer) Lan_ErrFile(slot, ev.value == MT_FILEEND, ev.data, ev.length);
 						break;
 					case MT_QUIT:
 						if (g_lanServer) {
@@ -841,6 +1236,11 @@ static void Lan_Step(void)
 	s_inStep = true;
 	g_lanSim = true;
 	g_timerGame++;
+	if (s_desyncStep != 0 && s_steps == s_desyncStep) {
+		/* ini debug_lan_desync: a test of the report of a game out of step */
+		House *h = House_Get_ByIndex(g_lanPlayers[0].house);
+		if (h != NULL) h->credits++;
+	}
 	GameLoop_Team();
 	GameLoop_Unit();
 	GameLoop_Structure();
@@ -973,6 +1373,7 @@ void Lan_Run(void)
 	savedUI = g_lanUI;
 	g_lanUI = 0;	/* (called in the interface's code: the steps are the simulation) */
 	Lan_Receive();
+	Lan_ErrTick();
 	now = AmigaTimer_GetMs();
 	due = (now - s_stepBase) * 60 / 1000;
 	if (due > s_steps + 30) {
@@ -1087,6 +1488,60 @@ static void Lan_ResetTurns(void)
  * Starts the game of the lobby on this Amiga (the server after sending START,
  * a joiner when it came): the same scenario, seed and delay everywhere.
  */
+/* The rock a player can build on from a place: the tiles a building can
+ * stand on, joined to it by their sides. */
+static uint16 Lan_RockArea(uint16 start)
+{
+	static uint8 seen[4096];
+	static uint16 queue[4096];
+	int head = 0, tail = 0, d;
+	uint16 n = 0;
+
+	memset(seen, 0, sizeof(seen));
+	queue[tail++] = start;
+	seen[start] = 1;
+	while (head < tail) {
+		uint16 p = queue[head++];
+		n++;
+		for (d = 0; d < 4; d++) {
+			int x = (p & 63) + (d == 2 ? -1 : d == 3 ? 1 : 0), y = (p >> 6) + (d == 0 ? -1 : d == 1 ? 1 : 0);
+			uint16 q;
+			if (x < 1 || x > 62 || y < 1 || y > 62) continue;
+			q = (uint16)(y * 64 + x);
+			if (seen[q]) continue;
+			if (!g_table_landscapeInfo[Map_GetLandscapeType(q)].isValidForStructure) continue;
+			seen[q] = 1;
+			queue[tail++] = q;
+		}
+	}
+	return n;
+}
+
+/* ini debug_lan_maps=1: the rock at each player's start, of every map, into the log */
+static void Lan_LogMapAreas(void)
+{
+	int i, slot;
+	Sprites_LoadTiles();	/* the numbers of the landscape's tiles */
+	for (i = 0; i < Lan_MapCount(); i++) {
+		const LanMap *m = &s_lanMaps[i];
+		uint16 area[3];
+		g_lanSim = true;	/* the game's random numbers, as when the game starts */
+		Map_CreateLandscape(m->seed);
+		g_lanSim = false;
+		for (slot = 0; slot < 3; slot++) area[slot] = slot < m->players ? Lan_RockArea(m->cy[slot]) : 0;
+		Lan_Log("maparea %d %s players %d: %u %u %u (at %u,%u %u,%u %u,%u)\n", i, m->name, m->players, area[0], area[1], area[2],
+		        m->cy[0] & 63, m->cy[0] >> 6, m->cy[1] & 63, m->cy[1] >> 6, m->cy[2] & 63, m->cy[2] >> 6);
+		{
+			/* and the places a game of the players now there would start at */
+			uint8 old = g_lanMap;
+			g_lanMap = (uint8)i;
+			Lan_ChooseStarts();
+			g_lanMap = old;
+			s_startMap = -1;
+		}
+	}
+}
+
 void Lan_StartGame(void)
 {
 	int slot;
@@ -1098,6 +1553,10 @@ void Lan_StartGame(void)
 	s_delay = delay;
 	Lan_ResetTurns();
 	s_trace = IniFile_GetInteger("debug_lan_trace", 0) != 0;
+	s_desyncStep = (uint32)IniFile_GetInteger("debug_lan_desync", 0);
+	s_errWaiting = false;
+	free(s_errTx);
+	s_errTx = NULL;
 	s_lanInfo = IniFile_GetInteger("lan_info", 0) != 0;
 	{
 		extern uint32 g_lanTraceFrom, g_lanTraceTo;
@@ -1109,6 +1568,7 @@ void Lan_StartGame(void)
 	s_logNew = true;
 	Lan_Log("base Lan_TraceRandom %08lx\n", (unsigned long)&Lan_TraceRandom);
 	Lan_Log("level %d\n", g_lanLevel);
+	if (IniFile_GetInteger("debug_lan_maps", 0) != 0) Lan_LogMapAreas();
 	Lan_Log("start: map %d seed %lu delay %d me %d house %d\n", g_lanMap, (unsigned long)seed, delay, g_lanMe, g_lanLocalHouse);
 
 	s_savedSpeed = g_gameConfig.gameSpeed;
@@ -1142,7 +1602,7 @@ void Lan_StartGame(void)
 	/* the simulation's "player" is the server's house on each Amiga */
 	g_playerHouseID = (HouseType)g_lanPlayers[0].house;
 	g_playerHouse = House_Get_ByIndex(g_playerHouseID);
-	g_lanSimViewPos = Tile_PackXY(Tile_GetPackedX(s_lanMaps[g_lanMap].cy[0]) - 7, Tile_GetPackedY(s_lanMaps[g_lanMap].cy[0]) - 5);
+	g_lanSimViewPos = Tile_PackXY(Tile_GetPackedX(Lan_Start(0)) - 7, Tile_GetPackedY(Lan_Start(0)) - 5);
 
 	for (slot = 0; slot < HOUSE_MAX; slot++) s_noSilo[slot] = 0;
 	find.houseID = HOUSE_INVALID;
@@ -1158,7 +1618,7 @@ void Lan_StartGame(void)
 	GUI_Palette_CreateRemap(g_lanLocalHouse);
 	Voice_LoadVoices(g_lanLocalHouse);
 	{
-		uint16 cy = s_lanMaps[g_lanMap].cy[g_lanMe];
+		uint16 cy = Lan_Start(g_lanMe);
 		Map_SetViewportPosition(cy);
 		g_selectionRectanglePosition = cy;
 		g_selectionPosition = cy;
@@ -1353,7 +1813,7 @@ static bool Lan_StartSaved(void)
 
 	g_playerHouseID = (HouseType)info.simHouse;
 	g_playerHouse = House_Get_ByIndex(g_playerHouseID);
-	g_lanSimViewPos = Tile_PackXY(Tile_GetPackedX(s_lanMaps[g_lanMap].cy[0]) - 7, Tile_GetPackedY(s_lanMaps[g_lanMap].cy[0]) - 5);
+	g_lanSimViewPos = Tile_PackXY(Tile_GetPackedX(Lan_Start(0)) - 7, Tile_GetPackedY(Lan_Start(0)) - 5);
 	for (i = 0; i < HOUSE_MAX; i++) s_noSilo[i] = info.noSilo[i];
 
 	/* my view: my Construction Yard, else any of mine */

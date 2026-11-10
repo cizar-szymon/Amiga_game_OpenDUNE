@@ -38,7 +38,12 @@ typedef enum NetEventKind {
 	NEV_PEER,		/* a player is there (HELLO): peer, text1 name, text2 address, text3 version */
 	NEV_LOST,		/* peer is gone: text1 why */
 	NEV_PING,		/* peer, value: the time of a PING there and back, ms */
-	NEV_MSG			/* peer, value: type, data / length: a frame of the game */
+	NEV_MSG,		/* peer, value: type, data / length: a frame of the game */
+	NEV_RELAY_GAME,		/* a game waiting on the game server (Net_Relay 'L'): text1 its name,
+				 * text2 its player, text3 its code; value: seconds waiting (bits 0-19),
+				 * players there (20-21), the most (22-23), bit 30: a password is
+				 * needed; the end of the list: NEV_SEARCH_DONE */
+	NEV_RELAY_CODE		/* the game made on the game server: text1 its code, value the most players */
 } NetEventKind;
 
 typedef struct NetEvent {
@@ -61,6 +66,15 @@ extern void Net_Quit(void);
 extern void Net_Serve(const char *name);	/* RUN SERVER: up to NET_MAX_PEERS players */
 extern void Net_Search(int ms);			/* listen for servers for ms */
 extern void Net_Connect(const char *address, const char *name);
+/* A game over the internet through the game server (Settlers/server) at host
+ * (a name or an address) and port. op 'L': the games waiting there
+ * (NEV_RELAY_GAME...); 'C': make one for up to players (2 or 3), arg its name,
+ * a tab and a password or nothing (NEV_RELAY_CODE, then NEV_PEER for each
+ * player that comes; NEV_ERROR with value 1 when the game is over there);
+ * 'J': join one, arg its code, a tab and the password (NEV_PEER). version
+ * tells the games and their versions apart ("OpenDUNE-0.52"). After NEV_PEER
+ * all goes as with Net_Serve / Net_Connect. */
+extern void Net_Relay(const char *host, int port, int op, int players, const char *version, const char *name, const char *arg);
 extern void Net_Stop(void);			/* back to nothing */
 /* The server takes no more players and stops announcing itself (the game started). */
 extern void Net_Close(void);

@@ -124,7 +124,7 @@ static int Ring_Get(Ring *r, int *kind, UBYTE *data, int size, int *length)
 
 /* ---- The process and the game side */
 
-enum { C_SERVE = 1, C_SEARCH, C_CONNECT, C_STOP, C_SEND, C_CLOSE, C_DROP };
+enum { C_SERVE = 1, C_SEARCH, C_CONNECT, C_STOP, C_SEND, C_CLOSE, C_DROP, C_RELAY };
 
 static struct Task *volatile s_netTask = NULL;
 static volatile ULONG s_wakeMask = 0;
@@ -235,6 +235,29 @@ void Net_Connect(const char *address, const char *name)
 	Net_Command(C_CONNECT, address, (int)strlen(address) + 1, name, (int)strlen(name) + 1);
 }
 
+void Net_Relay(const char *host, int port, int op, int players, const char *version, const char *name, const char *arg)
+{
+	UBYTE h[4];
+	char t[64 + 32 + 24 + 32];
+	int n = 0;
+	const char *part[4];
+	static const int most[4] = { 63, 31, 23, 31 };
+	int i;
+	part[0] = host; part[1] = name; part[2] = version; part[3] = arg != NULL ? arg : "";
+	h[0] = (UBYTE)op;
+	h[1] = (UBYTE)players;
+	h[2] = (UBYTE)(port >> 8);
+	h[3] = (UBYTE)port;
+	for (i = 0; i < 4; i++) {
+		int len = (int)strlen(part[i]);
+		if (len > most[i]) len = most[i];
+		memcpy(t + n, part[i], len);
+		t[n + len] = 0;
+		n += len + 1;
+	}
+	Net_Command(C_RELAY, h, 4, t, n);
+}
+
 void Net_Stop(void)
 {
 	Net_Command(C_STOP, NULL, 0, NULL, 0);
@@ -271,7 +294,7 @@ void Net_Counters(unsigned long *eclocks, unsigned long *framesOut, unsigned lon
 
 /* ---- Inside the process */
 
-enum { F_HELLO = 1, F_BYE, F_PING, F_PONG };
+enum { F_HELLO = 1, F_BYE, F_PING, F_PONG, F_RELAY };	/* F_RELAY: text to and from the game server */
 
 #define NET_SILENT_MS 10000	/* a peer silent this long is lost (Net_Process) */
 
@@ -281,6 +304,8 @@ typedef struct Peer {
 	ULONG connectEnd, nextPing;
 	ULONG lastIn;	/* when it last sent anything (pings every second) */
 	char ip[16];
+	int relay;	/* the game server: 1 talking to it (F_RELAY), 2 a player is there */
+	char line[128];	/* what to ask the game server when connected */
 	UBYTE in[4096];
 	int inLen;
 	UBYTE out[8192];
@@ -292,6 +317,14 @@ static long s_listenFd = -1, s_udpFd = -1;
 static int s_searching, s_closed;
 static ULONG s_nextAnnounce, s_searchEnd;
 static char s_myName[32];
+
+/* A game over the internet: the connections go out to the game server
+ * (Settlers/server), which pairs each with a player and passes the frames. */
+static struct sockaddr_in s_relayTo;
+static int s_relayOp;		/* 'L' list, 'C' made a game, 'J' joined one; 0: none */
+static int s_relayPlayers;	/* 'C': the most players, 2 or 3 */
+static char s_relayVersion[24], s_relayCode[8];
+static ULONG s_relayRetry;
 
 static void Net_CloseFd(long *fd)
 {
@@ -434,8 +467,19 @@ static void Net_DropPeer(int i, const char *why)
 	Net_CloseFd(&p->fd);
 	p->ok = 0;
 	p->connecting = 0;
+	p->relay = 0;
 	p->inLen = 0;
 	p->outLen = 0;
+}
+
+/* The connection is made: HELLO, or the question to the game server. */
+static void Net_Connected(Peer *p)
+{
+	if (p->relay == 1) {
+		Net_FrameOut(p, F_RELAY, p->line, (int)strlen(p->line));
+	} else {
+		Net_SendHello(p);
+	}
 }
 
 static void Net_Bye(Peer *p, const char *why)
@@ -451,6 +495,8 @@ static void Net_StopAll(void)
 	Net_CloseFd(&s_listenFd);
 	Net_CloseFd(&s_udpFd);
 	s_serving = s_searching = s_closed = 0;
+	s_relayOp = 0;
+	s_relayCode[0] = 0;
 }
 
 static void Net_StartServing(const UBYTE *name, int len)
@@ -570,8 +616,164 @@ static void Net_StartConnect(const UBYTE *data, int len)
 	peer->connectEnd = AmigaTimer_GetMs() + 5000;
 	if (r == 0) {
 		peer->connecting = 0;
-		Net_SendHello(peer);
+		Net_Connected(peer);
 	}
+}
+
+/* A connection of peer i to the game server; line is sent when it is made. */
+static int Net_RelayOpen(int i, const char *line)
+{
+	Peer *p = &s_peers[i];
+	long r;
+	p->fd = socket(AF_INET, SOCK_STREAM, 0);
+	if (p->fd < 0) {
+		if (i == 0) Net_Fail("TCP");
+		return 0;
+	}
+	Net_NonBlocking(p->fd);
+	Net_NoDelay(p->fd);
+	strcpy(p->ip, "internet");
+	strncpy(p->line, line, sizeof(p->line) - 1);
+	p->line[sizeof(p->line) - 1] = 0;
+	p->relay = 1;
+	p->ok = 0;
+	p->inLen = p->outLen = 0;
+	r = connect(p->fd, (struct sockaddr *)&s_relayTo, sizeof(s_relayTo));
+	if (r < 0 && Errno() != EINPROGRESS) {
+		if (i == 0) Net_Fail("Connecting");
+		Net_CloseFd(&p->fd);
+		p->relay = 0;
+		return 0;
+	}
+	p->connecting = 1;
+	p->connectEnd = AmigaTimer_GetMs() + 10000;	/* over the internet */
+	if (r == 0) {
+		p->connecting = 0;
+		Net_Connected(p);
+	}
+	return 1;
+}
+
+/* Net_Relay: op, players, port, then host, name, version, arg. */
+static void Net_StartRelay(const UBYTE *data, int len)
+{
+	const UBYTE *p = data + 4, *end = data + len;
+	char host[64], arg[40], line[128];
+	int op;
+	Net_StopAll();
+	if (len < 4) return;
+	op = data[0];
+	CopyText(host, sizeof(host), &p, end);
+	CopyText(s_myName, sizeof(s_myName), &p, end);
+	CopyText(s_relayVersion, sizeof(s_relayVersion), &p, end);
+	CopyText(arg, 32, &p, end);
+	memset(&s_relayTo, 0, sizeof(s_relayTo));
+	s_relayTo.sin_family = AF_INET;
+	s_relayTo.sin_port = htons((data[2] << 8) | data[3]);
+	s_relayTo.sin_addr.s_addr = inet_addr((STRPTR)host);
+	if (s_relayTo.sin_addr.s_addr == INADDR_NONE) {
+		/* a name: asked of the name server here (the process waits) */
+		struct hostent *he = gethostbyname((STRPTR)host);
+		if (he == NULL || he->h_addr_list[0] == NULL) {
+			Event(NEV_ERROR, 0, 0, "Game server not found.", NULL, NULL);
+			return;
+		}
+		memcpy(&s_relayTo.sin_addr, he->h_addr_list[0], sizeof(s_relayTo.sin_addr));
+	}
+	s_relayPlayers = data[1] == 3 ? 3 : 2;
+	if (op == 'L') {
+		snprintf(line, sizeof(line), "LIST %d %s", NET_PROTOCOL, s_relayVersion);
+	} else if (op == 'C') {
+		/* arg: the name of the game, a tab, the password (may be empty) */
+		if (strchr(arg, '\t') == NULL) strcat(arg, "\t");
+		snprintf(line, sizeof(line), "CREATE %d %s %s\t%s\t%d", NET_PROTOCOL, s_relayVersion, s_myName, arg, s_relayPlayers);
+	} else {
+		/* arg: the code, a tab, the password (may be empty) */
+		char *pass = strchr(arg, '\t');
+		if (pass != NULL) *pass++ = 0;
+		snprintf(line, sizeof(line), "JOIN %d %s %s %s\t%s", NET_PROTOCOL, s_relayVersion, arg, s_myName, pass != NULL ? pass : "");
+		op = 'J';
+	}
+	if (Net_RelayOpen(0, line)) s_relayOp = op;
+}
+
+/* A text frame of the game server (before a player is there). */
+static void Net_RelayIn(int i, const UBYTE *d, int len)
+{
+	Peer *p = &s_peers[i];
+	char line[NET_MAX_DATA + 1];
+	memcpy(line, d, len);
+	line[len] = 0;
+	if (strncmp(line, "SESSION ", 8) == 0) {
+		/* SESSION <code> <seconds> <version>\t<player>\t<name>\t<P>[\t<n>/<M>] */
+		char code[16], version[24];
+		long secs = 0;
+		char *player, *name, *locked, *count;
+		int there = 1, most = 2;
+		if (sscanf(line + 8, "%15s %ld %23[^\t]", code, &secs, version) != 3) return;
+		player = strchr(line, '\t');
+		if (player == NULL) return;
+		*player++ = 0;
+		name = strchr(player, '\t');
+		if (name == NULL) return;
+		*name++ = 0;
+		locked = strchr(name, '\t');
+		if (locked != NULL) *locked++ = 0;
+		count = locked != NULL ? strchr(locked, '\t') : NULL;
+		if (count != NULL) sscanf(count + 1, "%d/%d", &there, &most);
+		if (secs < 0 || secs > 0xFFFFFL) secs = 0xFFFFFL;
+		secs |= ((long)(there & 3) << 20) | ((long)(most & 3) << 22);
+		if (locked != NULL && locked[0] == '1') secs |= 0x40000000L;
+		/* only the games this version can join */
+		if (strcmp(version, s_relayVersion) == 0) Event(NEV_RELAY_GAME, i, secs, name, player, code);
+	} else if (strcmp(line, "END") == 0) {
+		Event(NEV_SEARCH_DONE, 0, 0, NULL, NULL, NULL);
+		Net_DropPeer(i, NULL);
+		s_relayOp = 0;
+	} else if (strncmp(line, "CREATED ", 8) == 0) {
+		strncpy(s_relayCode, line + 8, sizeof(s_relayCode) - 1);
+		s_relayCode[sizeof(s_relayCode) - 1] = 0;
+		s_serving = 1;
+		s_relayRetry = AmigaTimer_GetMs();
+		Event(NEV_RELAY_CODE, i, s_relayPlayers, s_relayCode, NULL, NULL);
+	} else if (strncmp(line, "PAIRED ", 7) == 0) {
+		p->relay = 2;
+		Net_SendHello(p);
+	} else if (strncmp(line, "ERR ", 4) == 0) {
+		/* a second connection of a game made here that is refused: the
+		 * loop tries again, or finds that the game is over */
+		if (s_relayOp != 'C' || s_relayCode[0] == 0) {
+			s_relayOp = 0;
+			Event(NEV_ERROR, i, 0, line + 4, NULL, NULL);
+		}
+		Net_DropPeer(i, NULL);
+	}
+}
+
+/* A game made on the game server, while players may still come: a connection
+ * for each (the second one asks with ATTACH); when the last one is gone the
+ * game is over there. */
+static void Net_RelayServe(ULONG now)
+{
+	int i, live = 0;
+	for (i = 0; i < NET_MAX_PEERS; i++) if (s_peers[i].fd >= 0) live++;
+	if (live == 0) {
+		s_serving = 0;
+		s_relayOp = 0;
+		s_relayCode[0] = 0;
+		Event(NEV_ERROR, 0, 0, "The game on the server is over.", NULL, NULL);
+		return;
+	}
+	if (s_relayPlayers < 3 || live >= NET_MAX_PEERS || (LONG)(now - s_relayRetry) < 0) return;
+	for (i = 0; i < NET_MAX_PEERS; i++) {
+		if (s_peers[i].fd < 0) {
+			char line[64];
+			snprintf(line, sizeof(line), "ATTACH %d %s %s", NET_PROTOCOL, s_relayVersion, s_relayCode);
+			Net_RelayOpen(i, line);
+			break;
+		}
+	}
+	s_relayRetry = now + 3000;
 }
 
 static void Net_AcceptPeer(void)
@@ -634,6 +836,9 @@ static void Net_FrameIn(int i, int type, const UBYTE *d, int len)
 			Net_DropPeer(i, p->ok ? why : NULL);
 			break;
 		}
+		case F_RELAY:
+			if (p->relay == 1) Net_RelayIn(i, d, len);
+			break;
 		case F_PING:
 			Net_FrameOut(p, F_PONG, d, len);
 			break;
@@ -694,6 +899,7 @@ static void Net_DoCommand(int kind, const UBYTE *d, int len)
 		case C_SERVE: Net_StartServing(d, len); break;
 		case C_SEARCH: Net_StartSearch(len >= 4 ? GetBE32(d) : 3000); break;
 		case C_CONNECT: Net_StartConnect(d, len); break;
+		case C_RELAY: Net_StartRelay(d, len); break;
 		case C_STOP:
 			for (i = 0; i < NET_MAX_PEERS; i++) {
 				if (s_peers[i].fd >= 0 && !s_peers[i].connecting) Net_Bye(&s_peers[i], "Disconnected.");
@@ -703,6 +909,10 @@ static void Net_DoCommand(int kind, const UBYTE *d, int len)
 		case C_CLOSE:
 			s_closed = 1;
 			Net_CloseFd(&s_listenFd);
+			/* a connection to the game server nobody joined on */
+			for (i = 0; i < NET_MAX_PEERS; i++) {
+				if (s_peers[i].fd >= 0 && s_peers[i].relay == 1) Net_DropPeer(i, NULL);
+			}
 			break;
 		case C_DROP:
 			if (len >= 1 && d[0] < NET_MAX_PEERS && s_peers[d[0]].fd >= 0) {
@@ -826,7 +1036,7 @@ static void Net_Main(void)
 					Net_DropPeer(i, NULL);
 				} else {
 					p->connecting = 0;
-					Net_SendHello(p);
+					Net_Connected(p);
 				}
 			}
 			if (p->fd >= 0 && !p->connecting && p->inLen > 0) Net_TakeFrames(i);
@@ -835,7 +1045,8 @@ static void Net_Main(void)
 
 		{
 			ULONG now = AmigaTimer_GetMs();
-			if (s_serving && !s_closed && Net_PeerCount() < NET_MAX_PEERS && (LONG)(now - s_nextAnnounce) >= 0) {
+			if (s_relayOp == 'C' && s_serving && !s_closed) Net_RelayServe(now);
+			if (s_serving && s_udpFd >= 0 && !s_closed && Net_PeerCount() < NET_MAX_PEERS && (LONG)(now - s_nextAnnounce) >= 0) {
 				Net_Announce();
 				s_nextAnnounce = now + 1000;
 			}

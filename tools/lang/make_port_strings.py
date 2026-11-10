@@ -24,6 +24,13 @@ INDIRECT = [
     'Raising the clock overclocks', 'the CPU - the system may hang.',
     'The clock changes at once.', 'MC68040: 20 to 50 MHz.', 'Only for a MC68060 rev. 6.',
     'Not an address.', 'The server is full.', 'No answer from the server.', 'Bad data.',
+    # the game server's answers (Settlers/server/relay.py) and net_amiga.c's about it
+    'Password needed.', 'Wrong password.', 'No such game.', 'Server full.',
+    'Too many connections.', 'Game server not found.', 'The game on the server is over.',
+    'The other player left.',
+    # os/report_amiga.c's and the game server's about a bug report
+    'The game server did not answer.', 'Sending stopped.', 'Too many reports today.', 'Report too large.',
+    'No TCP/IP stack (bsdsocket.library).',
 ]
 
 ENCODING = {'de': 'cp437', 'pl': 'iso8859_2'}

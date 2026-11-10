@@ -115,6 +115,17 @@ enum ConvertCase {
 };
 
 static void
+File_MakeCompleteFilename(char *buf, size_t len, enum SearchDirectory dir, const char *filename, enum ConvertCase convert);
+
+#if defined(__amigaos__)
+/** The path of a file of the save directory (for a process that opens it itself). */
+void File_PersonalPath(char *buf, size_t len, const char *filename)
+{
+	File_MakeCompleteFilename(buf, len, SEARCHDIR_PERSONAL_DATA_DIR, filename, NO_CONVERT);
+}
+#endif
+
+static void
 File_MakeCompleteFilename(char *buf, size_t len, enum SearchDirectory dir, const char *filename, enum ConvertCase convert)
 {
 	int j;

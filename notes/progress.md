@@ -46,3 +46,33 @@
   500/1200/3000/4000 z kartą Warp (560, 1240, 1260, 1260 Extreme, 4070), testowany na Warpach, szybka
   karta graficzna daje parametry; README uaktualnione (języki, ustawienia w grze, sprawdzenie przy
   starcie, 8-bit 640x480). Paczka 0.51 przebudowana, opisy wgrane na Amigę 1.
+
+## 10.11.2026
+- Życzenie użytkownika: w Dune to samo, co Settlers ma od 0.131 (`../GAME_SERVER.md`): gra przez
+  internet przez serwer gry, zgłoszenia F10 z gry, raport rozejścia; ten sam serwer, podstrona `/dune`;
+  od razu 2–3 graczy. Opis i tabela testów: `docs/PORTING.md`, „Gra przez internet, zgłoszenia (0.52)”.
+- Serwer (repo Settlers, gałąź `amiga-port`, nie zacommitowane): `ATTACH`, pole maks. graczy, filtr
+  listy po grze, podstrony `/settlers` i `/dune`; 22 testy ✅. **Na Pi nie wdrożone.**
+- OpenDUNE 0.52 (nie zacommitowane, wydanie nie zrobione): `Net_Relay`, okno INTERNET GAME,
+  `os/report_amiga.c`, `gui/report_amiga.c`, raport rozejścia w `lan_amiga.c`, teksty PL/DE, opisy.
+- Testy na kopii serwera na PC z Amigą 2 (`OpenDUNE-test` obok wydania 0.50) i WinUAE: gra 2 i 3
+  graczy, F10, rozejście – wyniki w PORTING.
+- Test trzech prawdziwych maszyn (Amiga 2 + Amiga 1 w sieci lokalnej + WinUAE) przez kopię serwera:
+  16,5 min, użytkownik grał na obu Amigach, 0 różnych sum.
+- Serwer wdrożony na Pi (zgoda użytkownika, VPN), kopia w `~/settlers-server/backup-20261110/`;
+  sprawdzony przez adres publiczny fałszywymi Amigami (Settlers stary format + Dune 3 graczy).
+- Dalej: gra z Amig przez Pi, prawdziwy Settlers 0.131 przez Pi, wydanie 0.52, commity (oba repo),
+  `@` z klawiatury. Na Amigach 1 i 2 został `OpenDUNE-test` w `OpenDUNEWarp`.
+- Zgłoszenie użytkownika w grze 3 graczy: płyt nie da się stawiać po 1–2 sztukach. Przyczyna i poprawka
+  (wspólny obiekt płyty wszystkich rodów, `Lan_Place`) w PORTING; sprawdzone na Amidze 2 ✅.
+- Życzenie użytkownika: równe szanse na starcie. Pomiar skały na starcie wszystkich 36 map
+  (`debug_lan_maps=1`, tabela w PORTING): większość map nierówna (np. domyślna SCENA014: 119 / 855 / 855).
+  Propozycje do decyzji: (1) miejsca startu wybierane przy starcie gry według skały (każdy własna skała
+  podobnej wielkości, daleko od siebie), (2) tylko mapy o stosunku do ok. 1,5, (3) jedno i drugie.
+- Decyzja użytkownika: droga 1 (miejsca startu wyliczane z mapy). Zrobione: `Lan_ChooseStarts` i reszta
+  w `lan_amiga.c`; tabela wyników dla 36 map w PORTING; trzy maszyny wyliczają to samo, 0 różnych sum;
+  użytkownik potwierdził wygląd. Otwarte: przyprawa nie liczona, rogi mapy, mapy „2P” dla 3 graczy,
+  widok po wznowieniu zapisu LAN; anulowanie płyty / zniszczenie placu z płytą.
+- Stan: nic nie zacommitowane (OpenDUNE i Settlers `server/`), wydanie 0.52 nie zbudowane; serwer na Pi
+  wdrożony. Na Amigach 1 i 2 `OpenDUNE-test` (ostatni build) w `OpenDUNEWarp`.
+

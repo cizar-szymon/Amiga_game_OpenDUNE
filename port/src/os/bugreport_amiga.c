@@ -36,6 +36,7 @@
 #include "error.h"
 #include "../input/mouse.h"
 #include "../lang_amiga.h"
+#include "report_amiga.h"
 
 extern bool Video_Amiga_ReadScreen(uint8 *dst, int *w, int *h);
 extern const uint8 *Video_Amiga_Shadow(int *w, int *h);
@@ -169,6 +170,9 @@ static void AmigaBug_WriteText(const char *name, int number)
 void AmigaBug_Tick(void)
 {
 	char name[32], desc[32];
+	char sent[4][24];
+	const char *names[4];
+	int count = 0;
 	uint8 *screen;
 	const uint8 *shadow;
 	int number, w, h;
@@ -183,6 +187,7 @@ void AmigaBug_Tick(void)
 	if (number >= 1000) return;
 
 	AmigaBug_WriteText(name, number);
+	strcpy(sent[count++], name);
 
 	screen = malloc(SCREEN_WIDTH_MAX * SCREEN_HEIGHT_MAX * 4);	/* up to 1024x768 + */
 	if (screen != NULL && Video_Amiga_ReadScreen(screen, &w, &h)) {
@@ -192,6 +197,8 @@ void AmigaBug_Tick(void)
 	free(screen);
 	sprintf(name, "bug%03d-game.bmp", number);
 	AmigaBug_WriteBMP(name, GFX_Screen_Get_ByIndex(SCREEN_0), SCREEN_WIDTH, SCREEN_WIDTH, SCREEN_HEIGHT);
+	strcpy(sent[count++], name);
+	sprintf(sent[count++], "bug%03d-screen.bmp", number);
 	shadow = Video_Amiga_Shadow(&w, &h);
 	if (shadow != NULL) {
 		sprintf(name, "bug%03d-copy.bmp", number);
@@ -201,6 +208,14 @@ void AmigaBug_Tick(void)
 		sprintf(name, "bug%03d.dat", number);
 		sprintf(desc, "Bug report %d", number);
 		SaveGame_SaveFile(name, desc);
+		strcpy(sent[count++], name);
 	}
 	GUI_DisplayText(Lang_T("Bug report %d saved."), 2, number);
+	/* with a TCP/IP stack: the window that sends it to the game server
+	 * (gui/report_amiga.c; on the map screen) */
+	if (Report_Network()) {
+		int i;
+		for (i = 0; i < count; i++) names[i] = sent[i];
+		Report_Open("F10", names, count);
+	}
 }

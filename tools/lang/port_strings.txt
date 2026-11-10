@@ -612,3 +612,186 @@ en: Disconnected.
 de: Getrennt.
 pl: Rozłączono.
 max: 47
+
+# ---- A game over the internet, through the game server (gui/lan_menu_amiga.c)
+
+en: INTERNET GAME: through the game server.
+de: INTERNETSPIEL: über den Spielserver.
+pl: GRA PRZEZ INTERNET: przez serwer gry.
+px: 280 8
+
+en: INTERNET GAME
+de: INTERNETSPIEL
+pl: GRA PRZEZ INTERNET
+px: 116 8
+
+en: Internet game
+de: Internetspiel
+pl: Gra przez internet
+px: 280 8
+
+en: Internet game - server
+de: Internetspiel - Server
+pl: Gra przez internet - serwer
+px: 280 8
+
+en: Internet game - joined
+de: Internetspiel - beigetreten
+pl: Gra przez internet - dołączono
+px: 280 8
+
+en: Game name
+de: Spielname
+pl: Nazwa gry
+px: 84 8
+
+en: Password
+de: Passwort
+pl: Hasło
+px: 84 8
+
+en: Game code
+de: Spielcode
+pl: Kod gry
+px: 84 8
+
+en: Asking the game server...
+de: Frage den Spielserver...
+pl: Pytam serwer gry...
+max: 47
+
+en: Games waiting
+de: Wartende Spiele
+pl: Gry czekające
+px: 200 8
+
+en: None - NEW GAME makes one.
+de: Keine - NEUES SPIEL legt eins an.
+pl: Brak - NOWA GRA zakłada grę.
+px: 260 8
+
+en: * needs the password
+de: * mit Passwort
+pl: * wymaga hasła
+px: 136 8
+
+en: NEW GAME
+de: NEUES SPIEL
+pl: NOWA GRA
+px: 78 8
+
+en: JOIN GAME
+de: BEITRETEN
+pl: DOŁĄCZ
+px: 78 8
+
+en: REFRESH
+de: NEU LADEN
+pl: ODŚWIEŻ
+px: 56 8
+
+en: for %d players - tell the code to the others
+de: für %d Spieler - nenne den anderen den Code
+pl: dla %d graczy - podaj kod pozostałym
+max: 47
+px: 270 8
+
+en: The game is of another version.
+de: Das Spiel hat eine andere Version.
+pl: Gra jest w innej wersji.
+max: 47
+
+en: Password needed.
+de: Passwort nötig.
+pl: Potrzebne hasło.
+
+en: Wrong password.
+de: Falsches Passwort.
+pl: Złe hasło.
+
+en: No such game.
+de: Kein solches Spiel.
+pl: Nie ma takiej gry.
+
+en: Server full.
+de: Der Server ist voll.
+pl: Serwer jest pełny.
+
+en: Too many connections.
+de: Zu viele Verbindungen.
+pl: Za dużo połączeń.
+
+en: Game server not found.
+de: Spielserver nicht gefunden.
+pl: Nie znaleziono serwera gry.
+
+en: The game on the server is over.
+de: Das Spiel auf dem Server ist beendet.
+pl: Gra na serwerze została zakończona.
+
+en: The other player left.
+de: Der andere Spieler ist gegangen.
+pl: Drugi gracz wyszedł.
+
+# ---- The window of a bug report (gui/report_amiga.c)
+
+en: Bug report
+de: Fehlerbericht
+pl: Zgłoszenie błędu
+px: 280 8
+
+en: The game went out of step - send the states?
+de: Spiel nicht mehr synchron - Stände senden?
+pl: Gra się rozeszła - wysłać stany graczy?
+px: 284 8
+
+en: Your e-mail
+de: Deine E-Mail
+pl: Twój e-mail
+px: 72 8
+
+en: What happened
+de: Was ist passiert
+pl: Co się stało
+px: 150 8
+
+en: SEND
+de: SENDEN
+pl: WYŚLIJ
+px: 96 8
+
+en: CLOSE
+de: SCHLIESSEN
+pl: ZAMKNIJ
+px: 96 8
+
+en: Sending the report...
+de: Sende den Bericht...
+pl: Wysyłam zgłoszenie...
+max: 63
+
+en: The report cannot be sent now.
+de: Der Bericht kann jetzt nicht gesendet werden.
+pl: Nie można teraz wysłać zgłoszenia.
+max: 63
+
+en: Report no. %s sent. Thank you!
+de: Bericht Nr. %s gesendet. Danke!
+pl: Zgłoszenie nr %s wysłane. Dziękuję!
+max: 63
+
+en: The game server did not answer.
+de: Der Spielserver antwortet nicht.
+pl: Serwer gry nie odpowiada.
+
+en: Sending stopped.
+de: Senden abgebrochen.
+pl: Wysyłanie przerwane.
+
+en: Too many reports today.
+de: Zu viele Berichte heute.
+pl: Za dużo zgłoszeń dzisiaj.
+
+en: Report too large.
+de: Der Bericht ist zu groß.
+pl: Zgłoszenie jest za duże.
