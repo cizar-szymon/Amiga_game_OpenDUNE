@@ -75,4 +75,10 @@
   widok po wznowieniu zapisu LAN; anulowanie płyty / zniszczenie placu z płytą.
 - Stan: nic nie zacommitowane (OpenDUNE i Settlers `server/`), wydanie 0.52 nie zbudowane; serwer na Pi
   wdrożony. Na Amigach 1 i 2 `OpenDUNE-test` (ostatni build) w `OpenDUNEWarp`.
+- Pomiary czasu procesora (Amiga 2): spokojna scena i bitwa trzech rodów (`debug_lan_battle=20`) – tabele w
+  PORTING; w bitwie rysowanie mapy 56%, wysyłka 22%, wolne 7%.
+- Decyzja użytkownika: następny krok to test rysowania w pamięci karty na osobnej gałęzi, dopiero gdy
+  będzie nowa funkcja FPGA (PORTING, „Następny krok”). Wcześniej można rozbić pomiar `draw` na części.
+- Amigi posprzątane (bez `OpenDUNE-test`), commity na gałęzi `internet-game` wysłane na GitHuba; `main` bez
+  zmian do wydania 0.52 (nie zbudowane). Do sprawdzenia: `@` w oknie F10.
 

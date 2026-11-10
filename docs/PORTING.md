@@ -1204,6 +1204,72 @@ terenu; odległość do przyprawy nie jest liczona; miejsca bywają w rogu mapy 
 gry LAN ustawia widok według miejsc z tabeli misji; mapy „dla 2 graczy” dalej przyjmują tylko 2 graczy,
 choć reguła znajduje na nich miejsca dla 3.
 
+### Na co idzie czas procesora (pomiar 10.11.2026, życzenie użytkownika)
+
+Amiga 2 (A4000 + Warp 7060, 68060 100 MHz), binarka 0.52 z gałęzi `internet-game`, misja 8 Atreidów
+(`debug_start_scenario=8`), 640×480, `framerate=60`, `debug_stats=1`, początek misji (mała baza, postój,
+bez przewijania), średnia z 12 okresów po 5 s (minuta gry):
+
+| Część | Udział czasu | Na wywołanie |
+|---|---|---|
+| czekanie na następny takt (wolny procesor) | 71,3% | – |
+| rysowanie mapy do bufora (`draw`) | 10,7% | 0,86 ms |
+| wysyłanie obrazu na kartę (`video`) | 10,6% | 1,72 ms na klatkę |
+| logika gry (`logic`) | 2,4% | 0,15 ms |
+| interfejs (`ui`) | 1,1% | – |
+| reszta pętli (`other`), płynne przewijanie, zdarzenia | 3,9% | – |
+
+Klatki: śr. 52 na sekundę (46–59), pętla gry 120 razy na sekundę. W `video` mieszczą się `v.send`
+(porównanie i zapis na kartę, 9,9%, 1,9 ms) i `v.areas` (5,9%, 1,1 ms: liczenie zmienionych części ekranu,
+działa tylko przy `debug_stats=1`, więc zawyża `video`). Nie mierzone tym razem: późna faza misji z dużą
+bazą i walką, przewijanie mapy, gra sieciowa.
+
+### Scena bitwy trzech rodów i pomiar w niej (10.11.2026, życzenie użytkownika)
+
+`debug_lan_battle=N` (ini / Shell, **na każdej maszynie to samo**, inaczej gry się rozejdą): w 2. sekundzie
+gry LAN każdy gracz dostaje bazę (8 budynków 2×2 i 2 wieżyczki) i do N jednostek (czołgi, quady, czołgi
+oblężnicze, trike, wyrzutnie, piechota) w grupie przy środku mapy, wszystkie z rozkazem polowania; widok
+startuje na (32,32) (`Lan_DebugBattle`). Przy N=20: 30 budynków, 20+19+19 jednostek (pula jednostek naziemnych).
+
+Zgodność (Amiga 2 gospodarz + Amiga 1 + WinUAE, przez serwer na Pi): bitwa samych jednostek 17–18 sum od
+każdego gościa zgodnych, 0 różnych; bitwa z bazami do kroku 12 000 (3 min 20 s): po 40 sum zgodnych, 0 różnych.
+
+Czas procesora na Amidze 2 (A4000 + Warp 7060, 68060 100 MHz, 640×480, `debug_stats=1`), bitwa z bazami w
+widoku, średnia z 11 okresów po 5 s:
+
+| Część | Udział czasu | Na wywołanie | Spokojna scena (misja 8) |
+|---|---|---|---|
+| rysowanie mapy do bufora (`draw`) | 56,2% | 7,75 ms | 10,7%, 0,86 ms |
+| wysyłanie obrazu na kartę (`video`) | 22,3% | 4,15 ms na klatkę | 10,6%, 1,72 ms |
+| logika gry (`logic`, tu także sieć) | 10,7% | 1,42 ms | 2,4%, 0,15 ms |
+| czekanie (wolny procesor) | 7,2% | – | 71,3% |
+| interfejs, reszta | 3,6% | – | 5,0% |
+
+Klatki: śr. 52 na sekundę (43–56). **Pętla gry spada ze 120 do 44–106 przebiegów na sekundę** (w
+najcięższych okresach procesor nie ma zapasu: czekanie 0–7%). Kroki gry sieciowej są nadrabiane (do 8 na
+przebieg), więc tempo gry się trzyma, ale to rysowanie mapy jest pierwszym kandydatem do optymalizacji:
+7,75 ms na wywołanie przy ~50 klatkach to ponad połowa czasu. W bitwie samych jednostek `draw` dochodził do
+15,5 ms na wywołanie (150. sekunda, dużo wraków i dymu). Nie rozbijałem jeszcze `draw` na części (teren,
+jednostki, wybuchy, mgła gracza).
+
+Uwaga do sceny: budynki padają szybko (po 3 min zostały 2 z 30), a widok startowy nie trafia dokładnie w
+bitwę (ustawiałem go kliknięciem w radar).
+
+### Następny krok: rysowanie w pamięci karty (decyzja użytkownika 10.11.2026)
+
+Na **osobnej gałęzi**, jako test, i dopiero **gdy karta Warp dostanie nową funkcję FPGA** (propozycja:
+`../Settlers/docs/FPGA_2D.md` – kopia z przezroczystością / lista poleceń): obraz mapy składany od razu w
+pamięci karty zamiast w Fast RAM z wysyłką zmienionych bloków. Powód: w bitwie trzech rodów (tabela wyżej)
+rysowanie mapy to 56% czasu procesora, wysyłka na kartę 22%.
+
+Ocena funkcji z `FPGA_2D.md` dla tej gry: zoom ×2 – prawie nic (mapa jest 1:1, podwajane tylko menu);
+paleta CLUT – nic (ekran już 8-bit); kopia z przezroczystością – możliwy zysk, ale wymaga sprite'ów
+rozpakowanych w pamięci karty (każdy w kolorach rodów) i osobnej mgły gracza w grze sieciowej.
+
+Przed tym testem (można wcześniej, bez FPGA): rozbić pomiar `draw` na teren, jednostki, wybuchy i dym, mgłę
+gracza – pokaże, czy potrzebna jest kopia z przezroczystością, czy wystarczy kopia kafli w pamięci karty.
+Scena do pomiarów: `debug_lan_battle=20` na trzech maszynach, `debug_stats=1`.
+
 ### Nie zrobione / do zrobienia
 
 - Serwer na Pi **wdrożony 10.11.2026** (zgoda użytkownika, VPN; kopia poprzedniego kodu i `data/` w
@@ -1219,8 +1285,8 @@ choć reguła znajduje na nich miejsca dla 3.
 - Raport rozejścia wysyła dzienniki (stan każdej sumy), nie zapisy gry; ponownej synchronizacji
   (Settlers ją ma) nie ma.
 - Okno zgłoszenia tylko na ekranie mapy (F10 gdzie indziej zapisuje pliki jak dotąd).
-- Pliki testów na Amidze 2 w `OpenDUNEWarp`: `OpenDUNE-test`, `saves/bug018*`, `saves/lanerr-*`,
-  `saves/REPORT.CFG` (e-mail „test”).
+- Amigi posprzątane 10.11: `OpenDUNE-test` i pliki testów usunięte z obu; na Amidze 2 został raport
+  użytkownika `saves/bug019*` (zgłoszenie błędu płyt).
 
 ## Języki: polski i niemiecki (gałąź `lang-pl-de`, 30.10.2026, życzenie użytkownika)
 

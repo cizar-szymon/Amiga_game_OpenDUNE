@@ -1231,11 +1231,60 @@ static bool Lan_BeginTurn(int32 turn)
 static void Lan_UpdateSeen(bool all);
 static void Lan_ResetSeen(void);
 
+/* ini debug_lan_battle=N (a test of the speed and of the step with many
+ * units): two seconds into the game every player gets up to N units more -
+ * tanks, quads, siege tanks, trikes, launchers, troopers - in a group of its
+ * own near the middle of the map, all hunting; the view goes there. */
+static uint32 s_battle;
+
+static void Lan_DebugBattle(void)
+{
+	static const uint8 types[6] = { UNIT_TANK, UNIT_QUAD, UNIT_SIEGE_TANK, UNIT_TRIKE, UNIT_LAUNCHER, UNIT_TROOPERS };
+	static const uint8 cx[3] = { 26, 40, 33 }, cy[3] = { 24, 24, 39 };
+	/* a base of eight buildings (two columns of four) beside each group, two
+	 * turrets between it and the others */
+	static const uint8 builds[8] = { STRUCTURE_WINDTRAP, STRUCTURE_LIGHT_VEHICLE, STRUCTURE_BARRACKS, STRUCTURE_WOR_TROOPER,
+	                                 STRUCTURE_OUTPOST, STRUCTURE_SILO, STRUCTURE_HIGH_TECH, STRUCTURE_WINDTRAP };
+	static const uint8 bx[3] = { 15, 46, 21 }, by[3] = { 19, 19, 35 };
+	static const uint8 tx[3][2] = { { 32, 32 }, { 34, 34 }, { 30, 36 } }, ty[3][2] = { { 21, 29 }, { 21, 29 }, { 33, 33 } };
+	int made[3], built = 0, slot;
+	uint32 k;
+
+	made[0] = made[1] = made[2] = 0;
+	g_validateStrictIfZero++;
+	for (slot = 0; slot < LAN_MAX_PLAYERS; slot++) {
+		if (!g_lanPlayers[slot].used) continue;
+		for (k = 0; k < 8; k++) {
+			if (Structure_Create(STRUCTURE_INDEX_INVALID, builds[k], g_lanPlayers[slot].house,
+			                     Tile_PackXY(bx[slot] + (k % 2) * 3, by[slot] + (k / 2) * 3)) != NULL) built++;
+		}
+		for (k = 0; k < 2; k++) {
+			if (Structure_Create(STRUCTURE_INDEX_INVALID, k == 0 ? STRUCTURE_TURRET : STRUCTURE_ROCKET_TURRET, g_lanPlayers[slot].house,
+			                     Tile_PackXY(tx[slot][k], ty[slot][k])) != NULL) built++;
+		}
+	}
+	Lan_Log("battle: buildings made %d\n", built);
+	for (k = 0; k < s_battle && k < 36; k++) {
+		for (slot = 0; slot < LAN_MAX_PLAYERS; slot++) {
+			Unit *u;
+			if (!g_lanPlayers[slot].used) continue;
+			u = Unit_Create(UNIT_INDEX_INVALID, types[k % 6], g_lanPlayers[slot].house,
+			                Tile_UnpackTile(Tile_PackXY(cx[slot] + (k % 6) * 2 - 5, cy[slot] + (k / 6) * 2 - 5)), 0);
+			if (u == NULL) continue;
+			Unit_SetAction(u, ACTION_HUNT);
+			made[slot]++;
+		}
+	}
+	g_validateStrictIfZero--;
+	Lan_Log("battle: units made %d %d %d\n", made[0], made[1], made[2]);
+}
+
 static void Lan_Step(void)
 {
 	s_inStep = true;
 	g_lanSim = true;
 	g_timerGame++;
+	if (s_battle != 0 && s_steps == 120) Lan_DebugBattle();
 	if (s_desyncStep != 0 && s_steps == s_desyncStep) {
 		/* ini debug_lan_desync: a test of the report of a game out of step */
 		House *h = House_Get_ByIndex(g_lanPlayers[0].house);
@@ -1554,6 +1603,7 @@ void Lan_StartGame(void)
 	Lan_ResetTurns();
 	s_trace = IniFile_GetInteger("debug_lan_trace", 0) != 0;
 	s_desyncStep = (uint32)IniFile_GetInteger("debug_lan_desync", 0);
+	s_battle = (uint32)IniFile_GetInteger("debug_lan_battle", 0);
 	s_errWaiting = false;
 	free(s_errTx);
 	s_errTx = NULL;
@@ -1619,6 +1669,7 @@ void Lan_StartGame(void)
 	Voice_LoadVoices(g_lanLocalHouse);
 	{
 		uint16 cy = Lan_Start(g_lanMe);
+		if (s_battle != 0) cy = Tile_PackXY(32, 32);	/* the test battle (Lan_DebugBattle) */
 		Map_SetViewportPosition(cy);
 		g_selectionRectanglePosition = cy;
 		g_selectionPosition = cy;
