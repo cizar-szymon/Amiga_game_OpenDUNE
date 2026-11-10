@@ -92,4 +92,5 @@
   Na Amidze 1 katalog dalej `OpenDUNEWarp`.
 - 0.54 (decyzja użytkownika): nowe obrazy mentatów (`lang/GFX.PAK`, wygenerowane przez AI) w paczce publicznej
   i pełnej, `modern=1` włączone w `opendune.ini` z paczki; opisy, README, historia wydań.
-
+- 0.54 zainstalowane na Amidze 2 (`WorkSD:Games/OpenDUNE`) i Amidze 1 (`OpenDUNEWarp`), start z Shella ✅;
+  w obu `font=clean` i `modern=1`, poprzedni program jako `OpenDUNE-0.51`.
