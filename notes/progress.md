@@ -87,3 +87,6 @@
 - 0.53: `font=clean` (X11 fixed 6×10 zamiast pierwotnie wybranego Terminusa – PORTING), belka bez cienia i
   napisy przycisków o rząd niżej, komunikat „baza jest atakowana” tylko dla atakowanego gracza.
 
+- Amiga 2 (10.11, zmiana użytkownika): stary port NovaCodera usunięty, nasz port przeniesiony z `OpenDUNEWarp` do
+  `WorkSD:Games/OpenDUNE`; dane gry wgrane z PC do `WorkSD:Games/OpenDUNE/data` (35 plików, bez INTRO.PAK), start ✅.
+  Na Amidze 1 katalog dalej `OpenDUNEWarp`.
