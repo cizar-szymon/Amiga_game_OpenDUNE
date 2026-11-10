@@ -240,6 +240,12 @@ English, no counter (or screenmode=, language=, show_fps= of opendune.ini).
   font=clean         plain, easy to read letters in the menus, windows,
                      messages and on the top bar in place of the game's
                      own (the public domain X11 "fixed" 6x10 font)
+  modern=1           new pictures of the three mentats and of the house
+                     selection screen (lang/GFX.PAK, made for the port),
+                     the briefing's film in the monitor of the picture,
+                     the mentats' new names in the texts (Cizar, Sellen,
+                     NineX). On in the package's opendune.ini; 0: the
+                     original pictures and names
   language=          english / german / polish (the language when none
                      was chosen in Options; german: the .GER files in
                      data, polish: lang/POLISH.PAK)

@@ -90,3 +90,6 @@
 - Amiga 2 (10.11, zmiana użytkownika): stary port NovaCodera usunięty, nasz port przeniesiony z `OpenDUNEWarp` do
   `WorkSD:Games/OpenDUNE`; dane gry wgrane z PC do `WorkSD:Games/OpenDUNE/data` (35 plików, bez INTRO.PAK), start ✅.
   Na Amidze 1 katalog dalej `OpenDUNEWarp`.
+- 0.54 (decyzja użytkownika): nowe obrazy mentatów (`lang/GFX.PAK`, wygenerowane przez AI) w paczce publicznej
+  i pełnej, `modern=1` włączone w `opendune.ini` z paczki; opisy, README, historia wydań.
+

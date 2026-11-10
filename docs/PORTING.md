@@ -1496,7 +1496,10 @@ w dół do czerni), kolory palety gry z ditheringiem – tylko te, których uży
 (żaden nie miga); dla M paleta `BENE.PAL` (ładowana przez grę na tym ekranie), dla reszty
 `IBM.PAL`. Zapis do `build/gfx/GFX.PAK` (inne rody w nim zostają). Napisy i przyciski wypalone
 w obrazku (pytanie, Yes / No, Exit, tekst mentata) trzeba najpierw zamalować – gra rysuje własne.
-Obrazki (`tools/gfx/`) i `GFX.PAK` tylko na tym PC (`.gitignore`). Sprawdzone w WinUAE (wszystkie
+Obrazki źródłowe (`tools/gfx/`) tylko na tym PC (`.gitignore`). **Od 0.54 (decyzja użytkownika
+10.11.2026: obrazy są wygenerowane przez AI, można je publikować) gotowy `GFX.PAK` jest w paczce publicznej
+i pełnej (`lang/GFX.PAK`), a `modern=1` jest włączone w `opendune.ini` z paczki**; `tools/make_release.sh`
+kopiuje `build/gfx/GFX.PAK`. Sprawdzone w WinUAE (wszystkie
 cztery ekrany) i na Amidze 2 (Atreides, Ordos).
 
 ### Do sprawdzenia na Amidze

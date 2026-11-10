@@ -4,7 +4,8 @@
 #   releases/amiga/OpenDUNE.info          icons, opendune.ini, doc/ (ALL texts and PDFs:
 #                                         descriptions PL/EN, history, Install, COPYING),
 #   releases/amiga/OpenDUNE-<v>.zip       empty data/ and MUSIC/ with a ReadMe -
-#                                         no game data
+#                                         no game data; lang/GFX.PAK: the port's own
+#                                         pictures of the mentats (not game data)
 #   private/OpenDUNE-<v>-full.zip         the same + the Dune II data (data/*.PAK) and
 #                                         the music (build/music/*.RAW): runs at once;
 #                                         only on this PC (private/ is not in git)
@@ -43,6 +44,11 @@ cp build/amiga/MakeMusic "$R/OpenDUNE/MakeMusic"	# records the music on the Amig
 python tools/make_icon.py "$R/OpenDUNE/MakeMusic.info" --frame tools/icon/makemusic.png --crop 0 0 54 44 --transparent --pos 140 16 >/dev/null 2>&1	# loudspeaker and notes
 python tools/make_install.py >/dev/null	# Install.txt and Install.pdf (EN, PL, DE) from Install_src.txt
 cp "$D/opendune.ini" "$R/OpenDUNE/"
+# the modern pictures of the mentats (opendune.ini modern=1, on in the package): made by AI for the
+# port, the user's decision 10.11.2026 to publish them (tools/make_modern.py -> build/gfx/GFX.PAK)
+[ -f build/gfx/GFX.PAK ] || { echo "build/gfx/GFX.PAK missing: tools/make_modern.py first" >&2; exit 1; }
+mkdir -p "$R/OpenDUNE/lang"
+cp build/gfx/GFX.PAK "$R/OpenDUNE/lang/GFX.PAK"
 # ALL texts and PDFs in one drawer doc (the user's rule for every port, 3.11.2026)
 mkdir -p "$R/OpenDUNE/doc"
 cp "$D/Install.txt" "$D/Install.pdf" "$D/OpenDUNE.txt" "$D/OpenDUNE_en.txt" "$D/OpenDUNE_release.txt" "$D/OpenDUNE_release_en.txt" "$R/OpenDUNE/doc/"

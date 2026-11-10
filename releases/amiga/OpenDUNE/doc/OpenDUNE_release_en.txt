@@ -7,6 +7,15 @@ OpenDUNE/saves - F10 writes bugNNN.txt, bugNNN.dat and bugNNN-*.bmp.
 Reports: github.com/cizar-szymon/Amiga_game_OpenDUNE (Issues).
 
 
+0.54 (10.11.2026)
+-----------------
+
+- New pictures of the mentats and of the house selection screen come with
+  the game (lang/GFX.PAK) and are on: modern=1 in opendune.ini. The
+  mentats have new names in the texts (Cizar, Sellen, NineX). modern=0
+  gives the original pictures and names.
+
+
 0.53 (10.11.2026)
 -----------------
 

@@ -15,5 +15,7 @@ __pycache__/
 # The Polish translation of the game texts (Westwood) - only on this PC, not public
 /tools/lang/polish/
 
-# Pictures replacing the game's ones (tools/gfx -> lang/GFX.PAK) - only on this PC
+# Pictures replacing the game's ones (tools/gfx -> lang/GFX.PAK): the sources only on this PC,
+# the finished GFX.PAK goes with the release (the port's own pictures, not game data)
 /tools/gfx/
+!/releases/amiga/OpenDUNE/lang/GFX.PAK

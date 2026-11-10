@@ -236,6 +236,11 @@ jest zapamietany. Bez wyboru w grze: 640x480, angielski, bez licznika
   font=clean         proste, czytelne litery w menu, oknach, komunikatach
                      i na gornej belce zamiast liter gry (czcionka X11
                      "fixed" 6x10, domena publiczna)
+  modern=1           nowe obrazy trzech mentatow i ekranu wyboru rodu
+                     (lang/GFX.PAK, zrobione dla portu), film odprawy w
+                     monitorze obrazu, nowe imiona mentatow w tekstach
+                     (Cizar, Sellen, NineX). Wlaczone w opendune.ini z
+                     paczki; 0: oryginalne obrazy i imiona
   language=          english / german / polish (jezyk, gdy nie wybrano
                      go w Options; german: pliki .GER w data,
                      polish: lang/POLISH.PAK)

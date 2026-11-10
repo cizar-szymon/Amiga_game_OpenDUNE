@@ -7,6 +7,14 @@ z OpenDUNE/saves - F10 zapisuje bugNNN.txt, bugNNN.dat i bugNNN-*.bmp.
 Zgloszenia: github.com/cizar-szymon/Amiga_game_OpenDUNE (Issues).
 
 
+0.54 (10.11.2026)
+-----------------
+
+- Nowe obrazy mentatow i ekranu wyboru rodu sa w paczce (lang/GFX.PAK)
+  i sa wlaczone: modern=1 w opendune.ini. Mentaci maja w tekstach nowe
+  imiona (Cizar, Sellen, NineX). modern=0 daje oryginalne obrazy i imiona.
+
+
 0.53 (10.11.2026)
 -----------------
 

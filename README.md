@@ -21,6 +21,8 @@ but slower graphics cards will not reach the same speed.
   and an optional password, no router setup
 - **bug reports from the game**: F10 opens a window that sends your description, the description
   of the Amiga and the report files to the game server
+- **new pictures of the mentats** and of the house selection screen (`modern=1`, on in the package;
+  made for the port), and an easy to read font (`font=clean`)
 - English and German (Westwood's texts from your own Dune II), chosen in the game; a Polish
   translation (`lang/POLISH.PAK`) is not part of the public release
 - music from disk (recordings of the original AdLib music, made from your own data)
