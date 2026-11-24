@@ -27,6 +27,9 @@ extern bool String_LanguageAvailable(uint8 language);
 extern char *String_Get_ByIndex(uint16 stringID);
 extern void String_Init(void);
 extern void String_Uninit(void);
+#if defined(__amigaos__)
+extern void String_Reload(void);
+#endif
 extern uint8 *String_NextString(uint8 *ptr);
 extern uint8 *String_PrevString(uint8 *ptr);
 extern void String_Trim(char *string);

@@ -73,8 +73,15 @@ na samej Amidze:
 W Shellu mozna podac inne katalogi: MakeMusic KATALOG_DANYCH KATALOG_MUZYKI
 
 Bez katalogu MUSIC gra dziala normalnie, tylko bez muzyki. Muzyke
-wlacza/wylacza Options -> Game controls -> Music; glosnosc:
-music_volume=0..64 w opendune.ini (domyslnie 40).
+wybiera Options -> Game controls -> Music: Amiga, PC albo wylaczona;
+glosnosc: music_volume=0..64 w opendune.ini (domyslnie 40).
+
+Muzyka z wersji Amiga: utwor, ktory gra w misjach Dune II na Amige
+(Music: Amiga; w menu i odprawach jest wtedy cisza, jak w tej wersji).
+Jest w pliku DUNEGAME.ENG (albo .GER, .FRE) z dyskow Dune II na Amige
+(lub z instalacji WHDLoad). Skopiuj ten plik do OpenDUNE/data i uruchom
+MakeMusic - nagra go najpierw (kilka sekund) jako MUSIC/AMIGA_19.RAW,
+takze bez plikow PC. Tylko ten utwor: w Shellu MakeMusic AMIGA.
 
 To samo da sie zrobic na PC (szybciej): ze zrodel
 (github.com/cizar-szymon/Amiga_game_OpenDUNE) python
@@ -123,8 +130,8 @@ JEZYK: ANGIELSKI, NIEMIECKI, POLSKI
 
 Options -> Game controls -> Language: kazde klikniecie wybiera nastepny
 jezyk (English, Deutsch, Polski - tylko te, ktorych pliki sa). Jezyk
-zmienia sie po powrocie do menu glownego (Options -> Main menu) albo
-przy nastepnym uruchomieniu; wybor jest zapamietany (saves/LANGUAGE.CFG).
+zmienia sie od razu po zamknieciu okna, takze w trakcie misji; wybor
+jest zapamietany (saves/LANGUAGE.CFG).
 Bez wyboru w grze: language= z opendune.ini, a bez niego
 angielski.
 

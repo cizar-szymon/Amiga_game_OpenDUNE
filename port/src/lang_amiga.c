@@ -8,9 +8,10 @@
  * (made by tools/lang/make_port_strings.py from tools/lang/port_strings.txt).
  *
  * The language is chosen in Options - Game controls and kept in
- * LANGUAGE.CFG of the save directory; it changes in the main menu (all texts
- * and fonts loaded again, nothing of a running game points into the old
- * ones there). Without LANGUAGE.CFG the ini's language= decides.
+ * LANGUAGE.CFG of the save directory; it changes when Game controls is closed,
+ * during a mission too (all texts and fonts loaded again; the old texts stay
+ * until the next change, String_Reload). Without LANGUAGE.CFG the ini's
+ * language= decides.
  */
 
 #include <stdio.h>
@@ -485,8 +486,8 @@ bool Lang_ApplyChosen(void)
 	font = (g_fontCurrent == g_fontNew6p) ? 1 : (g_fontCurrent != NULL && g_fontCurrent == g_fontIntro) ? 2 : 0;
 
 	g_config.language = s_chosen;
-	String_Uninit();
-	String_Init();
+	String_Reload();
+	g_viewportMessageText = NULL;	/* a message of the map in the old language */
 	Font_Uninit();
 	Font_Init();
 	Font_Select(font == 1 ? g_fontNew6p : (font == 2 && g_fontIntro != NULL) ? g_fontIntro : g_fontNew8p);

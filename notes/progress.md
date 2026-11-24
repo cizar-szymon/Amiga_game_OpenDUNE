@@ -108,3 +108,18 @@
   OpenDUNE*.txt, historia wydań) mówią o `saves/bugNNN`. `@` lewym Shiftem potwierdzone przez użytkownika.
 - Amiga 2: w `WorkSD:Games/OpenDUNE/saves` nie było już starych BUG*, _SAVE000.DAT, SAVEFAME.DAT, *.CFG
   (usunięte poza tą sesją); testowe `bug001/` i `bug003/` zostały tam. `OpenDUNE-test` w katalogu gry.
+- Wydanie 0.55 (24.11.2026): commit `3761b32`, wysłane na GitHub (`check_release.py`: all the same in git).
+  Publiczny ZIP sprawdzony na Amidze 2 w `RAM:` (UnZip, `Version` 0.55, start do menu, „AMIGA 0.55”).
+  Pełny ZIP w `private/`, `make_private.py` (opendune 0.55, 67 plików) zrobione; `push_private.sh` na RP4 NIE wysłane (ssh 192.168.5.21: timeout, PC bez VPN) – do powtórzenia.
+- Menu główne ×2 także przy 640×480 (życzenie użytkownika, po 0.55): sprawdzone na Amidze 2
+  (`OpenDUNE-test`), ustawienia gracza (`RESOLUTION.CFG` 800x600, `OPTIONS.CFG`) przywrócone po teście.
+  Nie zacommitowane, bez nowego numeru wydania.
+- Zmiana języka od razu po zamknięciu Game controls, także w misji (`String_Reload`, `widget_click.c`) –
+  działa, potwierdzone przez użytkownika na Amidze 2. Opisy PL/EN/DE poprawione. Nie zacommitowane.
+
+## 25.11.2026
+- Muzyka z wersji Amiga: `DUNEGAME.*` = MaxTrax, utwór 19 = muzyka misji (potwierdził użytkownik).
+  `tools/music/mx_info.py`, `mx_render.py`; w grze Muzyka Wył./Amiga/PC (`sound.c`, `MUSIC.CFG`),
+  sprawdzone w WinUAE. Amiga 2 niedostępna (VPN); Amiga 1 tylko odczyt za zgodą sesji diablo-c3.
+  Nie zacommitowane: menu ×2, zmiana języka od razu, muzyka Amiga. Do zrobienia: MakeMusic (MaxTrax
+  na Amidze), opisy dla graczy, test na prawdziwej Amidze, wydanie 0.56.

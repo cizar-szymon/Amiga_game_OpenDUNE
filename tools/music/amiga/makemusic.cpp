@@ -2,12 +2,18 @@
  * MakeMusic - records the music of Dune II for the OpenDUNE Amiga port on the
  * Amiga itself, from the player's own game data (no PC needed).
  *
- *   MakeMusic [DATA] [TO] [PEAK]
- *     DATA  the directory with SOUND.PAK of Dune II for the PC (default: DATADIR
- *           of the game's icon, else datadir of opendune.ini, else PROGDIR:data)
+ *   MakeMusic [DATA] [TO] [AMIGA] [PEAK]
+ *     DATA  the directory with SOUND.PAK of Dune II for the PC and/or DUNEGAME.ENG
+ *           (.GER, .FRE) of Dune II for the Amiga (default: DATADIR of the
+ *           game's icon, else datadir of opendune.ini, else PROGDIR:data)
  *     TO    where the recordings go (default: MUSIC_DIR of the icon, music_dir of
  *           opendune.ini, PROGDIR:MUSIC; made if missing)
+ *     AMIGA only the Amiga version's music (a few seconds)
  *     PEAK  (tests) only print the loudest sample of all pieces
+ *
+ * The Amiga version's music of the missions (Music: Amiga in the game): score
+ * 19 of its DUNEGAME.ENG / .GER / .FRE, a MaxTrax file (maxtrax.cpp), into
+ * AMIGA_19.RAW with its loop - made first, also without SOUND.PAK.
  *
  * The AdLib music (the .ADL files in SOUND.PAK) is played by AdPlug's Westwood
  * ADL player (adl.cpp) on the OPL2 emulator of MAME (fmopl.c, whole numbers,
@@ -37,6 +43,7 @@
 #endif
 
 #include "adl.h"
+#include "maxtrax.h"
 #include "emuopl.h"
 
 #if defined(__amigaos__)
@@ -47,7 +54,7 @@
 unsigned long __stack = 65536;
 extern "C" void __stkinit(void);
 void (*const makemusic_stackSwap)(void) = __stkinit;
-const char version[] = "$VER: MakeMusic 1.2 (31.10.2026) OpenDUNE music recorder";
+const char version[] = "$VER: MakeMusic 1.3 (25.11.2026) OpenDUNE music recorder";
 /* the window for the output when started from the icon: libnix's own has WAIT
  * (it stays open after the end until its close gadget), here Return closes it
  * (Finish) */
@@ -335,6 +342,57 @@ static bool Icon_Get(const char *key, char *value, size_t size)
 static bool Icon_Get(const char *, char *, size_t) { return false; }
 #endif
 
+/* The Amiga version's music of the missions: score 19 of its DUNEGAME.ENG (or
+ * .GER, .FRE - the same score), a MaxTrax file (maxtrax.cpp), into
+ * AMIGA_19.RAW; the game plays it with Music: Amiga. 1 made, 0 no DUNEGAME
+ * file, -1 an error. */
+static int MakeAmiga(const char *data, const char *to)
+{
+	static const char *const names[] = { "DUNEGAME.ENG", "DUNEGAME.GER", "DUNEGAME.FRE" };
+	char path[512];
+	unsigned char *mx = NULL;
+	long size = 0, length, loop;
+	signed char *s;
+	FILE *f = NULL;
+	unsigned i;
+	time_t t1 = time(NULL);
+
+	for (i = 0; i < sizeof(names) / sizeof(names[0]) && f == NULL; i++) {
+		Join(path, sizeof(path), data, names[i]);
+		f = fopen(path, "rb");
+	}
+	if (f == NULL) return 0;
+	fseek(f, 0, SEEK_END);
+	size = ftell(f);
+	fseek(f, 0, SEEK_SET);
+	mx = (unsigned char *)malloc(size > 0 ? size : 1);
+	if (mx == NULL || fread(mx, 1, size, f) != (size_t)size) {
+		fclose(f);
+		free(mx);
+		printf("Cannot read %s\n", path);
+		return -1;
+	}
+	fclose(f);
+	printf("Amiga: %s, score 19", path);
+	fflush(stdout);
+	s = MaxTrax_Render(mx, size, 19, RATE, (long)MAX_SECONDS * RATE, 640, &length, &loop);
+	free(mx);
+	if (s == NULL) {
+		printf(" - not the Amiga Dune II music (MaxTrax)\n");
+		return 0;
+	}
+	Join(path, sizeof(path), to, "AMIGA_19.RAW");
+	mkdir(to, 0755);
+	if (!WriteRaw(path, s, length, loop)) {
+		printf("\nCannot write %s\n", path);
+		free(s);
+		return -1;
+	}
+	free(s);
+	printf(": %ld s, loop from %ld s (%ld s)\n", length / RATE, loop >= 0 ? loop / RATE : 0L, (long)(time(NULL) - t1));
+	return 1;
+}
+
 static int Finish(int rc)
 {
 	if (s_fromIcon) {
@@ -348,7 +406,8 @@ static int Finish(int rc)
 int main(int argc, char **argv)
 {
 	const char *data = DEFAULT_DATA, *to = DEFAULT_TO;
-	bool peakOnly = false;
+	bool peakOnly = false, amigaOnly = false;
+	int amigaMade = 0;
 	char path[512];
 	unsigned char *pak;
 	long pakSize, made = 0, silent = 0, allPeak = 0;
@@ -366,14 +425,36 @@ int main(int argc, char **argv)
 		data = iniData;
 	}
 	if (Icon_Get("music_dir", iniTo, sizeof(iniTo)) || Ini_Get("music_dir", iniTo, sizeof(iniTo))) to = iniTo;
-	if (argc > 1 && strcasecmp(argv[1], "PEAK") != 0) data = argv[1];
-	/* (a directory given as "Work:Dune2/" is fine too) */
-	if (argc > 2 && strcasecmp(argv[2], "PEAK") != 0) to = argv[2];
-	for (int i = 1; i < argc; i++) if (strcasecmp(argv[i], "PEAK") == 0) peakOnly = true;
+	/* the directories: the first two arguments that are not a word (PEAK, AMIGA);
+	 * (a directory given as "Work:Dune2/" is fine too) */
+	{
+		int dirs = 0;
+		for (int i = 1; i < argc; i++) {
+			if (strcasecmp(argv[i], "PEAK") == 0) peakOnly = true;
+			else if (strcasecmp(argv[i], "AMIGA") == 0) amigaOnly = true;
+			else if (dirs == 0) { data = argv[i]; dirs++; }
+			else if (dirs == 1) { to = argv[i]; dirs++; }
+		}
+	}
 
-	printf("MakeMusic: the music of Dune II for OpenDUNE, from %s (SOUND.PAK) to %s\n", data, to);
+	printf("MakeMusic: the music of Dune II for OpenDUNE, from %s to %s\n", data, to);
+	/* the Amiga version's music first (a few seconds): DUNEGAME.ENG/GER/FRE */
+	if (!peakOnly) amigaMade = MakeAmiga(data, to);
+	if (amigaMade < 0) return Finish(20);
+	if (amigaOnly) {
+		if (amigaMade == 0) printf("\nNo DUNEGAME.ENG / .GER / .FRE of the Amiga Dune II in %s.\n"
+		                       "Brak DUNEGAME.ENG / .GER / .FRE z Dune II na Amige w %s.\n"
+		                       "Kein DUNEGAME.ENG / .GER / .FRE von Dune II f\xfcr Amiga in %s.\n\n", data, data, data);
+		return Finish(amigaMade > 0 ? 0 : 20);
+	}
 	Join(path, sizeof(path), data, "SOUND.PAK");
 	f = fopen(path, "rb");
+	if (f == NULL && amigaMade > 0) {
+		printf("\nNo SOUND.PAK of the PC version in %s: only the Amiga music made (Music: Amiga).\n"
+		       "Brak SOUND.PAK z wersji PC w %s: zrobiona tylko muzyka Amigi (Muzyka: Amiga).\n"
+		       "Kein SOUND.PAK der PC-Version in %s: nur die Amiga-Musik gemacht (Musik: Amiga).\n\n", data, data, data);
+		return Finish(0);
+	}
 	if (f == NULL) {
 		printf("\nCannot open %s.\n"
 		       "Copy the Dune II PC data files (1.07) into %s first.\n\n"

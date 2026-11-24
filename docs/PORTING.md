@@ -102,6 +102,11 @@ na krok). Przed każdym `inject` sprawdzić, że nikt inny nie gra.
   640×400, 640×480 – decyzja użytkownika: ×2 było tam za duże), ×2 na 800×600 / 960×540,
   ×3 na 1024×768 / 1280×720; bez nierównych kolumn 2,5× (`Video_SetGeometry`). Sprawdzone w WinUAE
   800×600: menu 640×400 w (80,100), kliknięcie myszą trafia; 640×480: menu 320×200 na środku.
+  **Od 24.11.2026 (życzenie użytkownika): menu główne (Play a Game / Play on LAN) ×2 także przy
+  640×480** (`g_amigaMainMenu`, opendune.c → `Video_SetGeometry`); inne ekrany 320×200 dalej ×1 do 640.
+  Skala zmienia się, gdy gra narysuje cały nowy obraz (`Video_AllDirty`), najpóźniej po 1 s – inaczej
+  przy wczytywaniu głosów wyboru rodu przez chwilę byłoby widać menu w ×1. Sprawdzone na Amidze 2:
+  640×480 menu 640×400, klik „Play a Game” trafia, wybór rodu ×1; 800×600 bez zmian (×2).
 - Wysyłane tylko bloki 16 px oznaczone przez grę (`g_dirty_blocks`), wiersz rozszerzany raz w Fast
   RAM i zapisywany longami do zablokowanej bitmapy (tylko zapis), lock tylko w `Video_Tick`.
 - Paleta przez `LoadRGB32` (fade za darmo). F8: licznik klatek wysłanych / s w prawym górnym rogu.
@@ -1397,7 +1402,12 @@ Obrazy: `tools/lang/render_fonts.py DATA build/lang` → `build/lang/polish_glyp
 - Zapis: `saves/LANGUAGE.CFG` (`POLISH` / `GERMAN` / `ENGLISH`); kolejność przy starcie:
   `dune.cfg` → `language=` z ini → `LANGUAGE.CFG` (`Lang_Init` po `SetLanguage_From_IniFile`);
   język bez plików → angielski.
-- **Zmiana w menu głównym**, nie od razu: `Lang_ApplyChosen()` w `GameLoop_GameIntroAnimationMenu`
+- **Od 24.11.2026 zmiana od razu** (życzenie użytkownika): `Lang_ApplyChosen()` po zamknięciu okna
+  Game controls, także w misji – okno Options rysowane od nowa, po jego zamknięciu cały ekran mapy
+  (`GUI_DrawInterfaceAndRadar`). Teksty przez `String_Reload`: poprzednie zostają w pamięci do
+  następnej zmiany / wyjścia (trwały wskaźnik `g_viewportMessageText` czyszczony), czcionki od nowa
+  (`g_fontCurrent` wybierany ponownie). Sprawdzone przez użytkownika na Amidze 2.
+- Wcześniej: **zmiana w menu głównym**: `Lang_ApplyChosen()` w `GameLoop_GameIntroAnimationMenu`
   wczytuje teksty i czcionki od nowa (`String_Uninit/Init`, `Font_Uninit/Init`), menu rysowane
   od nowa. W trakcie misji wiele miejsc trzyma wskaźniki do tekstów (pomoc mentata, przyciski,
   komunikat), więc zmiana w locie byłaby ryzykowna; po wyborze w grze komunikat „The language
@@ -1527,3 +1537,38 @@ cztery ekrany) i na Amidze 2 (Atreides, Ordos).
   `INTRO.PAL` (Tool Type `SKIP_INTRO=0` zamykał grę błędem „Unable to open file”).
 - Lewy Shift (kod gry 0x2C) też daje znaki z Shiftem (`input.c`; upstream sprawdza tylko prawy) –
   `@` w oknie F10, potwierdzone przez użytkownika.
+
+## Muzyka z wersji Amiga (25.11.2026, życzenie użytkownika: Muzyka Wył. / Amiga / PC)
+
+- Amigowe Dune II (WHDLoad, `TempSD:WHDLoad/d/Dune2` na Amigach 1 i 2; kopia w `private/amiga_dune2`,
+  poza gitem) ma muzykę w formacie **MaxTrax** (`MXTX`, Westwood): `INTRO1B.MX` (intro, utwory 8–10),
+  `FINALE.MX` (zakończenie) i **`DUNEGAME.ENG/GER/FRE`** – nie teksty, tylko MaxTrax z dźwiękami gry:
+  21 utworów, 20 próbek. Utwory 0–18, 20 to jednonutowe efekty; **utwór 19 to muzyka misji** (7 nut
+  próbki 19 z pętlą sustain, kanały 2–3, głośność 0x32, powtórzenie `A0` ×100, przebieg ok. 57 s).
+  W ENG/GER/FRE identyczny.
+- Ustalone z deasemblacji `DuneII` (objdump z obrazu bebbo, `private/amiga_dune2/DuneII.dis`):
+  wkompilowana biblioteka MaxTrax (`MaxTrax_VBlank`, `MT_Music`, `MT_Extra`), LoadPerf `0x56ce`,
+  PlaySong `0x4ea6`, PlayNote `0x4ede`; efekty `0x10c6` (tablice `0x1570`, `0x16d4`), wczytanie
+  `DUNEGAME.<język>` w `0x1164`, `PlaySong(0x13)` w `0x5da6` przy włączonej muzyce. Nagrania z WinUAE
+  nie było (nagrywanie wyjścia audio Windows niedozwolone w tej sesji) – użytkownik potwierdził utwór
+  na słuch.
+- `tools/music/mx_info.py` (zawartość pliku), `tools/music/mx_render.py` (własny odtwarzacz MaxTrax
+  według opisu formatu – kod ScummVM jest GPL-3, nie kopiowany): 50 Hz, 4 głosy Pauli, oktawy
+  próbek, obwiednie w ms, tempo, `A0` powtórzenia. `--repeat-loop`: wstęp + dwa przebiegi
+  powtórzenia, pętla od drugiego (szew w ciszy na końcu przebiegu – różnica 0). Głośność `--gain 2.5`
+  (RMS 9,9 jak mediana nagrań PC 9,7). Wynik `MUSIC/AMIGA_19.RAW` (114 s, pętla od 57 s, ODMU).
+- Gra (`audio/sound.c`): `Music_NextChoice` – Wył. → Amiga (gdy jest `AMIGA_19.RAW`) → PC → Wył.,
+  zapis `saves/MUSIC.CFG`, przełączenie gra od razu ostatni zamówiony utwór z nowego źródła.
+  Przy „Amiga” utwory misji (8–22: spokój i walka) grają jedną pętlę bez restartu
+  (`Music_Amiga_IsPlayingThis`), menu i odprawy – cisza (jak w wersji Amiga). Napis w Ustawieniach
+  gry: „Amiga” / „PC” / OFF (`GUI_String_Get_ByIndex(-10)`).
+- Sprawdzone w WinUAE: Ustawienia gry PC → Wył. → Amiga → PC, `MUSIC.CFG`; w misji po wyborze
+  „Amiga” od razu `AMIGA_19.RAW`, po 2 min pętla (pozycja 91 s → 95 s = przez koniec i powrót do 57 s).
+  Na prawdziwej Amidze – do zrobienia (Amiga 2 niedostępna przy włączonym VPN).
+- MakeMusic 1.3 (`tools/music/amiga/maxtrax.cpp`, ten sam odtwarzacz w C na liczbach całkowitych:
+  okres z tablicy 2^(i/1024), fazy 16.16): najpierw `DUNEGAME.ENG/GER/FRE` z `data` → `AMIGA_19.RAW`
+  (kilka sekund), także bez `SOUND.PAK`; `MakeMusic AMIGA` – tylko ten utwór. W WinUAE: 1 s, plik
+  bajt w bajt jak wersja x86 tego kodu; wobec `mx_render.py` ta sama długość i pętla, obwiednia 0,9998,
+  te same częstotliwości (różna faza – zaokrąglenia okresu). check060: 2 instrukcje 64-bit jak w 1.2
+  (libnix). `make_music.py` dokłada `AMIGA_19.RAW`, gdy w `--data` jest `DUNEGAME.*`.
+- Opisy dla graczy (`OpenDUNE*.txt`, Install PL/EN/DE, ReadMe w `data` i `MUSIC`) – Muzyka Amiga/PC/Wył.

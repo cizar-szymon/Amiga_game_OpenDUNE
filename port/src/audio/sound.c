@@ -94,9 +94,87 @@ static void Driver_Music_LoadFile(const char *musicName)
  * Plays a music.
  * @param index The index of the music to play.
  */
+#if defined(__amigaos__)
+/* The music (Game controls, user's wish 25.11.2026): the PC's AdLib music
+ * (MUSIC/DUNE<n>_<track>.RAW) or the Amiga version's own, its one piece of
+ * the missions, MaxTrax score 19 of DUNEGAME.ENG recorded as MUSIC/AMIGA_19.RAW
+ * (tools/music/mx_render.py); the Amiga version plays no music in the menus
+ * and briefings. Kept in MUSIC.CFG of the save directory. */
+#define MUSIC_FILE "MUSIC.CFG"
+static bool s_musicAmiga = false;
+static uint16 s_currentMusicID = 0;
+static uint16 s_lastMusicID = 0;	/* the piece asked for last (played again after a change) */
+
+static bool Music_AmigaAvailable(void)
+{
+	return Music_Amiga_Exists("AMIGA", 19);
+}
+
+/** At the start (after the options): the music chosen before. */
+void Music_LoadChoice(void)
+{
+	char text[16];
+	uint8 fd;
+	uint32 n;
+
+	if (!File_Exists_Personal(MUSIC_FILE)) return;
+	fd = File_Open_Personal(MUSIC_FILE, FILE_MODE_READ);
+	if (fd == FILE_INVALID) return;
+	n = File_Read(fd, text, sizeof(text) - 1);
+	File_Close(fd);
+	text[n] = '\0';
+	s_musicAmiga = strncasecmp(text, "AMIGA", 5) == 0 && Music_AmigaAvailable();
+}
+
+/** Game controls: Off -> Amiga (with its recording) -> PC -> Off; plays at once. */
+void Music_NextChoice(void)
+{
+	uint8 fd;
+
+	if (g_gameConfig.music == 0) {
+		g_gameConfig.music = 1;
+		s_musicAmiga = Music_AmigaAvailable();
+	} else if (s_musicAmiga) {
+		s_musicAmiga = false;
+	} else {
+		g_gameConfig.music = 0;
+	}
+	fd = File_Open_Personal(MUSIC_FILE, FILE_MODE_WRITE);
+	if (fd != FILE_INVALID) {
+		File_Write(fd, s_musicAmiga ? "AMIGA\n" : "PC\n", s_musicAmiga ? 6 : 3);
+		File_Close(fd);
+	}
+	Driver_Music_Stop();
+	s_currentMusicID = 0xFFFE;	/* the same piece again, from the other source */
+	if (g_gameConfig.music != 0) Music_Play(s_lastMusicID);
+}
+
+/** Game controls' text: "Amiga" / "PC", NULL: off. */
+const char *Music_ChoiceName(void)
+{
+	if (g_gameConfig.music == 0) return NULL;
+	return s_musicAmiga ? "Amiga" : "PC";
+}
+#endif
+
 void Music_Play(uint16 musicID)
 {
+#if defined(__amigaos__)
+#define currentMusicID s_currentMusicID
+	if (musicID != 0xFFFF && musicID < 38) s_lastMusicID = musicID;
+	if (s_musicAmiga && musicID != 0xFFFF && musicID < 38) {
+		currentMusicID = musicID;
+		/* the missions' music (8-16 at peace, 17-22 in a battle): the one loop */
+		if (g_gameConfig.music == 0 || musicID < 8 || musicID > 22) {
+			Driver_Music_Stop();
+		} else if (!Music_Amiga_IsPlayingThis("AMIGA", 19)) {
+			Music_Amiga_Play("AMIGA", 19);
+		}
+		return;
+	}
+#else
 	static uint16 currentMusicID = 0;
+#endif
 
 	if (musicID == 0xFFFF || musicID >= 38 || musicID == currentMusicID) return;
 
@@ -115,6 +193,9 @@ void Music_Play(uint16 musicID)
 
 	Driver_Music_Play(g_table_musics[musicID].index, 0xFF);
 }
+#if defined(__amigaos__)
+#undef currentMusicID
+#endif
 
 /**
  * Initialises the MT-32.

@@ -686,6 +686,7 @@ static void ReadProfileIni(const char *filename)
 #define MUSIC_RANDOM(a, b) (g_lanGame ? (uint16)((a) + AmigaTimer_GetMs() % ((b) - (a) + 1)) : Tools_RandomLCG_Range(a, b))
 bool g_lanStarting = false;
 static bool s_menuRedraw;
+extern volatile bool g_amigaMainMenu;	/* video_amiga.c: the main menu's scale */
 
 /* The LAN game ended for this player (1 lost, 2 won, 3 the server left, 4 left, 5 the
  * connection lost): back to the menu. */
@@ -931,6 +932,9 @@ static void GameLoop_GameIntroAnimationMenu(void)
 		GUI_Mouse_Hide_Safe();
 
 		GUI_ClearScreen(SCREEN_0);
+#if defined(__amigaos__)
+		g_amigaMainMenu = true;	/* x2 also on 640x480 (video_amiga.c) */
+#endif
 
 		GUI_Screen_Copy(0, 0, 0, 0, SCREEN_WIDTH / 8, SCREEN_HEIGHT, SCREEN_1, SCREEN_0);
 
@@ -959,6 +963,10 @@ static void GameLoop_GameIntroAnimationMenu(void)
 	stringID = GameLoop_HandleEvents(strings);
 
 	if (stringID != 0xFFFF) stringID = mainMenuStrings[index][stringID];
+#if defined(__amigaos__)
+	/* the menu is left: the next screen in its own scale */
+	if (stringID != 0xFFFF) g_amigaMainMenu = false;
+#endif
 
 	GUI_PaletteAnimate();
 
@@ -1607,6 +1615,8 @@ int main(int argc, char **argv)
 #if defined(__amigaos__)
 	/* the language chosen in Game controls (LANGUAGE.CFG) over the ini's */
 	Lang_Init();
+	/* the music: PC or Amiga (MUSIC.CFG) */
+	Music_LoadChoice();
 #endif
 
 	Input_Init();

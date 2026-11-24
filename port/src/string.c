@@ -278,12 +278,37 @@ void String_Init(void)
 /**
  * Unloads the language files in the memory.
  */
+#if defined(__amigaos__)
+/* the texts of the language before (String_Reload): kept until the next
+ * change or the end, a text still shown may point into them */
+static uint16 *s_oldStrings = NULL;
+static char *s_oldStringsBuffer = NULL;
+
+/** The texts in the chosen language, during a mission too (lang_amiga.c). */
+void String_Reload(void)
+{
+	free(s_oldStringsBuffer);
+	free(s_oldStrings);
+	s_oldStringsBuffer = s_stringsBuffer;
+	s_oldStrings = s_strings;
+	s_stringsBuffer = NULL;
+	s_strings = NULL;
+	String_Init();
+}
+#endif
+
 void String_Uninit(void)
 {
 	free(s_stringsBuffer);
 	s_stringsBuffer = NULL;
 	free(s_strings);
 	s_strings = NULL;
+#if defined(__amigaos__)
+	free(s_oldStringsBuffer);
+	s_oldStringsBuffer = NULL;
+	free(s_oldStrings);
+	s_oldStrings = NULL;
+#endif
 }
 
 /**

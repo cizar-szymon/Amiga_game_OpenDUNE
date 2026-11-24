@@ -652,8 +652,13 @@ static void GUI_Widget_GameControls_Click(Widget *w)
 #endif
 			switch (choice) {
 				case 0:
+#if defined(__amigaos__)
+					/* Off -> Amiga -> PC (audio/sound.c) */
+					Music_NextChoice();
+#else
 					g_gameConfig.music ^= 0x1;
 					if (g_gameConfig.music == 0) Driver_Music_Stop();
+#endif
 					break;
 
 				case 1:
@@ -691,8 +696,10 @@ static void GUI_Widget_GameControls_Click(Widget *w)
 	GUI_Window_RestoreScreen(desc);
 #if defined(__amigaos__)
 	g_widgetProperties[desc->index] = props;
-	/* all texts and fonts are loaded again in the main menu (lang_amiga.c) */
-	if (Lang_Chosen() != g_config.language) GUI_DisplayText(Lang_T("The language changes in the main menu."), 2);
+	/* the language at once: texts and fonts loaded again (lang_amiga.c); the
+	 * Options window is drawn again, the map screen when it closes
+	 * (GUI_DrawInterfaceAndRadar) - user's wish 24.11.2026 */
+	Lang_ApplyChosen();
 #endif
 }
 

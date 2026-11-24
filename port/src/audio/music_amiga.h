@@ -10,5 +10,7 @@ extern void Music_Amiga_Stop(void);
 extern void Music_Amiga_FadeOut(void);
 extern bool Music_Amiga_IsPlaying(void);
 extern const char *Music_Amiga_Now(void);
+extern bool Music_Amiga_Exists(const char *name, int track);
+extern bool Music_Amiga_IsPlayingThis(const char *name, int track);
 
 #endif /* AUDIO_MUSIC_AMIGA_H */

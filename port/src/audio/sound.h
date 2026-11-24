@@ -37,6 +37,11 @@ extern const Feedback g_feedback[];
 extern const uint16 g_translatedVoice[][NUM_SPEECH_PARTS];
 
 extern void Music_Play(uint16 musicID);
+#if defined(__amigaos__)
+extern void Music_LoadChoice(void);
+extern void Music_NextChoice(void);
+extern const char *Music_ChoiceName(void);
+#endif
 extern void Music_InitMT32(void);
 extern void Voice_PlayAtTile(int16 voiceID, tile32 position);
 extern void Voice_Play(int16 voiceID);

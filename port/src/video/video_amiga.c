@@ -85,6 +85,14 @@ static int s_x0, s_y0;			/* offset of the picture (x0 multiple of 4) */
 static uint16 s_colX[SCREEN_WIDTH_MAX + 1];	/* screen x of every source column, relative to x0 */
 static uint32 *s_line;			/* one widened row (long aligned) */
 
+/* The main menu (opendune.c sets g_amigaMainMenu): its own scale on screens
+ * up to 640 wide. The scale changes when the game has drawn a whole new
+ * picture (the old one is not shown in the other scale for a moment, e.g.
+ * while the voices of the house selection load), at the latest after 1 s. */
+volatile bool g_amigaMainMenu;
+static bool s_mainMenuShown;
+static uint32 s_mainMenuSince;
+
 /* mouse */
 static int s_mouseX = 160, s_mouseY = 100;
 static struct MsgPort *s_inputPort;	/* input.device, to move the pointer */
@@ -159,6 +167,7 @@ extern void AmigaBug_Request(void);
 extern void AmigaBug_Tick(void);
 extern void Music_Amiga_Tick(void);
 extern void Amiga_NoRtg(void);
+extern uint32 AmigaTimer_GetMs(void);
 extern void AmigaBug_Printf(const char *format, ...);
 
 static bool Video_OpenP96(void)
@@ -205,7 +214,9 @@ static void Video_SetGeometry(void)
 	 * 1024x768 and 1280x720 - user's choice) - no uneven columns of 2.5x */
 	s_sy = w / SCREEN_WIDTH;
 	if (h / SCREEN_HEIGHT < s_sy) s_sy = h / SCREEN_HEIGHT;
-	if (w <= 640) s_sy = 1;
+	/* the main menu as large as it fits also there: x2 on 640x480 (user's
+	 * choice 24.11.2026); the other 320x200 screens x1 */
+	if (w <= 640 && !s_mainMenuShown) s_sy = 1;
 	if (s_sy < 1) s_sy = 1;
 	s_sx2 = 2 * s_sy;
 	s_x0 = ((w - SCREEN_WIDTH * s_sx2 / 2) / 2) & ~3;
@@ -563,6 +574,18 @@ static bool Video_AreaDirty(int x0, int y0, int x1, int y1)
 	return false;
 }
 
+/* Every 16-pixel block of the game's picture dirty: a whole new picture. */
+static bool Video_AllDirty(void)
+{
+	int y, b, n = (SCREEN_WIDTH + 15) >> 4;
+	for (y = 0; y < SCREEN_HEIGHT; y++) {
+		for (b = 0; b < n; b++) {
+			if ((g_dirty_blocks[y][b >> 5] & (1UL << (b & 31))) == 0) return false;
+		}
+	}
+	return true;
+}
+
 /* Long copy of n bytes (multiple of 4) to VRAM. */
 static void Video_CopyLongs(uint32 *dst, const uint32 *src, int n)
 {
@@ -856,6 +879,18 @@ static void Video_Tick_(void)
 			s_needRepaint = true;
 		}
 		front = now;
+	}
+
+	if (g_amigaMainMenu != s_mainMenuShown) {
+		uint32 ms = AmigaTimer_GetMs();
+		if (s_mainMenuSince == 0) s_mainMenuSince = ms | 1;
+		if (Video_AllDirty() || ms - s_mainMenuSince > 1000) {
+			s_mainMenuShown = g_amigaMainMenu;
+			s_mainMenuSince = 0;
+			s_lw = 0;	/* the geometry again, below */
+		}
+	} else {
+		s_mainMenuSince = 0;
 	}
 
 	if (SCREEN_WIDTH != s_lw || SCREEN_HEIGHT != s_lh) {

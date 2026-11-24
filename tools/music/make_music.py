@@ -165,6 +165,15 @@ def main():
                 w.writeframes((np.clip(x / peak, -1, 1) * 32767).astype("<i2").tobytes())
     print("%d files, %.1f MB, %.1f minutes; silent: %s" %
           (len(tracks) - len(silent), total / 1e6, total / RATE_AMIGA / 60, " ".join(silent) or "-"))
+    # the Amiga version's music of the missions (Music: Amiga in the game): score 19
+    # of its DUNEGAME.ENG / .GER / .FRE (MaxTrax), when it is in the data directory
+    for name in ("DUNEGAME.ENG", "DUNEGAME.GER", "DUNEGAME.FRE"):
+        mx = os.path.join(a.data, name)
+        if os.path.exists(mx) and open(mx, "rb").read(4) == b"MXTX":
+            subprocess.check_call([sys.executable, os.path.join(HERE, "mx_render.py"), mx, "19",
+                                   os.path.join(a.out, "AMIGA_19.RAW"), "--repeat-loop", "--seconds", "400",
+                                   "--gain", "2.5"])
+            break
 
 
 if __name__ == "__main__":

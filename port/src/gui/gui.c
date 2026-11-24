@@ -3059,6 +3059,10 @@ char *GUI_String_Get_ByIndex(int16 stringID)
 		}
 
 		case -10:
+#if defined(__amigaos__)
+			/* the music: Amiga / PC / off (audio/sound.c) */
+			if (Music_ChoiceName() != NULL) return (char *)Music_ChoiceName();
+#endif
 			stringID = (g_gameConfig.music != 0) ? STR_ON : STR_OFF;
 			break;
 

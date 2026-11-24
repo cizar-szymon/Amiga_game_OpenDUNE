@@ -208,9 +208,39 @@ static void Music_Amiga_Queue(int b)
 	}
 }
 
+/* The path of a recording: <music_dir>/<NAME>_<track>.RAW, capitals. */
+static void Music_Amiga_Path(char *path, size_t size, const char *name, int track)
+{
+	char *p;
+	snprintf(path, size, "%s/%s_%d.RAW", s_dir, name, track);
+	for (p = path; *p != '\0'; p++) if (*p >= 'a' && *p <= 'z') *p -= 32;
+}
+
+/** The recording is there (Game controls: the Amiga music only with its recording). */
+bool Music_Amiga_Exists(const char *name, int track)
+{
+	char path[192];
+	BPTR lock;
+	if (!s_ready) IniFile_GetString("music_dir", "PROGDIR:MUSIC", s_dir, sizeof(s_dir));
+	Music_Amiga_Path(path, sizeof(path), name, track);
+	lock = Lock((CONST_STRPTR)path, ACCESS_READ);
+	if (lock == 0) return false;
+	UnLock(lock);
+	return true;
+}
+
+/** This recording plays now and does not fade (the Amiga music: one loop, not started again). */
+bool Music_Amiga_IsPlayingThis(const char *name, int track)
+{
+	char path[192];
+	if (!s_ready || s_file == 0 || s_fading) return false;
+	Music_Amiga_Path(path, sizeof(path), name, track);
+	return strcmp(path, s_path) == 0;
+}
+
 bool Music_Amiga_Play(const char *name, int track)
 {
-	char path[192], *p;
+	char path[192];
 	uint8 header[12];
 	int b;
 
@@ -222,8 +252,7 @@ bool Music_Amiga_Play(const char *name, int track)
 		if (!Music_Amiga_Init()) return false;
 	}
 	Music_Amiga_Halt();
-	snprintf(path, sizeof(path), "%s/%s_%d.RAW", s_dir, name, track);
-	for (p = path; *p != '\0'; p++) if (*p >= 'a' && *p <= 'z') *p -= 32;
+	Music_Amiga_Path(path, sizeof(path), name, track);
 	strcpy(s_path, path);
 	s_file = Open((CONST_STRPTR)path, MODE_OLDFILE);
 	if (s_file == 0) return false;
