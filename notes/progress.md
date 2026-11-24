@@ -123,3 +123,7 @@
   sprawdzone w WinUAE. Amiga 2 niedostępna (VPN); Amiga 1 tylko odczyt za zgodą sesji diablo-c3.
   Nie zacommitowane: menu ×2, zmiana języka od razu, muzyka Amiga. Do zrobienia: MakeMusic (MaxTrax
   na Amidze), opisy dla graczy, test na prawdziwej Amidze, wydanie 0.56.
+- Commit `2142786` (muzyka Amiga/PC, menu ×2, język od razu; nie wysłany). Amiga 1 (za zgodą
+  diablo-c3): MakeMusic AMIGA z DUNEGAME.GER = to samo co na PC, gra: wybór Amiga i pętla działają.
+  Na Amidze 1 zostały `OpenDUNE-test`, `MakeMusic-test`, `MUSIC/AMIGA_19.RAW`, `saves/MUSIC.CFG`
+  (AMIGA); `OPTIONS.CFG` przywrócony.
