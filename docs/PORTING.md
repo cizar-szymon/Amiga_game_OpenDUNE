@@ -1572,3 +1572,8 @@ cztery ekrany) i na Amidze 2 (Atreides, Ordos).
   te same częstotliwości (różna faza – zaokrąglenia okresu). check060: 2 instrukcje 64-bit jak w 1.2
   (libnix). `make_music.py` dokłada `AMIGA_19.RAW`, gdy w `--data` jest `DUNEGAME.*`.
 - Opisy dla graczy (`OpenDUNE*.txt`, Install PL/EN/DE, ReadMe w `data` i `MUSIC`) – Muzyka Amiga/PC/Wył.
+- **Amiga 1 (A1200 + Warp 1260, 68060 @ 100 MHz), 25.11.2026:** `MakeMusic-test ... AMIGA` z
+  `data/DUNEGAME.GER` – 2 s, `AMIGA_19.RAW` bajt w bajt jak z `DUNEGAME.ENG` na PC i w WinUAE.
+  `OpenDUNE-test` (640×480, menu ×2): misja 1 Atreidów, Ustawienia gry PC → Wył. → Amiga, od razu
+  `AMIGA_19.RAW`; po ok. 2 min pozycja 22 s → 82 s (przez koniec pliku i powrót do 57 s). Odsłuch
+  na Amidze – użytkownik.
