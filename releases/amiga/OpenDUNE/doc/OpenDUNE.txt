@@ -186,7 +186,7 @@ idzie dalej we dwoch, gdy jeden wyjdzie.
 RAPORT BLEDU (F10)
 ------------------
 
-F10 w dowolnej chwili zapisuje do OpenDUNE/saves:
+F10 w dowolnej chwili zapisuje do nowej szuflady OpenDUNE/saves/bugNNN:
   bugNNN.txt         wersja, stan gry, jednostki
   bugNNN.dat         zapis gry z tej chwili (w trakcie misji)
   bugNNN-*.bmp       obraz ekranu
@@ -198,7 +198,7 @@ serwer gry: adres i opis, numer wersji, opis Amigi (procesor, zegar,
 karta turbo, Kickstart, pamiec, karta graficzna, rozdzielczosc) oraz
 pliki bugNNN.txt, bugNNN.dat, bugNNN-game.bmp i bugNNN-screen.bmp. Okno
 pokazuje numer zgloszenia. CANCEL niczego nie wysyla; pliki zostaja w
-OpenDUNE/saves.
+OpenDUNE/saves/bugNNN.
 
 Bez stosu TCP/IP F10 tylko zapisuje pliki: wyslij je razem z numerem
 wersji i opisem, co sie stalo.

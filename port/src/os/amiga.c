@@ -39,6 +39,24 @@ void Amiga_StackInfo(unsigned long *size, unsigned long *free)
 	*free = here - (ULONG)me->tc_SPLower;
 }
 
+/** A file or drawer of this name (bug report numbers, bugreport_amiga.c). */
+bool Amiga_PathExists(const char *path)
+{
+	BPTR lock = Lock((CONST_STRPTR)path, ACCESS_READ);
+	if (lock == 0) return false;
+	UnLock(lock);
+	return true;
+}
+
+/** Makes a drawer; true when it is there. */
+bool Amiga_MakeDir(const char *path)
+{
+	BPTR lock = CreateDir((CONST_STRPTR)path);
+	if (lock == 0) return Amiga_PathExists(path);
+	UnLock(lock);
+	return true;
+}
+
 /* libnix's I/O calls __chkabort(), which on Ctrl-C calls exit() in the middle
  * of a file operation; Ctrl-C is handled in Video_Tick() instead. */
 void __chkabort(void) {}

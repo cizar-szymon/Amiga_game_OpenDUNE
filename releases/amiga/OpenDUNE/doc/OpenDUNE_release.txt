@@ -3,8 +3,19 @@ OPENDUNE (Amiga) - historia wydan
 
 Zglaszanie bledow: podaj numer wersji (menu glowne, lewy dolny rog, albo
 w Shellu: Version OpenDUNE), opisz, co sie stalo, i dolacz pliki raportu
-z OpenDUNE/saves - F10 zapisuje bugNNN.txt, bugNNN.dat i bugNNN-*.bmp.
+z szuflady OpenDUNE/saves/bugNNN - F10 zapisuje tam bugNNN.txt, bugNNN.dat
+i bugNNN-*.bmp.
 Zgloszenia: github.com/cizar-szymon/Amiga_game_OpenDUNE (Issues).
+
+
+0.55 (24.11.2026)
+-----------------
+
+- Bez INTRO.PAK gra przechodzi od razu do menu glownego, takze z Tool
+  Type SKIP_INTRO=0.
+- Oba klawisze Shift daja wielkie litery i znaki (@, !, # ...) przy
+  pisaniu, np. adresu e-mail w oknie raportu bledu (F10).
+- F10 zapisuje kazdy raport bledu we wlasnej szufladzie saves/bugNNN.
 
 
 0.54 (10.11.2026)

@@ -213,6 +213,10 @@ void Input_EventHandler(uint8 key)
 	key = Input_Keyboard_Translate(key) & 0xFF;
 
 	if ((s_activeInputMap[7] & 0x2) != 0) state |= 0x01;	/* 0x39 : RSHIFT */
+#if defined(__amigaos__)
+	/* the left Shift too (Shift+2 = '@' in the bug report's e-mail) */
+	if ((s_activeInputMap[5] & 0x10) != 0) state |= 0x01;	/* 0x2c : LSHIFT */
+#endif
 
 	if (state == 0x06 && key == 0x68) return;	/* state == CTRL+ALT && key == KP DEL */
 	if (state == 0x06 && key == 0x4C) return;	/* state == CTRL+ALT && key == DELETE */

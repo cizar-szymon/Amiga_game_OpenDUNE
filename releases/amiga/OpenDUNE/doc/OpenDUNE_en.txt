@@ -190,7 +190,7 @@ on for two when one player leaves.
 BUG REPORT (F10)
 ----------------
 
-F10 at any moment writes into OpenDUNE/saves:
+F10 at any moment writes into a new drawer OpenDUNE/saves/bugNNN:
   bugNNN.txt         release, game state, units
   bugNNN.dat         a saved game of that moment (during a mission)
   bugNNN-*.bmp       the screen
@@ -202,7 +202,7 @@ to the game server: the address and the text, the release number, the
 description of the Amiga (processor, clock, accelerator, Kickstart,
 memory, graphics card, screen size) and the files bugNNN.txt, bugNNN.dat,
 bugNNN-game.bmp and bugNNN-screen.bmp. The window shows the number of the
-report. CANCEL sends nothing; the files stay in OpenDUNE/saves.
+report. CANCEL sends nothing; the files stay in OpenDUNE/saves/bugNNN.
 
 Without a TCP/IP stack F10 only writes the files: send them with the
 release number and what happened.

@@ -1508,3 +1508,22 @@ cztery ekrany) i na Amidze 2 (Atreides, Ordos).
 - Niemieckie `.GER` z Amigi w `data`: menu, mentat, misja, napisy końcowe.
 - Polski: napisy w panelu bocznym (nazwy 6 px), okno LAN, Amiga info, pomoc mentata,
   mapa między misjami, intro (napisy czcionką 8 px, gdy nie ma INTRO.FNT).
+
+## Zasady z PORTING_PLAN z 23–25.11.2026 (sprawdzone 24.11.2026, Amiga 2)
+
+- **Zgłoszenia F10 w szufladach `saves/bugNNN/`**: `bugNNN.txt`, `bugNNN.dat` (w trakcie misji),
+  `bugNNN-screen.bmp`, `-game.bmp`, `-copy.bmp` (`os/bugreport_amiga.c`; `Amiga_PathExists` /
+  `Amiga_MakeDir` w `os/amiga.c`, bo nagłówki dos.library kłócą się z typami gry). Numer = pierwszy
+  wolny: bez szuflady `bugNNN` i bez starego `bugNNN.txt` luzem w `saves`. Sprawdzone: F10 w menu →
+  `bug001/` z 4 plikami; ze starym `bug002.txt` luzem następne zgłoszenie dostało `bug003/`. Serwer
+  dostaje pliki pod nazwami bez szuflady (`Report_BaseName`). Menu wczytywania pokazuje tylko
+  `_SAVEnnn.DAT`, więc zgłoszeń w nim nie ma.
+- **Sprzątanie po wyjściu**: `Avail FLUSH` przed startem i po 3 kolejnych uruchomieniach zamkniętych
+  Ctrl-C (`stop`): Chip 2 022 056 i Fast 202 293 208 wolnych bajtów za każdym razem, różnica 0; po
+  wyjściu bez procesów gry (`Status`) i bez ekranu gry (`titles`). Zamknięcie przez Esc / menu nie
+  mierzone osobno.
+- **Nazwy plików w paczce ≤ 30 znaków z `.info`**: wszystkie w `releases/amiga` mieszczą się.
+- Intro bez `INTRO.PAK`: `GameLoop_GameIntroAnimation` wraca od razu, gdy nie ma `WESTWOOD.PAL` /
+  `INTRO.PAL` (Tool Type `SKIP_INTRO=0` zamykał grę błędem „Unable to open file”).
+- Lewy Shift (kod gry 0x2C) też daje znaki z Shiftem (`input.c`; upstream sprawdza tylko prawy) –
+  `@` w oknie F10, potwierdzone przez użytkownika.

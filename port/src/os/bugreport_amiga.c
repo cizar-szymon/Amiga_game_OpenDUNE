@@ -2,8 +2,9 @@
  *
  * F10 (Video_Key, the video driver's tick) asks for a report; the next tick
  * of the video driver writes it (AmigaBug_Tick, on every screen: the game
- * logic is between its steps there), into the save directory, NNN the first
- * free number:
+ * logic is between its steps there), into its own drawer bugNNN/ of the save
+ * directory (PORTING_PLAN, 25.11.2026), NNN the first free number (no drawer
+ * bugNNN and no bugNNN.txt of the older reports in the save directory itself):
  *   bugNNN.txt         version, game and screen state, every unit
  *   bugNNN.dat         a saved game of that moment (loadable: copy it to
  *                      _saveNNN.dat)
@@ -45,6 +46,9 @@ extern void Video_Amiga_Report(void);
 extern void Smooth_Report(void);
 extern int RTS_GroupCount(void);
 extern void Amiga_StackInfo(unsigned long *size, unsigned long *free);
+extern void File_PersonalPath(char *buf, size_t len, const char *filename);
+extern bool Amiga_PathExists(const char *path);
+extern bool Amiga_MakeDir(const char *path);
 
 static volatile bool s_requested;
 
@@ -166,11 +170,19 @@ static void AmigaBug_WriteText(const char *name, int number)
 	s_text = NULL;
 }
 
+/** A file or drawer of that name in the save directory. */
+static bool AmigaBug_Exists(const char *name)
+{
+	char path[128];
+	File_PersonalPath(path, sizeof(path), name);
+	return Amiga_PathExists(path);
+}
+
 /** In the video driver's tick (every screen): writes a requested report. */
 void AmigaBug_Tick(void)
 {
 	char name[32], desc[32];
-	char sent[4][24];
+	char sent[4][32];
 	const char *names[4];
 	int count = 0;
 	uint8 *screen;
@@ -182,30 +194,38 @@ void AmigaBug_Tick(void)
 
 	for (number = 1; number < 1000; number++) {
 		sprintf(name, "bug%03d.txt", number);
-		if (!File_Exists_Personal(name)) break;
+		if (File_Exists_Personal(name)) continue;	/* an older report, without a drawer */
+		sprintf(name, "bug%03d", number);
+		if (!AmigaBug_Exists(name)) break;
 	}
 	if (number >= 1000) return;
+	{
+		char path[128];
+		File_PersonalPath(path, sizeof(path), name);
+		if (!Amiga_MakeDir(path)) return;
+	}
+	sprintf(name, "bug%03d/bug%03d.txt", number, number);
 
 	AmigaBug_WriteText(name, number);
 	strcpy(sent[count++], name);
 
 	screen = malloc(SCREEN_WIDTH_MAX * SCREEN_HEIGHT_MAX * 4);	/* up to 1024x768 + */
 	if (screen != NULL && Video_Amiga_ReadScreen(screen, &w, &h)) {
-		sprintf(name, "bug%03d-screen.bmp", number);
+		sprintf(name, "bug%03d/bug%03d-screen.bmp", number, number);
 		AmigaBug_WriteBMP(name, screen, w, w, h);
 	}
 	free(screen);
-	sprintf(name, "bug%03d-game.bmp", number);
+	sprintf(name, "bug%03d/bug%03d-game.bmp", number, number);
 	AmigaBug_WriteBMP(name, GFX_Screen_Get_ByIndex(SCREEN_0), SCREEN_WIDTH, SCREEN_WIDTH, SCREEN_HEIGHT);
 	strcpy(sent[count++], name);
-	sprintf(sent[count++], "bug%03d-screen.bmp", number);
+	sprintf(sent[count++], "bug%03d/bug%03d-screen.bmp", number, number);
 	shadow = Video_Amiga_Shadow(&w, &h);
 	if (shadow != NULL) {
-		sprintf(name, "bug%03d-copy.bmp", number);
+		sprintf(name, "bug%03d/bug%03d-copy.bmp", number, number);
 		AmigaBug_WriteBMP(name, shadow, w, w, h);
 	}
 	if (g_gameMode == GM_NORMAL) {
-		sprintf(name, "bug%03d.dat", number);
+		sprintf(name, "bug%03d/bug%03d.dat", number, number);
 		sprintf(desc, "Bug report %d", number);
 		SaveGame_SaveFile(name, desc);
 		strcpy(sent[count++], name);

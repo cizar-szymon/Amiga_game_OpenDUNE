@@ -3,8 +3,19 @@ OPENDUNE (Amiga) - release history
 
 Reporting bugs: give the release number (main menu, bottom left, or in the
 Shell: Version OpenDUNE), say what happened and add the report files from
-OpenDUNE/saves - F10 writes bugNNN.txt, bugNNN.dat and bugNNN-*.bmp.
+the drawer OpenDUNE/saves/bugNNN - F10 writes bugNNN.txt, bugNNN.dat and
+bugNNN-*.bmp there.
 Reports: github.com/cizar-szymon/Amiga_game_OpenDUNE (Issues).
+
+
+0.55 (24.11.2026)
+-----------------
+
+- Without INTRO.PAK the game goes straight to the main menu, also with
+  the Tool Type SKIP_INTRO=0.
+- Both Shift keys give capital letters and signs (@, !, # ...) when
+  typing, e.g. the e-mail address in the bug report window (F10).
+- F10 writes every bug report into its own drawer saves/bugNNN.
 
 
 0.54 (10.11.2026)

@@ -57,7 +57,7 @@ enum { ST_EDIT, ST_SENDING, ST_SENT, ST_FAILED };
 static bool s_wanted;
 static uint32 s_wantedAt;
 static char s_kind[8];
-static char s_names[REPORT_MAX_FILES][24];
+static char s_names[REPORT_MAX_FILES][32];	/* bugNNN/bugNNN-screen.bmp */
 static int s_nameCount;
 
 static char s_email[80];

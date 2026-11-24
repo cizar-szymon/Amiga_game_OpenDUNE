@@ -94,3 +94,17 @@
   i pełnej, `modern=1` włączone w `opendune.ini` z paczki; opisy, README, historia wydań.
 - 0.54 zainstalowane na Amidze 2 (`WorkSD:Games/OpenDUNE`) i Amidze 1 (`OpenDUNEWarp`), start z Shella ✅;
   w obu `font=clean` i `modern=1`, poprzedni program jako `OpenDUNE-0.51`.
+
+## 24.11.2026
+- Amiga 2: gra nie startowała z ikony / WARP HUB – na ikonie włączony Tool Type `SKIP_INTRO=0`, bez INTRO.PAK
+  koniec z „Unable to open file 'WESTWOOD.PAL'”. Ikona poprawiona (`(SKIP_INTRO=0)`), start z ikony ✅ (użytkownik).
+  Wcześniej: PC nie łączył się z Amigą przy włączonym VPN „DOM” (WinError 10013, ping „General failure”).
+- Kod: `GameLoop_GameIntroAnimation` pomija intro, gdy nie ma `WESTWOOD.PAL` / `INTRO.PAL` (cutscene.c);
+  sprawdzone na Amidze 2 z `SKIP_INTRO=0` – menu ✅.
+- Kod: lewy Shift (0x2C) też daje znaki z Shiftem (input.c; wcześniej tylko prawy – `@` w oknie F10).
+  Do sprawdzenia przez użytkownika na Amidze 2 (`OpenDUNE-test` w `WorkSD:Games/OpenDUNE`). Nic nie zacommitowane.
+- Zasady z PORTING_PLAN (23–25.11): zgłoszenia F10 w `saves/bugNNN/` ✅ (Amiga 2), test wycieków
+  `Avail FLUSH` 3× Ctrl-C: różnica 0 ✅, nazwy plików paczki ≤ 30 znaków ✅. Opisy (PL/EN/DE Install,
+  OpenDUNE*.txt, historia wydań) mówią o `saves/bugNNN`. `@` lewym Shiftem potwierdzone przez użytkownika.
+- Amiga 2: w `WorkSD:Games/OpenDUNE/saves` nie było już starych BUG*, _SAVE000.DAT, SAVEFAME.DAT, *.CFG
+  (usunięte poza tą sesją); testowe `bug001/` i `bug003/` zostały tam. `OpenDUNE-test` w katalogu gry.

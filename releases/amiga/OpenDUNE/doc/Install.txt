@@ -100,8 +100,8 @@ IF SOMETHING GOES WRONG
   is off.
 - No picture / wrong screen: an RTG card with 8-bit (256 colour) screen
   modes is needed.
-- An error in the game: press F10, then send the files bugNNN.* from
-  OpenDUNE/saves with the release number (main menu, bottom left).
+- An error in the game: press F10, then send the files from the drawer
+  OpenDUNE/saves/bugNNN with the release number (main menu, bottom left).
 
 More: doc/OpenDUNE_en.txt (all options and keys).
 
@@ -203,8 +203,8 @@ GDY COS NIE DZIALA
   gry -> Muzyka muzyka jest wylaczona.
 - Brak obrazu / zly ekran: potrzebna karta RTG z trybami 8-bitowymi
   (256 kolorow).
-- Blad w grze: nacisnij F10, potem wyslij pliki bugNNN.* z
-  OpenDUNE/saves z numerem wydania (menu glowne, lewy dolny rog).
+- Blad w grze: nacisnij F10, potem wyslij pliki z szuflady
+  OpenDUNE/saves/bugNNN z numerem wydania (menu glowne, lewy dolny rog).
 
 Wiecej: doc/OpenDUNE.txt (wszystkie opcje i klawisze).
 
@@ -306,8 +306,8 @@ WENN ETWAS NICHT GEHT
   (Options -> Game controls -> Music).
 - Kein Bild / falscher Bildschirm: eine RTG-Karte mit 8-Bit-Modi (256
   Farben) ist nötig.
-- Ein Fehler im Spiel: F10 drücken, dann die Dateien bugNNN.* aus
-  OpenDUNE/saves mit der Versionsnummer (Hauptmenü, unten links)
+- Ein Fehler im Spiel: F10 drücken, dann die Dateien aus der Schublade
+  OpenDUNE/saves/bugNNN mit der Versionsnummer (Hauptmenü, unten links)
   schicken.
 
 Mehr: doc/OpenDUNE_en.txt (alle Optionen und Tasten, auf Englisch).

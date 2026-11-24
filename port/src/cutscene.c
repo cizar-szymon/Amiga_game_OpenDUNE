@@ -1032,6 +1032,11 @@ logos_exit:
  */
 void GameLoop_GameIntroAnimation(void)
 {
+#if defined(__amigaos__)
+	/* the release has no INTRO.PAK: no intro instead of "Unable to open file"
+	 * (SKIP_INTRO=0 in the icon's Tool Types) */
+	if (!File_Exists("WESTWOOD.PAL") || !File_Exists("INTRO.PAL")) return;
+#endif
 	GUI_ChangeSelectionType(SELECTIONTYPE_INTRO);
 
 	Gameloop_Logos();
