@@ -964,8 +964,9 @@ static void GameLoop_GameIntroAnimationMenu(void)
 
 	if (stringID != 0xFFFF) stringID = mainMenuStrings[index][stringID];
 #if defined(__amigaos__)
-	/* the menu is left: the next screen in its own scale */
-	if (stringID != 0xFFFF) g_amigaMainMenu = false;
+	/* the menu is left: the next screen in its own scale (the house
+	 * selection after Play a Game is as large as the menu: gui.c) */
+	if (stringID != 0xFFFF && stringID != STR_PLAY_A_GAME) g_amigaMainMenu = false;
 #endif
 
 	GUI_PaletteAnimate();
