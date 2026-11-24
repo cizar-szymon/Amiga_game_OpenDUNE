@@ -127,3 +127,5 @@
   diablo-c3): MakeMusic AMIGA z DUNEGAME.GER = to samo co na PC, gra: wybór Amiga i pętla działają.
   Na Amidze 1 zostały `OpenDUNE-test`, `MakeMusic-test`, `MUSIC/AMIGA_19.RAW`, `saves/MUSIC.CFG`
   (AMIGA); `OPTIONS.CFG` przywrócony.
+- Wydanie 0.56 (25.11.2026): Muzyka Amiga/PC/Wył. (MakeMusic 1.3), ekrany 320×200 w największej skali,
+  język od razu. Publiczny ZIP sprawdzony na Amidze 1 w `RAM:` (Version 0.56, MakeMusic 1.3, menu ×2).

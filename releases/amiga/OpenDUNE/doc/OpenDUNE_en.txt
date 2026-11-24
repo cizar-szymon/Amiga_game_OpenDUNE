@@ -73,8 +73,15 @@ game data, once, on the Amiga itself:
 In the Shell other directories can be given: MakeMusic DATA_DIR MUSIC_DIR
 
 Without the MUSIC directory the game runs as well, only without music.
-Music on/off: Options -> Game controls -> Music; volume: music_volume=0..64
-in opendune.ini (default 40).
+Options -> Game controls -> Music chooses Amiga, PC or off; volume:
+music_volume=0..64 in opendune.ini (default 40).
+
+The Amiga version's music: the piece Dune II for the Amiga plays in the
+missions (Music: Amiga; the menus and briefings are silent then, as in
+that version). It is in DUNEGAME.ENG (or .GER, .FRE) of the Amiga Dune II
+disks (or its WHDLoad install). Copy that file into OpenDUNE/data and run
+MakeMusic - it records it first (a few seconds) as MUSIC/AMIGA_19.RAW,
+also without the PC files. Only this piece: MakeMusic AMIGA in the Shell.
 
 The same can be done on a PC (quicker): from the sources
 (github.com/cizar-szymon/Amiga_game_OpenDUNE) python
@@ -122,8 +129,8 @@ LANGUAGE: ENGLISH, GERMAN, POLISH
 
 Options -> Game controls -> Language: each click chooses the next
 language (English, Deutsch, Polski - only those whose files are there).
-The language changes back in the main menu (Options -> Main menu) or at
-the next start; the choice is kept (saves/LANGUAGE.CFG). Without a choice
+The language changes at once when the window is closed, also during a
+mission; the choice is kept (saves/LANGUAGE.CFG). Without a choice
 in the game: language= of opendune.ini, else English.
 
 Polish: a translation of all the game's texts (the mentats' briefings,

@@ -8,6 +8,19 @@ i bugNNN-*.bmp.
 Zgloszenia: github.com/cizar-szymon/Amiga_game_OpenDUNE (Issues).
 
 
+0.56 (25.11.2026)
+-----------------
+
+- Options -> Game controls -> Music: Amiga, PC albo wylaczona. Amiga to
+  muzyka misji z Dune II na Amige - MakeMusic nagrywa ja z pliku
+  DUNEGAME.ENG (.GER, .FRE) tej wersji w OpenDUNE/data (MakeMusic AMIGA:
+  tylko ten utwor, kilka sekund).
+- Menu, wybor rodu, mentat, odprawy i inne ekrany 320x200 sa w
+  najwiekszej skali, jaka sie miesci (x2 takze przy 640x480).
+- Jezyk wybrany w Game controls zmienia sie od razu, takze w trakcie
+  misji.
+
+
 0.55 (24.11.2026)
 -----------------
 

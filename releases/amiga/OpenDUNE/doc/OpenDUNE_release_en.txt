@@ -8,6 +8,19 @@ bugNNN-*.bmp there.
 Reports: github.com/cizar-szymon/Amiga_game_OpenDUNE (Issues).
 
 
+0.56 (25.11.2026)
+-----------------
+
+- Options -> Game controls -> Music: Amiga, PC or off. Amiga is the
+  missions' music of Dune II for the Amiga - MakeMusic records it from
+  that version's DUNEGAME.ENG (.GER, .FRE) in OpenDUNE/data (MakeMusic
+  AMIGA: only this piece, a few seconds).
+- The menus, the house selection, the mentat, the briefings and the other
+  320x200 screens are in the largest scale that fits (x2 also at 640x480).
+- The language chosen in Game controls changes at once, during a mission
+  too.
+
+
 0.55 (24.11.2026)
 -----------------
 

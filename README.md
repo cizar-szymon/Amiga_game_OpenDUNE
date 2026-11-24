@@ -25,7 +25,8 @@ but slower graphics cards will not reach the same speed.
   made for the port), and an easy to read font (`font=clean`)
 - English and German (Westwood's texts from your own Dune II), chosen in the game; a Polish
   translation (`lang/POLISH.PAK`) is not part of the public release
-- music from disk (recordings of the original AdLib music, made from your own data)
+- music from disk: the PC's AdLib music or the Amiga version's own music of the missions
+  (Options -> Game controls -> Music), recorded by MakeMusic from your own data
 - F10 bug reports, Amiga info window (CPU, memory, card, Warp clock)
 
 ## Play it

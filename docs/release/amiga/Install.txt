@@ -62,6 +62,10 @@ The music is recorded from your own game data, on the Amiga itself:
 
 This step can be skipped - then the game runs without music.
 
+The Amiga version's music of the missions: copy DUNEGAME.ENG (or .GER,
+.FRE) of Dune II for the Amiga into OpenDUNE/data before MakeMusic, then
+choose Options -> Game controls -> Music: Amiga.
+
 
 STEP 4 - start the game
 -----------------------
@@ -72,7 +76,7 @@ menu comes after a few seconds. The first time:
 - Options -> Resolution: the screen size (400x300 up to 960x540),
   kept for the next start.
 - Options -> Game controls -> Language: English, Deutsch or Polski
-  (only those whose files are there); it changes in the main menu.
+  (only those whose files are there); it changes at once.
 
 Saves, settings and bug reports are kept in OpenDUNE/saves.
 
@@ -164,6 +168,10 @@ Muzyka jest nagrywana z Twoich danych gry, na samej Amidze:
 
 Ten krok mozna pominac - wtedy gra dziala bez muzyki.
 
+Muzyka misji z wersji Amiga: przed MakeMusic skopiuj DUNEGAME.ENG (albo
+.GER, .FRE) z Dune II na Amige do OpenDUNE/data, potem wybierz
+Opcje -> Ustawienia gry -> Muzyka: Amiga.
+
 
 KROK 4 - uruchom gre
 --------------------
@@ -172,8 +180,8 @@ Kliknij dwa razy ikone OpenDUNE. Gra otwiera wlasny ekran, menu
 glowne pojawia sie po kilku sekundach. Za pierwszym razem:
 
 - Options -> Game controls -> Language: English, Deutsch albo Polski
-  (tylko te, ktorych pliki sa); jezyk zmienia sie w menu glownym
-  (Options -> Main menu) i zostaje zapamietany.
+  (tylko te, ktorych pliki sa); jezyk zmienia sie od razu
+  i zostaje zapamietany.
 - Opcje -> Rozdzielczosc (Options -> Resolution): wielkosc ekranu (od
   400x300 do 960x540), zapamietana na nastepny start.
 
@@ -267,6 +275,10 @@ selbst:
 
 Dieser Schritt kann entfallen - dann läuft das Spiel ohne Musik.
 
+Die Musik der Missionen aus der Amiga-Version: vor MakeMusic DUNEGAME.ENG
+(oder .GER, .FRE) von Dune II für Amiga nach OpenDUNE/data kopieren,
+dann Options -> Game controls -> Music: Amiga wählen.
+
 
 SCHRITT 4 - das Spiel starten
 -----------------------------
@@ -275,8 +287,8 @@ Doppelklicke das Icon OpenDUNE. Das Spiel öffnet einen eigenen
 Bildschirm, nach einigen Sekunden kommt das Hauptmenü. Beim ersten Mal:
 
 - Options -> Game controls -> Language: English, Deutsch oder Polski
-  (nur die, deren Dateien da sind); die Sprache wechselt im Hauptmenü
-  (Options -> Main menu) und bleibt gespeichert.
+  (nur die, deren Dateien da sind); die Sprache wechselt sofort
+  und bleibt gespeichert.
 - Optionen -> Auflösung (Options -> Resolution): die Bildschirmgröße
   (400x300 bis 960x540), gespeichert für den nächsten Start.
 

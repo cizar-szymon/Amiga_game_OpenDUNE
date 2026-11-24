@@ -1,5 +1,7 @@
-The music recordings go here (DUNE*_*.RAW, 34 files, about 75 MB).
-Tu trafiaja nagrania muzyki (DUNE*_*.RAW, 34 pliki, ok. 75 MB).
+The music recordings go here (DUNE*_*.RAW, 34 files, about 75 MB;
+AMIGA_19.RAW: the Amiga version's music, from its DUNEGAME.ENG in data).
+Tu trafiaja nagrania muzyki (DUNE*_*.RAW, 34 pliki, ok. 75 MB;
+AMIGA_19.RAW: muzyka z wersji Amiga, z jej DUNEGAME.ENG w data).
 
 Make them once with MakeMusic (its icon in the OpenDUNE directory) from your
 own game data in OpenDUNE/data. Without them the game runs without music.
