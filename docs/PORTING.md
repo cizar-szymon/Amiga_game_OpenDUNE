@@ -107,6 +107,9 @@ na krok). Przed każdym `inject` sprawdzić, że nikt inny nie gra.
   Skala zmienia się, gdy gra narysuje cały nowy obraz (`Video_AllDirty`), najpóźniej po 1 s – inaczej
   przy wczytywaniu głosów wyboru rodu przez chwilę byłoby widać menu w ×1. Sprawdzone na Amidze 2:
   640×480 menu 640×400, klik „Play a Game” trafia, wybór rodu ×1; 800×600 bez zmian (×2).
+  **25.11.2026 (życzenie użytkownika): wybór rodu też ×2** – `GUI_PickHouse` ustawia `g_amigaMainMenu`
+  na czas herbów i potwierdzenia z mentatem, kasuje po wygaszeniu; „Nowa gra” w menu go nie kasuje.
+  Amiga 1, 640×480 (zrzuty ekranu): menu, herby i potwierdzenie na cały ekran, odprawa ×1.
 - Wysyłane tylko bloki 16 px oznaczone przez grę (`g_dirty_blocks`), wiersz rozszerzany raz w Fast
   RAM i zapisywany longami do zablokowanej bitmapy (tylko zapis), lock tylko w `Video_Tick`.
 - Paleta przez `LoadRGB32` (fade za darmo). F8: licznik klatek wysłanych / s w prawym górnym rogu.
