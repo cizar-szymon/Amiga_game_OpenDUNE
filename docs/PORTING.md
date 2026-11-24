@@ -110,6 +110,11 @@ na krok). Przed każdym `inject` sprawdzić, że nikt inny nie gra.
   **25.11.2026 (życzenie użytkownika): wybór rodu też ×2** – `GUI_PickHouse` ustawia `g_amigaMainMenu`
   na czas herbów i potwierdzenia z mentatem, kasuje po wygaszeniu; „Nowa gra” w menu go nie kasuje.
   Amiga 1, 640×480 (zrzuty ekranu): menu, herby i potwierdzenie na cały ekran, odprawa ×1.
+  **25.11.2026, zmiana założeń (użytkownik): wszystkie ekrany 320×200 w największej skali, jaka się
+  mieści** – wyjątek „×1 do szerokości 640” usunięty, `g_amigaMainMenu` i przełączanie skali z nim:
+  400×300 i 640×360 ×1, 640×400 / 640×480 / 800×600 / 960×540 ×2, 1024×768 / 1280×720 ×3.
+  Amiga 1, 640×480: menu, herby, potwierdzenie, odprawa, mentat w misji (INDEKS) na cały ekran,
+  powrót na mapę 1:1.
 - Wysyłane tylko bloki 16 px oznaczone przez grę (`g_dirty_blocks`), wiersz rozszerzany raz w Fast
   RAM i zapisywany longami do zablokowanej bitmapy (tylko zapis), lock tylko w `Video_Tick`.
 - Paleta przez `LoadRGB32` (fade za darmo). F8: licznik klatek wysłanych / s w prawym górnym rogu.

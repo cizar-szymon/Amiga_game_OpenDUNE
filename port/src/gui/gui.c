@@ -1820,13 +1820,6 @@ uint8 GUI_PickHouse(void)
 	HouseType houseID;
 
 	houseID = HOUSE_MERCENARY;
-#if defined(__amigaos__)
-	{
-		/* the house selection as large as the main menu: x2 also on 640x480 (video_amiga.c) */
-		extern volatile bool g_amigaMainMenu;
-		g_amigaMainMenu = true;
-	}
-#endif
 
 	memset(palette, 0, 256 * 3);
 
@@ -1976,13 +1969,6 @@ uint8 GUI_PickHouse(void)
 	GUI_Mouse_Show_Safe();
 
 	GUI_SetPaletteAnimated(palette, 15);
-#if defined(__amigaos__)
-	{
-		/* faded out: the next screen (the briefing) in its own scale */
-		extern volatile bool g_amigaMainMenu;
-		g_amigaMainMenu = false;
-	}
-#endif
 
 	return houseID;
 }
