@@ -133,3 +133,7 @@
   (68 plików, z `MUSIC/AMIGA_19.RAW`), www 2,5 GB, serwer działa (port 6831).
 - Muzyka Amigi w misji odsłuchana przez użytkownika na Amidze 1 (`OpenDUNE-test`, MUSIC.CFG AMIGA) – OK.
 - Puste `saves` na Amidze 2 (24.11): pliki usunął użytkownik – nie błąd gry ani WARP HUB.
+- Amiga 1 posprzątana (pliki testowe, log w RAM:); zostały `MUSIC/AMIGA_19.RAW` i `saves/MUSIC.CFG`.
+- Intro: OpenDUNE gra intro z PC `INTRO.PAK` (WSA), którego tu nie ma. Pomysł: intro z nagrania
+  na YT przerobione na WSA 320×200 – czeka na zgodę autora na publikację (prośba wysłana przez
+  użytkownika). Druga droga: amigowe `INTRO*.WSA` (32 kolory, inny nagłówek) – nie sprawdzane.
